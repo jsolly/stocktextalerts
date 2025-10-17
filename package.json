@@ -1,0 +1,40 @@
+{
+	"name": "app-quickstart",
+	"type": "module",
+	"version": "0.0.1",
+	"license": "MIT",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"prepare": "if [ -z \"$CI\" ]; then husky; fi",
+		"test:unit": "vitest --no-watch -t 'unit'",
+		"check:ts": "tsc --noEmit",
+		"check:biome": "biome check --write --no-errors-on-unmatched",
+		"fix": "npm run check:biome && npm run check:ts",
+		"outdated": "npm outdated",
+		"update": "npx npm-check-updates -u && npm install"
+	},
+	"lint-staged": {
+		"**/*.{ts,tsx,json,css,md,astro,html}": [
+			"biome check --write --no-errors-on-unmatched"
+		]
+	},
+	"dependencies": {
+		"@astrojs/vercel": "^8.2.10",
+		"@supabase/supabase-js": "^2.75.0"
+	},
+	"devDependencies": {
+		"@astrojs/check": "^0.9.4",
+		"@astrojs/sitemap": "^3.6.0",
+		"@astrojs/ts-plugin": "^1.10.5",
+		"@biomejs/biome": "2.2.6",
+		"@tailwindcss/vite": "^4.1.14",
+		"astro": "^5.14.5",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.4",
+		"tailwindcss": "^4.1.13",
+		"typescript": "^5.9.3",
+		"vitest": "^3.1.4"
+	}
+}
