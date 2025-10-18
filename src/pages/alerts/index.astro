@@ -4,8 +4,8 @@ import SetupRequiredBanner from "../../components/alerts/SetupRequiredBanner.ast
 import TrackedStocks from "../../components/alerts/TrackedStocks.astro";
 import Navigation from "../../components/layout/Navigation.astro";
 import Layout from "../../layouts/Layout.astro";
+import { createSupabaseServerClient } from "../../lib/db-client";
 import { formatMessage } from "../../lib/format";
-import { createSupabaseServerClient } from "../../lib/supabase";
 import { createUserService } from "../../lib/users";
 import { getAllStocks, getUserStocks } from "./stocks";
 

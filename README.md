@@ -123,7 +123,7 @@ This imports 50 popular stocks (AAPL, MSFT, GOOGL, etc.) that users can track. Y
 npm run dev
 ```
 
-Visit http://localhost:4321 to see the application.
+Visit <http://localhost:4321> to see the application.
 
 ## Usage
 

@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import twilio from "twilio";
-import { createSupabaseAdminClient } from "../../../lib/supabase";
+import { createSupabaseAdminClient } from "../../../lib/db-client";
 
 /* =============
 Inlined from lib/alerts.ts, lib/email.ts, and lib/twilio.ts

@@ -32,7 +32,7 @@
 	</div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import type { Examples } from "libphonenumber-js";
 import {

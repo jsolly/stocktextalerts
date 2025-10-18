@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { parsePhoneNumber } from "libphonenumber-js";
 import twilio from "twilio";
-import { createSupabaseAdminClient } from "../../../../lib/supabase";
+import { createSupabaseAdminClient } from "../../../../lib/db-client";
 
 export const POST: APIRoute = async ({ request }) => {
 	const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
@@ -64,12 +64,13 @@ export const POST: APIRoute = async ({ request }) => {
 			countryCode = `+${parsed.countryCallingCode}`;
 			phoneNumber = parsed.nationalNumber;
 		} catch {
+			console.error("Failed to parse phone number:", from);
 			return new Response("Invalid phone format", { status: 400 });
 		}
 
 		const { data: users, error } = await supabase
 			.from("users")
-			.select("id")
+			.select("id, phone_verified")
 			.eq("phone_country_code", countryCode)
 			.eq("phone_number", phoneNumber);
 
@@ -78,6 +79,21 @@ export const POST: APIRoute = async ({ request }) => {
 		}
 
 		const userId = users[0].id;
+		const phoneVerified = users[0].phone_verified;
+
+		if (!phoneVerified) {
+			return new Response(
+				`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+	<Message>Phone number not verified. Please verify your phone number first.</Message>
+</Response>`,
+				{
+					status: 200,
+					headers: { "Content-Type": "text/xml" },
+				},
+			);
+		}
+
 		let responseMessage = "";
 
 		if (["STOP", "UNSUBSCRIBE", "QUIT", "END", "CANCEL"].includes(body)) {

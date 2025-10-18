@@ -31,7 +31,7 @@
 </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import { onClickOutside, refDebounced } from "@vueuse/core";
 import Fuse from "fuse.js";
 import { computed, onMounted, ref, watch } from "vue";
@@ -49,7 +49,7 @@ interface Props {
 interface FuseResult {
 	item: StockOption;
 	refIndex: number;
-	score: number;
+	score?: number;
 }
 
 type KeyActions = {
@@ -79,14 +79,14 @@ watch(searchQuery, () => {
 const showDropdown = ref(false);
 const highlightedIndex = ref(-1);
 
-const fuse = computed(() => new Fuse(props.stockOptions, {
+const fuse = computed(() => new Fuse<StockOption>(props.stockOptions, {
 	keys: ["label", "value"],
 	threshold: 0.3,
 }));
 
 const filteredStocks = computed(() => {
 	if (searchQuery.value.length < 1) return [];
-	return fuse.value.search(searchQuery.value).slice(0, 10) as FuseResult[];
+	return fuse.value.search(searchQuery.value).slice(0, 10);
 });
 
 const containerRef = ref<HTMLElement | null>(null);
@@ -98,7 +98,7 @@ const resetDropdown = () => {
 };
 
 onMounted(() => {
-	onClickOutside(containerRef as unknown as HTMLElement, resetDropdown);
+	onClickOutside(containerRef, resetDropdown);
 });
 
 const selectStock = (result: FuseResult) => {
@@ -148,10 +148,10 @@ const handleKeydown = (e: KeyboardEvent) => {
 				highlightedIndex.value = maxIndex;
 				return;
 			}
-			highlightedIndex.value = Math.max(
-				(highlightedIndex.value < 0 ? 1 : highlightedIndex.value) - 1,
-				0
-			);
+			highlightedIndex.value =
+				highlightedIndex.value < 0
+					? maxIndex
+					: Math.max(highlightedIndex.value - 1, 0);
 		},
 		Enter: () => {
 			if (highlightedIndex.value >= 0) {

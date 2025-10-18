@@ -70,7 +70,11 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   CONSTRAINT phone_country_code_format CHECK (phone_country_code ~ '^\+[0-9]{1,4}$'),
   CONSTRAINT phone_number_format CHECK (phone_number ~ '^[0-9]{10,14}$'),
-  CONSTRAINT unique_phone UNIQUE (phone_country_code, phone_number)
+  CONSTRAINT unique_phone UNIQUE (phone_country_code, phone_number),
+  CONSTRAINT phone_fields_together CHECK (
+    (phone_country_code IS NULL AND phone_number IS NULL) OR
+    (phone_country_code IS NOT NULL AND phone_number IS NOT NULL)
+  )
 );
 
 /* =============

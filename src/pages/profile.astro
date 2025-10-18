@@ -1,7 +1,8 @@
 ---
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
-import { createSupabaseServerClient } from "../lib/supabase";
+import { createSupabaseServerClient } from "../lib/db-client";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
@@ -14,6 +15,22 @@ if (!authUser) {
 }
 
 const user = await users.getById(authUser.id);
+
+// Format phone number for display
+let formattedPhone = user.phone_number || "";
+if (user.phone_number && user.phone_country_code) {
+	try {
+		const phoneNumber = parsePhoneNumberFromString(
+			user.phone_country_code + user.phone_number,
+		);
+		if (phoneNumber) {
+			formattedPhone = phoneNumber.formatNational();
+		}
+	} catch {
+		// Keep original if parsing fails
+		formattedPhone = user.phone_number;
+	}
+}
 
 const search = Astro.url.searchParams;
 const error = search.get("error");
@@ -88,7 +105,7 @@ if (error === "delete_failed") {
                 type="tel"
                 id="phone_number"
                 name="phone_number"
-                value={user.phone_number || ""}
+                value={formattedPhone}
                 disabled
                 class="flex-1 px-4 py-3 border border-gray-300 border-l-0 rounded-r-md bg-gray-100 text-gray-500 cursor-not-allowed"
                 placeholder="(555) 555-5555"
@@ -96,11 +113,20 @@ if (error === "delete_failed") {
             </div>
             <p class="mt-2 text-sm text-gray-500">
               {user.phone_verified ? (
-                <span class="text-green-600">✓ Phone verified</span>
+                <span class="text-green-600">
+                  <span class="sr-only">Phone verified</span>
+                  <span aria-hidden="true">✓</span> Phone verified
+                </span>
               ) : user.phone_number ? (
-                <span class="text-yellow-600">⚠ Phone number not verified</span>
+                <span class="text-yellow-600">
+                  <span class="sr-only">Phone number not verified</span>
+                  <span aria-hidden="true">⚠</span> Phone number not verified
+                </span>
               ) : (
-                "No phone number on file"
+                <span>
+                  <span class="sr-only">No phone number on file</span>
+                  No phone number on file
+                </span>
               )}
             </p>
             <p class="mt-1 text-sm text-gray-500">Phone number cannot be changed here. Use the alerts page to update your phone number.</p>
@@ -125,7 +151,7 @@ if (error === "delete_failed") {
   </div>
 </Layout>
 
-<script lang="ts">
+<script>
   const deleteForm = document.getElementById('delete-form') as HTMLFormElement;
 
   deleteForm?.addEventListener('submit', (e) => {

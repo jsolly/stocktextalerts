@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
-} from "../../../lib/supabase";
+} from "../../../lib/db-client";
 import { createUserService } from "../../../lib/users";
 
 export const POST: APIRoute = async ({ cookies, redirect }) => {

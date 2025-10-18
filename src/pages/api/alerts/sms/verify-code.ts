@@ -1,44 +1,7 @@
 import type { APIRoute } from "astro";
-import twilio from "twilio";
-import { createSupabaseServerClient } from "../../../../lib/supabase";
+import { createSupabaseServerClient } from "../../../../lib/db-client";
+import { checkVerification } from "../../../../lib/phone";
 import { createUserService } from "../../../../lib/users";
-
-/* =============
-Inlined from lib/twilio.ts
-============= */
-
-const twilioAccountSid = import.meta.env.TWILIO_ACCOUNT_SID;
-const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
-const twilioVerifyServiceSid = import.meta.env.TWILIO_VERIFY_SERVICE_SID;
-
-if (!twilioAccountSid || !twilioAuthToken || !twilioVerifyServiceSid) {
-	throw new Error("Missing Twilio configuration in environment variables");
-}
-
-const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
-
-async function checkVerification(
-	fullPhone: string,
-	code: string,
-): Promise<{ success: boolean; error?: string }> {
-	try {
-		const verificationCheck = await twilioClient.verify.v2
-			.services(twilioVerifyServiceSid)
-			.verificationChecks.create({ to: fullPhone, code });
-
-		if (verificationCheck.status === "approved") {
-			return { success: true };
-		}
-
-		return { success: false, error: "Invalid verification code" };
-	} catch (error) {
-		console.error("Twilio verification check error:", error);
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : "Verification failed",
-		};
-	}
-}
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const supabase = createSupabaseServerClient();
@@ -46,7 +9,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
-		return redirect("/auth/register?error=unauthorized");
+		return redirect("/?error=unauthorized&returnTo=/alerts");
 	}
 
 	try {

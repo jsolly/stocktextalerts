@@ -102,7 +102,7 @@ if (success === "true") {
   </div>
 </Layout>
 
-<script lang="ts">
+<script>
   const resendBtn = document.getElementById('resend-btn') as HTMLButtonElement;
   const resendForm = document.getElementById('resend-form') as HTMLFormElement;
   const email = new URLSearchParams(window.location.search).get('email');
@@ -112,24 +112,33 @@ if (success === "true") {
   const COOLDOWN_DURATION = 30;
 
   function initializeCooldown() {
-    const lastSentStr = localStorage.getItem(COOLDOWN_KEY);
-    
-    if (!lastSentStr) {
-      // no prior send; leave button enabled
-      return;
-    }
+    try {
+      const lastSentStr = localStorage.getItem(COOLDOWN_KEY);
+      
+      if (!lastSentStr || typeof lastSentStr !== 'string') {
+        // no prior send; leave button enabled
+        return;
+      }
 
-    const lastSent = Number.parseInt(lastSentStr, 10);
-    const elapsed = Math.floor((Date.now() - lastSent) / 1000);
-    const remaining = COOLDOWN_DURATION - elapsed;
+      const lastSent = Number.parseInt(lastSentStr, 10);
+      const elapsed = Math.floor((Date.now() - lastSent) / 1000);
+      const remaining = COOLDOWN_DURATION - elapsed;
 
-    if (remaining > 0) {
-      setButtonCooldown(remaining);
+      if (remaining > 0) {
+        setButtonCooldown(remaining);
+      }
+    } catch (err) {
+      console.warn('Failed to access localStorage for cooldown:', err);
+      // leave button enabled on error
     }
   }
 
   resendForm?.addEventListener('submit', () => {
-    localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
+    try {
+      localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
+    } catch (err) {
+      console.warn('Failed to save cooldown timestamp to localStorage:', err);
+    }
   });
 
   function setButtonCooldown(seconds: number) {
