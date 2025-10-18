@@ -1,6 +1,6 @@
 ---
-import Navigation from "../components/Navigation.astro";
-import Layout from "../layouts/Layout.astro";
+import Navigation from "../../components/layout/Navigation.astro";
+import Layout from "../../layouts/Layout.astro";
 ---
 
 <Layout title="Reset Password">
@@ -35,7 +35,7 @@ import Layout from "../layouts/Layout.astro";
               autocomplete="new-password"
               class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               placeholder="••••••••"
-              minlength="6"
+              minlength="8"
             />
           </div>
           <div>
@@ -48,7 +48,7 @@ import Layout from "../layouts/Layout.astro";
               autocomplete="new-password"
               class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               placeholder="••••••••"
-              minlength="6"
+              minlength="8"
             />
           </div>
           <button 
@@ -122,6 +122,11 @@ import Layout from "../layouts/Layout.astro";
 
     if (passwordInput.value !== confirmInput.value) {
       showMessage('Passwords do not match', 'error');
+      return;
+    }
+
+    if (passwordInput.value.length < 8) {
+      showMessage('Password must be at least 8 characters long', 'error');
       return;
     }
 
@@ -199,7 +204,7 @@ import Layout from "../layouts/Layout.astro";
       textDiv.textContent = text;
       
       const link = document.createElement('a');
-      link.href = '/forgot';
+      link.href = '/auth/forgot';
       link.className = 'inline-flex items-center text-sm font-medium text-red-700 hover:text-red-800 underline';
       link.textContent = 'Request a new password reset';
       
@@ -214,5 +219,4 @@ import Layout from "../layouts/Layout.astro";
     messageDiv.classList.remove('hidden');
   }
 </script>
-
 

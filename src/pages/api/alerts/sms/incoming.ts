@@ -1,11 +1,39 @@
 import type { APIRoute } from "astro";
-import { createSupabaseAdminClient } from "../../../lib/supabase";
+import { parsePhoneNumber } from "libphonenumber-js";
+import twilio from "twilio";
+import { createSupabaseAdminClient } from "../../../../lib/supabase";
 
 export const POST: APIRoute = async ({ request }) => {
+	const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
+	if (!twilioAuthToken) {
+		console.error("Missing TWILIO_AUTH_TOKEN for webhook validation");
+		return new Response("Server misconfigured", { status: 500 });
+	}
+
+	// Validate Twilio signature before processing
+	const signature = request.headers.get("x-twilio-signature") || "";
+	const url = request.url;
+	const formData = await request.formData();
+
+	// Convert FormData to params object for Twilio validation
+	const params: Record<string, string> = {};
+	for (const [key, value] of formData.entries()) {
+		params[key] = value.toString();
+	}
+
+	const isValid = twilio.validateRequest(
+		twilioAuthToken,
+		signature,
+		url,
+		params,
+	);
+	if (!isValid) {
+		return new Response("Invalid signature", { status: 403 });
+	}
+
 	const supabase = createSupabaseAdminClient();
 
 	try {
-		const formData = await request.formData();
 		const from = formData.get("From") as string;
 		const body = (formData.get("Body") as string)?.trim().toUpperCase();
 
@@ -13,20 +41,24 @@ export const POST: APIRoute = async ({ request }) => {
 			return new Response("Missing parameters", { status: 400 });
 		}
 
-		const phoneMatch = from.match(/^\+?(\d{1,4})(\d{10,14})$/);
-		if (!phoneMatch) {
+		let countryCode: string;
+		let phoneNumber: string;
+
+		try {
+			const parsed = parsePhoneNumber(from);
+			if (!parsed?.isValid()) {
+				return new Response("Invalid phone format", { status: 400 });
+			}
+			countryCode = `+${parsed.countryCallingCode}`;
+			phoneNumber = parsed.nationalNumber;
+		} catch {
 			return new Response("Invalid phone format", { status: 400 });
 		}
-
-		const [, countryCode, phoneNumber] = phoneMatch;
-		const fullCountryCode = countryCode.startsWith("+")
-			? countryCode
-			: `+${countryCode}`;
 
 		const { data: users, error } = await supabase
 			.from("users")
 			.select("id")
-			.eq("phone_country_code", fullCountryCode)
+			.eq("phone_country_code", countryCode)
 			.eq("phone_number", phoneNumber);
 
 		if (error || !users || users.length === 0) {
@@ -37,18 +69,28 @@ export const POST: APIRoute = async ({ request }) => {
 		let responseMessage = "";
 
 		if (body === "STOP" || body === "UNSUBSCRIBE") {
-			await supabase
+			const { error: updateError } = await supabase
 				.from("users")
 				.update({ sms_opted_out: true })
 				.eq("id", userId);
 
+			if (updateError) {
+				console.error("Failed to opt out user:", updateError);
+				return new Response("Failed to update preferences", { status: 500 });
+			}
+
 			responseMessage =
 				"You have been unsubscribed from SMS alerts. Reply START to resume.";
 		} else if (body === "START" || body === "SUBSCRIBE") {
-			await supabase
+			const { error: updateError } = await supabase
 				.from("users")
 				.update({ sms_opted_out: false })
 				.eq("id", userId);
+
+			if (updateError) {
+				console.error("Failed to opt in user:", updateError);
+				return new Response("Failed to update preferences", { status: 500 });
+			}
 
 			responseMessage =
 				"You have been subscribed to SMS alerts. Reply STOP to unsubscribe.";

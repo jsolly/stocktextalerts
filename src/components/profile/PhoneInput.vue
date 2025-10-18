@@ -18,7 +18,7 @@
 					<input type="hidden" name="phone_country_code" :value="`+${getCountryCallingCode(country)}`" />
 				</div>
 				<div class="flex-1 relative">
-					<input type="tel" id="phone_number" v-model="phoneNumber" @input="handlePhoneInput"
+				<input type="tel" id="phone_number" v-model="phoneNumber" @input="handlePhoneInput" @blur="handleBlur"
 						class="w-full rounded-r-lg py-2 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
 						:placeholder="computedPlaceholder" name="phone" required />
 					<div v-if="phoneNumber" class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
@@ -75,14 +75,6 @@ function handlePhoneInput(e: Event) {
 	const previousDigits = lastDigits.value;
 	const previousFormatted = formatPhone(previousDigits);
 
-	if (
-		ev.inputType !== "deleteContentBackward" &&
-		isValidPhoneNumber(previousFormatted, country.value)
-	) {
-		input.value = previousFormatted;
-		phoneNumber.value = previousFormatted;
-		return;
-	}
 
 	let newDigits = input.value.replace(/\D/g, "");
 
@@ -94,13 +86,21 @@ function handlePhoneInput(e: Event) {
 	phoneNumber.value = formatted;
 	lastDigits.value = newDigits;
 
-	if (showError.value) {
-		showError.value = false;
-	}
+	// clear error only when valid
+	showError.value = phoneNumber.value
+		? !isValidPhoneNumber(phoneNumber.value, country.value)
+		: true;
 }
 
 const isValid = computed(() => {
 	return phoneNumber.value ? isValidPhoneNumber(phoneNumber.value, country.value) : false;
 });
+
+// show validation feedback on blur
+function handleBlur() {
+	showError.value = phoneNumber.value
+		? !isValidPhoneNumber(phoneNumber.value, country.value)
+		: true;
+}
 </script>
 

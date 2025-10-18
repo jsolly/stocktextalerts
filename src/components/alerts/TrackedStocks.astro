@@ -1,0 +1,68 @@
+---
+import StockInput from "./StockInput.vue";
+
+interface StockOption {
+	value: string;
+	label: string;
+}
+
+interface UserStock {
+	symbol: string;
+}
+
+interface Props {
+	stockOptions: StockOption[];
+	userStocks: UserStock[];
+}
+
+const { stockOptions, userStocks } = Astro.props;
+---
+
+<div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+	<h2 class="text-2xl font-bold text-gray-900 mb-4">Tracked Stocks</h2>
+	
+	<div class="mb-6">
+		<h3 class="text-lg font-semibold text-gray-900 mb-3">Add Stock</h3>
+		<StockInput client:only="vue" stockOptions={stockOptions} />
+		<form method="POST" action="/api/stocks/add" id="add-stock-form" class="hidden">
+			<input type="hidden" name="symbol" id="symbol-to-add" />
+		</form>
+	</div>
+
+	<div>
+		<h3 class="text-lg font-semibold text-gray-900 mb-3">Your Stocks</h3>
+		{userStocks.length === 0 ? (
+			<p class="text-gray-500">No stocks tracked yet. Add your first stock above.</p>
+		) : (
+			<div class="space-y-2">
+				{userStocks.map(stock => (
+					<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+						<span class="font-medium text-gray-900">{stock.symbol}</span>
+						<form method="POST" action="/api/stocks/remove">
+							<input type="hidden" name="symbol" value={stock.symbol} />
+							<button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+								Remove
+							</button>
+						</form>
+					</div>
+				))}
+			</div>
+		)}
+	</div>
+</div>
+
+<script>
+	document.addEventListener('DOMContentLoaded', () => {
+		const stockInput = document.querySelector('#stock_search');
+		if (stockInput) {
+			stockInput.addEventListener('stock-selected', ((e: CustomEvent) => {
+				const symbol = e.detail.symbol;
+				const form = document.getElementById('add-stock-form') as HTMLFormElement;
+				const input = document.getElementById('symbol-to-add') as HTMLInputElement;
+				input.value = symbol;
+				form.submit();
+			}) as EventListener);
+		}
+	});
+</script>
+

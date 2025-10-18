@@ -9,16 +9,16 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		const email = formData.get("email")?.toString();
 
 		if (!email) {
-			return redirect("/forgot?error=email_required");
+			return redirect("/auth/forgot?error=email_required");
 		}
 
 		const siteUrl = import.meta.env.SITE_URL;
 		if (!siteUrl) {
 			console.error("SITE_URL environment variable is not configured");
-			return redirect("/forgot?error=server_error");
+			return redirect("/auth/forgot?error=server_error");
 		}
 
-		const redirectTo = new URL("/recover", siteUrl).toString();
+		const redirectTo = new URL("/auth/recover", siteUrl).toString();
 
 		const { error } = await supabase.auth.resetPasswordForEmail(email, {
 			redirectTo,
@@ -30,17 +30,17 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			if (error.status === 429) {
 				const seconds = error.message?.match(/(\d+)\s+seconds?/)?.[1];
 				if (seconds) {
-					return redirect(`/forgot?error=rate_limit&seconds=${seconds}`);
+					return redirect(`/auth/forgot?error=rate_limit&seconds=${seconds}`);
 				}
-				return redirect("/forgot?error=rate_limit");
+				return redirect("/auth/forgot?error=rate_limit");
 			}
 
-			return redirect("/forgot?error=failed");
+			return redirect("/auth/forgot?error=failed");
 		}
 
-		return redirect("/forgot?success=true");
+		return redirect("/auth/forgot?success=true");
 	} catch (error) {
 		console.error("Password reset request failed:", error);
-		return redirect("/forgot?error=failed");
+		return redirect("/auth/forgot?error=failed");
 	}
 };

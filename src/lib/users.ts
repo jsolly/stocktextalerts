@@ -49,10 +49,10 @@ export function createUserService(
 				phone_verified?: boolean;
 				sms_opted_out?: boolean;
 				timezone?: string | null;
-				notification_start_hour?: number;
-				notification_end_hour?: number;
-				notify_via_email?: boolean;
-				notify_via_sms?: boolean;
+				alert_start_hour?: number;
+				alert_end_hour?: number;
+				alert_via_email?: boolean;
+				alert_via_sms?: boolean;
 			},
 		) {
 			const { data, error } = await supabase

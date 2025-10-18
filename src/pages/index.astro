@@ -1,8 +1,8 @@
 ---
-import CTA from "../components/CTA.astro";
-import Features from "../components/Features.astro";
-import Hero from "../components/Hero.astro";
-import Navigation from "../components/Navigation.astro";
+import CTA from "../components/landing/CTA.astro";
+import Features from "../components/landing/Features.astro";
+import Hero from "../components/landing/Hero.astro";
+import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
 import { createSupabaseServerClient } from "../lib/supabase";
 import { createUserService } from "../lib/users";
@@ -21,7 +21,7 @@ const type = search.get("type");
 if (token && type === "recovery") {
 	// Redirect to recover page with the token
 	return Astro.redirect(
-		`/recover?token=${encodeURIComponent(token)}&type=${encodeURIComponent(type)}`,
+		`/auth/recover?token=${encodeURIComponent(token)}&type=${encodeURIComponent(type)}`,
 	);
 }
 ---
@@ -94,7 +94,7 @@ if (token && type === "recovery") {
               </div>
               <div class="flex items-center justify-between">
                 <div class="text-sm">
-                  <a href="/forgot" class="font-medium text-blue-600 hover:text-blue-500">Forgot your password?</a>
+                  <a href="/auth/forgot" class="font-medium text-blue-600 hover:text-blue-500">Forgot your password?</a>
                 </div>
               </div>
               <button 
@@ -105,7 +105,7 @@ if (token && type === "recovery") {
               </button>
             </form>
             <p class="mt-6 text-center text-sm text-gray-600">
-              New here? <a href="/register" class="font-medium text-blue-600 hover:text-blue-500">Create an account</a>
+              New here? <a href="/auth/register" class="font-medium text-blue-600 hover:text-blue-500">Create an account</a>
             </p>
           </div>
         </div>

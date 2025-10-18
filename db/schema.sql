@@ -62,10 +62,10 @@ CREATE TABLE IF NOT EXISTS users (
   phone_verified BOOLEAN DEFAULT false NOT NULL,
   sms_opted_out BOOLEAN DEFAULT false NOT NULL,
   timezone timezone,
-  notification_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (notification_start_hour >= 0 AND notification_start_hour <= 23),
-  notification_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (notification_end_hour >= 0 AND notification_end_hour <= 23),
-  notify_via_email BOOLEAN DEFAULT true NOT NULL,
-  notify_via_sms BOOLEAN DEFAULT false NOT NULL,
+  alert_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (alert_start_hour >= 0 AND alert_start_hour <= 23),
+  alert_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (alert_end_hour >= 0 AND alert_end_hour <= 23),
+  alert_via_email BOOLEAN DEFAULT true NOT NULL,
+  alert_via_sms BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   CONSTRAINT phone_country_code_format CHECK (phone_country_code ~ '^\+[0-9]{1,4}$'),
@@ -110,10 +110,10 @@ CREATE INDEX IF NOT EXISTS idx_verification_attempts_phone_time
 ON verification_attempts(phone_country_code, phone_number, attempted_at);
 
 /* =============
-Notifications Log Table
+Alerts Log Table
 ============= */
 
-CREATE TABLE IF NOT EXISTS notifications_log (
+CREATE TABLE IF NOT EXISTS alerts_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type VARCHAR(50) NOT NULL,
@@ -125,11 +125,11 @@ CREATE TABLE IF NOT EXISTS notifications_log (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_notifications_log_user_id 
-ON notifications_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_log_user_id 
+ON alerts_log(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_notifications_log_sent_at 
-ON notifications_log(sent_at);
+CREATE INDEX IF NOT EXISTS idx_alerts_log_sent_at 
+ON alerts_log(sent_at);
 
 /* =============
 Row Level Security - Users
@@ -171,12 +171,12 @@ CREATE POLICY "Anyone can view stocks" ON stocks
   FOR SELECT USING (true);
 
 /* =============
-Row Level Security - Notifications Log
+Row Level Security - Alerts Log
 ============= */
 
-ALTER TABLE notifications_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE alerts_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own notifications" ON notifications_log
+CREATE POLICY "Users can view own alerts" ON alerts_log
   FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 /* =============
@@ -199,8 +199,8 @@ CREATE TRIGGER update_users_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_notifications_log_updated_at
-  BEFORE UPDATE ON notifications_log
+CREATE TRIGGER update_alerts_log_updated_at
+  BEFORE UPDATE ON alerts_log
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 

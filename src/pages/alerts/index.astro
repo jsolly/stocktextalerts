@@ -1,0 +1,78 @@
+---
+import AlertSettings from "../../components/alerts/AlertSettings.astro";
+import SetupRequiredBanner from "../../components/alerts/SetupRequiredBanner.astro";
+import TrackedStocks from "../../components/alerts/TrackedStocks.astro";
+import Navigation from "../../components/layout/Navigation.astro";
+import PhoneVerification from "../../components/profile/PhoneVerification.astro";
+import Layout from "../../layouts/Layout.astro";
+import { createSupabaseServerClient } from "../../lib/supabase";
+import { createUserService } from "../../lib/users";
+import { getAllStocks, getUserStocks } from "./stocks";
+
+const supabase = createSupabaseServerClient();
+const users = createUserService(supabase, Astro.cookies);
+
+const authUser = await users.getCurrentUser();
+
+if (!authUser) {
+	return Astro.redirect("/");
+}
+
+const user = await users.getById(authUser.id);
+
+if (!user) {
+	return Astro.redirect("/?error=user_not_found");
+}
+
+const [allStocks, userStocks] = await Promise.all([
+	getAllStocks(supabase),
+	getUserStocks(supabase, authUser.id),
+]);
+
+const stockOptions = allStocks.map((stock) => ({
+	value: stock.symbol,
+	label: `${stock.symbol} - ${stock.name}`,
+}));
+
+const url = new URL(Astro.request.url);
+const successMessage = url.searchParams.get("success");
+const errorMessage = url.searchParams.get("error");
+---
+
+<Layout title="Stock Alerts" description="Manage your stock alerts">
+	<div class="min-h-screen bg-gray-50">
+		<Navigation user={authUser} />
+		
+		<div class="max-w-4xl mx-auto px-6 py-12">
+			<div class="mb-8">
+				<h1 class="text-4xl font-bold text-gray-900 mb-2">Stock Alerts</h1>
+				<p class="text-lg text-gray-600">Configure your notification preferences and track stocks</p>
+			</div>
+
+			{successMessage && (
+				<div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+					<p class="text-green-800">{successMessage.replace(/_/g, ' ')}</p>
+				</div>
+			)}
+
+			{errorMessage && (
+				<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+					<p class="text-red-800">{errorMessage.replace(/_/g, ' ')}</p>
+				</div>
+			)}
+
+		<!-- Section 1: Setup Required Banner -->
+		<SetupRequiredBanner user={user} />
+
+		<!-- Section 2: Phone Setup (conditional) -->
+		<PhoneVerification user={user} />
+
+	<!-- Section 3: Alert Settings -->
+	<AlertSettings user={user} />
+
+		<!-- Section 4: Stock Selection -->
+		<TrackedStocks stockOptions={stockOptions} userStocks={userStocks} />
+		</div>
+	</div>
+</Layout>
+

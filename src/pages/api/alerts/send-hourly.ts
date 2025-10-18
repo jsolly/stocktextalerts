@@ -1,8 +1,97 @@
 import type { APIRoute } from "astro";
-import { sendEmail } from "../../../lib/email";
-import { logNotification } from "../../../lib/notifications";
+import twilio from "twilio";
 import { createSupabaseAdminClient } from "../../../lib/supabase";
-import { sendSMS } from "../../../lib/twilio";
+
+/* =============
+Inlined from lib/alerts.ts, lib/email.ts, and lib/twilio.ts
+============= */
+
+const twilioAccountSid = import.meta.env.TWILIO_ACCOUNT_SID;
+const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
+const twilioPhoneNumber = import.meta.env.TWILIO_PHONE_NUMBER;
+
+if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+	throw new Error("Missing Twilio configuration in environment variables");
+}
+
+const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
+
+async function sendSMS(
+	to: string,
+	message: string,
+): Promise<{ success: boolean; error?: string }> {
+	try {
+		await twilioClient.messages.create({
+			body: message,
+			from: twilioPhoneNumber,
+			to,
+		});
+
+		return { success: true };
+	} catch (error) {
+		console.error("Twilio SMS send error:", error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Failed to send SMS",
+		};
+	}
+}
+
+type DeliveryMethod = "email" | "sms";
+type DeliveryStatus = "sent" | "failed";
+
+interface AlertLog {
+	user_id: string;
+	type: string;
+	delivery_method: DeliveryMethod;
+	status: DeliveryStatus;
+	message?: string;
+	sent_at?: string;
+}
+
+async function logAlert(
+	log: AlertLog,
+): Promise<{ success: boolean; error?: string }> {
+	const supabase = createSupabaseAdminClient();
+
+	const { error } = await supabase.from("alerts_log").insert({
+		user_id: log.user_id,
+		type: log.type,
+		delivery_method: log.delivery_method,
+		status: log.status,
+		message: log.message,
+	});
+
+	if (error) {
+		console.error("Failed to log alert:", error);
+		return {
+			success: false,
+			error: error.message || "Failed to log alert",
+		};
+	}
+
+	return { success: true };
+}
+
+async function sendEmail(
+	to: string,
+	subject: string,
+	body: string,
+): Promise<{ success: boolean; error?: string }> {
+	try {
+		console.log(`[EMAIL] To: ${to}`);
+		console.log(`[EMAIL] Subject: ${subject}`);
+		console.log(`[EMAIL] Body: ${body}`);
+
+		return { success: true };
+	} catch (error) {
+		console.error("Email send error:", error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Failed to send email",
+		};
+	}
+}
 
 export const POST: APIRoute = async ({ request }) => {
 	const cronSecret = request.headers.get("x-vercel-cron-secret");
@@ -27,13 +116,13 @@ export const POST: APIRoute = async ({ request }) => {
 				phone_verified,
 				sms_opted_out,
 				timezone,
-				notification_start_hour,
-				notification_end_hour,
-				notify_via_email,
-				notify_via_sms
+				alert_start_hour,
+				alert_end_hour,
+				alert_via_email,
+				alert_via_sms
 			`,
 			)
-			.or("notify_via_email.eq.true,notify_via_sms.eq.true");
+			.or("alert_via_email.eq.true,alert_via_sms.eq.true");
 
 		if (usersError) {
 			console.error("Error fetching users:", usersError);
@@ -51,10 +140,20 @@ export const POST: APIRoute = async ({ request }) => {
 
 			const userLocalHour = getUserLocalHour(currentHour, user.timezone);
 
-			if (
-				userLocalHour < user.notification_start_hour ||
-				userLocalHour > user.notification_end_hour
-			) {
+			// determine if current hour falls within user's alert window, including windows that wrap past midnight
+			let withinWindow = false;
+			if (user.alert_start_hour <= user.alert_end_hour) {
+				withinWindow =
+					userLocalHour >= user.alert_start_hour &&
+					userLocalHour <= user.alert_end_hour;
+			} else {
+				// window wraps midnight, e.g., 22 -> 6
+				withinWindow =
+					userLocalHour >= user.alert_start_hour ||
+					userLocalHour <= user.alert_end_hour;
+			}
+
+			if (!withinWindow) {
 				skippedCount++;
 				continue;
 			}
@@ -72,14 +171,14 @@ export const POST: APIRoute = async ({ request }) => {
 			const symbols = userStocks.map((s) => s.symbol);
 			const stocksList = symbols.join(", ");
 
-			if (user.notify_via_email) {
+			if (user.alert_via_email) {
 				const emailResult = await sendEmail(
 					user.email,
 					"Your Daily Stock Alert",
 					`Your tracked stocks: ${stocksList}`,
 				);
 
-				await logNotification({
+				await logAlert({
 					user_id: user.id,
 					type: "hourly_update",
 					delivery_method: "email",
@@ -93,7 +192,7 @@ export const POST: APIRoute = async ({ request }) => {
 			}
 
 			if (
-				user.notify_via_sms &&
+				user.alert_via_sms &&
 				user.phone_verified &&
 				!user.sms_opted_out &&
 				user.phone_country_code &&
@@ -106,7 +205,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 				const smsResult = await sendSMS(fullPhone, smsMessage);
 
-				await logNotification({
+				await logAlert({
 					user_id: user.id,
 					type: "hourly_update",
 					delivery_method: "sms",

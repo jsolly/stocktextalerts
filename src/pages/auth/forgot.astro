@@ -1,11 +1,16 @@
 ---
-import Navigation from "../components/Navigation.astro";
-import Layout from "../layouts/Layout.astro";
+import Navigation from "../../components/layout/Navigation.astro";
+import Layout from "../../layouts/Layout.astro";
 
 const search = Astro.url.searchParams;
 const success = search.get("success");
 const error = search.get("error");
-const seconds = search.get("seconds");
+const secondsParam = search.get("seconds");
+const secondsNum = secondsParam ? Number.parseInt(secondsParam, 10) : null;
+const seconds =
+	Number.isFinite(secondsNum ?? NaN) && (secondsNum as number) >= 0
+		? String(secondsNum)
+		: null;
 
 let message = "";
 let messageType: "success" | "error" | null = null;
@@ -87,5 +92,4 @@ if (success === "true") {
     </div>
   </div>
 </Layout>
-
 

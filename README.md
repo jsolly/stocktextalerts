@@ -1,15 +1,15 @@
 # Stock Text Alerts 📈📱
 
-A stock alert application that sends SMS and email notifications about tracked stocks on an hourly basis. Built with Astro, deployed on Vercel, with Supabase authentication and PostgreSQL database.
+A stock alert application that sends SMS and email alerts about tracked stocks on an hourly basis. Built with Astro, deployed on Vercel, with Supabase authentication and PostgreSQL database.
 
 ## Features
 
 - 📊 **Stock Tracking** - Search and track your favorite stocks (AAPL, MSFT, GOOGL, etc.)
-- 📧 **Email Notifications** - Receive hourly email updates about your tracked stocks
-- 📱 **SMS Alerts** - Optional SMS notifications via Twilio
+- 📧 **Email Alerts** - Receive hourly email updates about your tracked stocks
+- 📱 **SMS Alerts** - Optional SMS alerts via Twilio
 - 📞 **Phone Verification** - Secure phone verification with rate limiting (3 attempts/hour)
 - 🌍 **Timezone Support** - All US timezones with browser auto-detection
-- ⏰ **Notification Control** - Configure start/end hours for alerts
+- ⏰ **Alert Control** - Configure start/end hours for alerts
 - 🔕 **SMS Opt-out** - Users can reply STOP to opt out of SMS
 
 ## Tech Stack
@@ -101,11 +101,11 @@ Run the database setup script to create all required tables:
 ```
 
 This creates:
-- **users** table - Extended with phone, timezone, notification preferences
+- **users** table - Extended with phone, timezone, alert settings
 - **stocks** table - Symbol, name, exchange
 - **user_stocks** junction table - Many-to-many relationship
 - **verification_attempts** table - Rate limiting for phone verification
-- **notifications_log** table - Audit trail for all notifications
+- **alerts_log** table - Audit trail for all alerts
 - All RLS policies, triggers, and functions
 
 ### 5. Import Stock Tickers
@@ -131,23 +131,23 @@ Visit http://localhost:4321 to see the application.
 ### User Flow
 
 1. **Register** - Create an account with email
-2. **Set Preferences** - Configure timezone and notification hours
+2. **Set Settings** - Configure timezone and alert hours
 3. **Add Stocks** - Search and add stocks to track
 4. **Enable SMS** (optional) - Add phone number and verify via SMS code
-5. **Receive Alerts** - Get hourly notifications during your configured time window
+5. **Receive Alerts** - Get hourly alerts during your configured time window
 
 ### API Endpoints
 
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/signin` - User login
 - `POST /api/auth/signout` - User logout
-- `POST /api/phone/send-verification` - Send SMS verification code
-- `POST /api/phone/verify-code` - Verify SMS code
-- `POST /api/preferences/update` - Update notification preferences
+- `POST /api/alerts/sms/send-verification` - Send SMS verification code
+- `POST /api/alerts/sms/verify-code` - Verify SMS code
+- `POST /api/alerts/update` - Update alert settings
 - `POST /api/stocks/add` - Add stock to user's tracking list
 - `POST /api/stocks/remove` - Remove stock from user's tracking list
-- `POST /api/notifications/send-hourly` - Cron endpoint (protected by CRON_SECRET)
-- `POST /api/sms/incoming` - Twilio webhook for STOP/START/HELP keywords
+- `POST /api/alerts/send-hourly` - Cron endpoint (protected by CRON_SECRET)
+- `POST /api/alerts/sms/incoming` - Twilio webhook for STOP/START/HELP keywords
 
 ## Deployment to Vercel
 
@@ -175,20 +175,20 @@ Push to your main branch or click "Redeploy" in Vercel. The application will aut
 After deployment, configure the Twilio webhook for incoming SMS:
 1. Go to Twilio Console → Phone Numbers → Manage → Active numbers
 2. Select your phone number
-3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/sms/incoming`
+3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/alerts/sms/incoming`
 4. Save changes
 
 ### 4. Verify Cron Job
 
 The `vercel.json` file configures an hourly cron job that runs at minute 0 of every hour.
 
-Vercel will automatically call `/api/notifications/send-hourly` with the `x-vercel-cron-secret` header.
+Vercel will automatically call `/api/alerts/send-hourly` with the `x-vercel-cron-secret` header.
 
 The cron job:
-1. Queries users who need notifications based on their timezone and time window
+1. Queries users who need alerts based on their timezone and time window
 2. Fetches their tracked stocks
-3. Sends via email and/or SMS based on preferences
-4. Logs all notification attempts to `notifications_log` table
+3. Sends via email and/or SMS based on settings
+4. Logs all alert attempts to `alerts_log` table
 
 ## Project Structure
 
@@ -213,15 +213,14 @@ The cron job:
 │   │   ├── twilio.ts       # Twilio SMS and verification
 │   │   ├── phone-validation.ts  # Phone number validation
 │   │   ├── rate-limiting.ts     # Rate limiting checks
-│   │   ├── email.ts        # Email notifications
-│   │   └── notifications.ts     # Notification logging
+│   │   ├── email.ts        # Email alerts
+│   │   └── alerts.ts       # Alert logging
 │   ├── pages/              # File-based routing
 │   │   ├── api/            # API endpoints
 │   │   │   ├── auth/       # Authentication
 │   │   │   ├── phone/      # Phone verification
-│   │   │   ├── preferences/ # User preferences
+│   │   │   ├── alerts/     # Alert settings & cron
 │   │   │   ├── stocks/     # Stock management
-│   │   │   ├── notifications/ # Cron job
 │   │   │   └── sms/        # Twilio webhook
 │   │   ├── index.astro     # Landing page
 │   │   ├── register.astro
@@ -249,7 +248,7 @@ The cron job:
 ### users
 - Core fields: `id`, `email`, `created_at`, `updated_at`
 - Phone: `phone_country_code`, `phone_number`, `full_phone`, `phone_verified`, `sms_opted_out`
-- Notifications: `timezone`, `notification_start_hour`, `notification_end_hour`, `notify_via_email`, `notify_via_sms`
+- Alerts: `timezone`, `alert_start_hour`, `alert_end_hour`, `alert_via_email`, `alert_via_sms`
 
 ### stocks
 - `symbol` (PRIMARY KEY) - Stock ticker symbol
@@ -266,8 +265,8 @@ The cron job:
 - Tracks phone verification attempts for rate limiting
 - Max 3 attempts per phone per hour
 
-### notifications_log
-- Audit trail of all notification attempts
+### alerts_log
+- Audit trail of all alert attempts
 - Tracks delivery status, method, and message content
 
 ## Commands
@@ -312,7 +311,7 @@ All commands are run from the root of the project:
 3. Ensure service role key has admin access
 4. Try running `./db/apply-schema.sh` again
 
-### Email Notifications Not Sending
+### Email Alerts Not Sending
 
 The current `email.ts` implementation is a placeholder that logs to console. To enable actual email sending, integrate with:
 - [Resend](https://resend.com) - Recommended, developer-friendly API

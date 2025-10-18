@@ -1,7 +1,7 @@
 {
 	"crons": [
 		{
-			"path": "/api/notifications/send-hourly",
+			"path": "/api/alerts/send-hourly",
 			"schedule": "0 * * * *"
 		}
 	]

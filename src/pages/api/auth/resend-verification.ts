@@ -8,7 +8,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const email = formData.get("email")?.toString();
 
 	if (!email) {
-		return redirect("/unconfirmed?error=email_required");
+		return redirect("/auth/unconfirmed?error=email_required");
 	}
 
 	try {
@@ -22,12 +22,12 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		}
 
 		return redirect(
-			`/unconfirmed?email=${encodeURIComponent(email)}&success=true`,
+			`/auth/unconfirmed?email=${encodeURIComponent(email)}&success=true`,
 		);
 	} catch (error) {
 		console.error("Resend verification email failed:", error);
 		return redirect(
-			`/unconfirmed?email=${encodeURIComponent(email)}&error=failed`,
+			`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=failed`,
 		);
 	}
 };

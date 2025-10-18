@@ -1,6 +1,6 @@
 ---
-import Navigation from "../components/Navigation.astro";
-import Layout from "../layouts/Layout.astro";
+import Navigation from "../../components/layout/Navigation.astro";
+import Layout from "../../layouts/Layout.astro";
 
 const search = Astro.url.searchParams;
 const error = search.get("error");
@@ -96,3 +96,4 @@ if (error) {
     </div>
   </div>
 </Layout>
+

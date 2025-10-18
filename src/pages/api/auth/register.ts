@@ -9,7 +9,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const password = formData.get("password")?.toString();
 
 	if (!email || !password) {
-		return redirect("/register?error=missing_fields");
+		return redirect("/auth/register?error=missing_fields");
 	}
 
 	const { error } = await supabase.auth.signUp({
@@ -19,8 +19,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
 	if (error) {
 		console.error("User registration failed:", error);
-		return redirect("/register?error=failed");
+		return redirect("/auth/register?error=failed");
 	}
 
-	return redirect(`/unconfirmed?email=${encodeURIComponent(email)}`);
+	return redirect(`/auth/unconfirmed?email=${encodeURIComponent(email)}`);
 };

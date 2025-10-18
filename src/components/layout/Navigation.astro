@@ -46,10 +46,10 @@ const currentPage = Astro.url.pathname;
             </form>
           </div>
         ) : (
-          currentPage !== "/register" && (
+          currentPage !== "/auth/register" && (
             <div class="flex items-center space-x-4">
               <a 
-                href="/register" 
+                href="/auth/register" 
                 class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-md text-sm font-medium transition-colors"
               >
                 Get Started

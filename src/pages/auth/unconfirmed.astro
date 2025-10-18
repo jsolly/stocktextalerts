@@ -1,5 +1,5 @@
 ---
-import Layout from "../layouts/Layout.astro";
+import Layout from "../../layouts/Layout.astro";
 
 const search = Astro.url.searchParams;
 const email = search.get("email");
@@ -115,7 +115,7 @@ if (success === "true") {
     const lastSentStr = localStorage.getItem(COOLDOWN_KEY);
     
     if (!lastSentStr) {
-      setButtonCooldown(COOLDOWN_DURATION);
+      // no prior send; leave button enabled
       return;
     }
 
@@ -160,3 +160,4 @@ if (success === "true") {
 
   initializeCooldown();
 </script>
+

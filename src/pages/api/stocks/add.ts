@@ -1,5 +1,4 @@
 import type { APIRoute } from "astro";
-import { addUserStock } from "../../../lib/stocks";
 import { createSupabaseServerClient } from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
 
@@ -9,7 +8,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
-		return redirect("/register?error=unauthorized");
+		return redirect("/auth/register?error=unauthorized");
 	}
 
 	try {
@@ -20,11 +19,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect("/alerts?error=symbol_required");
 		}
 
-		const result = await addUserStock(supabase, user.id, symbol.toUpperCase());
+		const { error } = await supabase.from("user_stocks").insert({
+			user_id: user.id,
+			symbol: symbol.toUpperCase(),
+		});
 
-		if (!result.success) {
+		if (error) {
+			console.error("Error adding user stock:", error);
 			return redirect(
-				`/alerts?error=${encodeURIComponent(result.error || "failed_to_add_stock")}`,
+				`/alerts?error=${encodeURIComponent(error.message || "failed_to_add_stock")}`,
 			);
 		}
 

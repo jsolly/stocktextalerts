@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			error.message.includes("Email not confirmed") ||
 			error.message.includes("email_not_confirmed")
 		) {
-			return redirect(`/unconfirmed?email=${encodeURIComponent(email)}`);
+			return redirect(`/auth/unconfirmed?email=${encodeURIComponent(email)}`);
 		}
 
 		// Redirect back to the home page with a generic invalid credentials error

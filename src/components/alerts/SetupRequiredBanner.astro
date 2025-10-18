@@ -1,0 +1,35 @@
+---
+interface Props {
+	user: {
+		alert_via_sms: boolean;
+		alert_via_email: boolean;
+		phone_verified: boolean;
+		timezone: string | null;
+	};
+}
+
+const { user } = Astro.props;
+
+const needsSetup =
+	(user.alert_via_sms && !user.phone_verified) ||
+	(!user.alert_via_email && !user.alert_via_sms) ||
+	!user.timezone;
+---
+
+{needsSetup && (
+	<div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+		<h2 class="text-xl font-semibold text-yellow-900 mb-2">Setup Required</h2>
+		<p class="text-yellow-800 mb-4">Please complete your setup to receive alerts:</p>
+		<ul class="list-disc list-inside text-yellow-800 space-y-1">
+			{user.alert_via_sms && !user.phone_verified && (
+				<li>Verify your phone number below</li>
+			)}
+			{!user.alert_via_email && !user.alert_via_sms && (
+				<li>Enable at least one alert method</li>
+			)}
+			{!user.timezone && (
+				<li>Set your timezone in settings</li>
+			)}
+		</ul>
+	</div>
+)}
