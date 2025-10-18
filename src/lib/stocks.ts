@@ -1,0 +1,87 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export interface Stock {
+	symbol: string;
+	name: string;
+	exchange: string;
+}
+
+export interface UserStock {
+	symbol: string;
+	created_at: string;
+}
+
+export async function getAllStocks(supabase: SupabaseClient): Promise<Stock[]> {
+	const { data, error } = await supabase
+		.from("stocks")
+		.select("symbol, name, exchange")
+		.order("symbol");
+
+	if (error) {
+		console.error("Error fetching stocks:", error);
+		return [];
+	}
+
+	return data || [];
+}
+
+export async function getUserStocks(
+	supabase: SupabaseClient,
+	userId: string,
+): Promise<UserStock[]> {
+	const { data, error } = await supabase
+		.from("user_stocks")
+		.select("symbol, created_at")
+		.eq("user_id", userId)
+		.order("created_at", { ascending: false });
+
+	if (error) {
+		console.error("Error fetching user stocks:", error);
+		return [];
+	}
+
+	return data || [];
+}
+
+export async function addUserStock(
+	supabase: SupabaseClient,
+	userId: string,
+	symbol: string,
+): Promise<{ success: boolean; error?: string }> {
+	const { error } = await supabase.from("user_stocks").insert({
+		user_id: userId,
+		symbol,
+	});
+
+	if (error) {
+		console.error("Error adding user stock:", error);
+		return {
+			success: false,
+			error: error.message || "Failed to add stock",
+		};
+	}
+
+	return { success: true };
+}
+
+export async function removeUserStock(
+	supabase: SupabaseClient,
+	userId: string,
+	symbol: string,
+): Promise<{ success: boolean; error?: string }> {
+	const { error } = await supabase
+		.from("user_stocks")
+		.delete()
+		.eq("user_id", userId)
+		.eq("symbol", symbol);
+
+	if (error) {
+		console.error("Error removing user stock:", error);
+		return {
+			success: false,
+			error: error.message || "Failed to remove stock",
+		};
+	}
+
+	return { success: true };
+}

@@ -13,7 +13,8 @@
 		"check:biome": "biome check --write --no-errors-on-unmatched",
 		"fix": "npm run check:biome && npm run check:ts",
 		"outdated": "npm outdated",
-		"update": "npx npm-check-updates -u && npm install"
+		"update": "npx npm-check-updates -u && npm install",
+		"db:import-tickers": "tsx db/import-tickers.ts"
 	},
 	"lint-staged": {
 		"**/*.{ts,tsx,json,css,md,astro,html}": [
@@ -22,18 +23,27 @@
 	},
 	"dependencies": {
 		"@astrojs/vercel": "^8.2.10",
-		"@supabase/supabase-js": "^2.75.0"
+		"@heroicons/vue": "^2.2.0",
+		"@supabase/supabase-js": "^2.75.0",
+		"@vueuse/core": "^13.9.0",
+		"fuse.js": "^7.1.0",
+		"libphonenumber-js": "^1.12.24",
+		"twilio": "^5.10.3",
+		"vue": "^3.5.22"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.4",
 		"@astrojs/sitemap": "^3.6.0",
 		"@astrojs/ts-plugin": "^1.10.5",
+		"@astrojs/vue": "^5.1.1",
 		"@biomejs/biome": "2.2.6",
 		"@tailwindcss/vite": "^4.1.14",
 		"astro": "^5.14.5",
+		"dotenv": "^17.2.3",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.4",
 		"tailwindcss": "^4.1.13",
+		"tsx": "^4.20.6",
 		"typescript": "^5.9.3",
 		"vitest": "^3.1.4"
 	}

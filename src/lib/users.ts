@@ -41,7 +41,20 @@ export function createUserService(
 			return data;
 		},
 
-		async update(id: string, updates: { bio?: string | null }) {
+		async update(
+			id: string,
+			updates: {
+				phone_country_code?: string | null;
+				phone_number?: string | null;
+				phone_verified?: boolean;
+				sms_opted_out?: boolean;
+				timezone?: string | null;
+				notification_start_hour?: number;
+				notification_end_hour?: number;
+				notify_via_email?: boolean;
+				notify_via_sms?: boolean;
+			},
+		) {
 			const { data, error } = await supabase
 				.from("users")
 				.update(updates)

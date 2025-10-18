@@ -2,6 +2,7 @@ import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 import vercel from "@astrojs/vercel";
+import vue from "@astrojs/vue";
 import { loadEnv } from "vite";
 
 let SITE_URL = process.env.SITE_URL;
@@ -31,9 +32,15 @@ export default defineConfig({
 
 	site: SITE_URL,
 
-	integrations: [sitemap({})],
+	integrations: [
+		sitemap({}),
+		vue(),
+	],
 
 	vite: {
 		plugins: [tailwindcss()] as unknown as any,
+		optimizeDeps: {
+			include: ['vue', '@vueuse/core', 'fuse.js', 'libphonenumber-js'],
+		},
 	},
 });

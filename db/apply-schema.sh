@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Apply database schema from users-table.sql to Supabase
-# This script creates the users table and sets up RLS policies
+# Apply complete database schema to Supabase
+# This script creates all tables (users, stocks, user_stocks, verification_attempts, notifications_log)
+# and sets up RLS policies, triggers, and domains
 #
 # Usage:
 #   ./db/apply-schema.sh
@@ -42,16 +43,22 @@ fi
 
 echo -e "${GREEN}Connecting to database...${NC}"
 
-echo -e "${YELLOW}Dropping existing users table...${NC}"
+echo -e "${YELLOW}Dropping existing tables...${NC}"
+psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS notifications_log CASCADE;"
+psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS user_stocks CASCADE;"
+psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS verification_attempts CASCADE;"
+psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS stocks CASCADE;"
 psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS users CASCADE;"
+psql "$DATABASE_URL" -c "DROP DOMAIN IF EXISTS delivery_status CASCADE;"
+psql "$DATABASE_URL" -c "DROP DOMAIN IF EXISTS timezone CASCADE;"
 
-if psql "$DATABASE_URL" -f "db/users-table.sql"; then
+if psql "$DATABASE_URL" -f "db/schema.sql"; then
     echo -e "${GREEN}✅ Database setup completed successfully!${NC}"
-    echo -e "${GREEN}Users table created with RLS policies and triggers.${NC}"
+    echo -e "${GREEN}All tables created with RLS policies, triggers, and domains.${NC}"
 else
     echo -e "${RED}❌ Database setup failed${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}🎉 Setup complete! You can now test registration.${NC}"
+echo -e "${GREEN}🎉 Setup complete! You can now run the import-tickers script.${NC}"
 

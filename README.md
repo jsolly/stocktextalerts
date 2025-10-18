@@ -1,153 +1,278 @@
-# App Quickstart ⚡️
+# Stock Text Alerts 📈📱
 
-A serverless web application template built with AstroJS, deployed on Vercel, with Supabase authentication and PostgreSQL database.
+A stock alert application that sends SMS and email notifications about tracked stocks on an hourly basis. Built with Astro, deployed on Vercel, with Supabase authentication and PostgreSQL database.
 
-## Dependencies
+## Features
 
-- [Astro](https://astro.build/) - Web framework with server-side rendering
-- [Vercel](https://vercel.com/) - Serverless deployment platform
-- [Supabase](https://supabase.com/) - Authentication and PostgreSQL database
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [Biome](https://biomejs.dev/) - Fast linter and formatter
-- [Vitest](https://vitest.dev/) - Unit testing framework
-- [Husky](https://typicode.github.io/husky/) - Git hooks
-- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- 📊 **Stock Tracking** - Search and track your favorite stocks (AAPL, MSFT, GOOGL, etc.)
+- 📧 **Email Notifications** - Receive hourly email updates about your tracked stocks
+- 📱 **SMS Alerts** - Optional SMS notifications via Twilio
+- 📞 **Phone Verification** - Secure phone verification with rate limiting (3 attempts/hour)
+- 🌍 **Timezone Support** - All US timezones with browser auto-detection
+- ⏰ **Notification Control** - Configure start/end hours for alerts
+- 🔕 **SMS Opt-out** - Users can reply STOP to opt out of SMS
+
+## Tech Stack
+
+- **Framework**: Astro 5 with SSR
+- **UI**: Vue 3 components with Tailwind CSS
+- **Database**: Supabase (PostgreSQL)
+- **SMS**: Twilio Verify API + Messaging API
+- **Hosting**: Vercel with Cron Jobs
+- **Phone Validation**: libphonenumber-js
+- **Search**: Fuse.js for fuzzy stock search
+- **Linting**: Biome (no ESLint or Prettier)
+- **Testing**: Vitest
+
+## Prerequisites
+
+- Node.js 18+
+- Supabase account
+- Twilio account with Verify API enabled
+- Vercel account (for deployment and cron jobs)
 
 ## Development Setup
 
 ### 1. Clone and Install
 
-Clone the repository and install dependencies:
-
 ```bash
-git clone https://github.com/your-username/serverless-app-quickstart.git
-cd serverless-app-quickstart
+git clone <your-repo-url>
+cd stocktextalerts
 npm install
 ```
 
-### 2. Create Supabase and Vercel Projects
+### 2. Create Accounts
 
 **Supabase:**
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Choose a project name, database password, and region
 3. Wait for the project to finish provisioning
 
+**Twilio:**
+1. Go to [twilio.com](https://www.twilio.com) and create an account
+2. Purchase a phone number (or use trial number)
+3. Create a Verify Service in Console → Verify → Services
+4. Note your Account SID, Auth Token, Phone Number, and Verify Service SID
+
 **Vercel:**
 1. Push your code to GitHub (if you haven't already)
 2. Go to [vercel.com](https://vercel.com) and import your repository
-3. Vercel will automatically detect the Astro framework
-4. Don't deploy yet - we'll add environment variables first
+3. Don't deploy yet - we'll add environment variables first
 
 ### 3. Environment Variables
 
-**For local development**, create a `.env.local` file in the root directory with the following variables:
+Create a `.env.local` file in the root directory:
 
 ```env
-PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-DATABASE_URL=postgresql://postgres.your-project:your-password@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+# Site Configuration
 SITE_URL=http://localhost:4321
+
+# Supabase Configuration
+PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DATABASE_URL=postgresql://postgres:password@host:5432/database
+
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=your-twilio-account-sid
+TWILIO_AUTH_TOKEN=your-twilio-auth-token
+TWILIO_PHONE_NUMBER=+1234567890
+TWILIO_VERIFY_SERVICE_SID=your-verify-service-sid
+
+# Vercel Cron Configuration
+CRON_SECRET=your-random-secret-string
 ```
 
 **Where to find these:**
-- `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY`: Supabase Dashboard → Project Settings → API (the PUBLIC_ prefix makes them available in the browser)
+- `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY`: Supabase Dashboard → Project Settings → API
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase Dashboard → Project Settings → API (under "Service role")
 - `DATABASE_URL`: Supabase Dashboard → Project Settings → Database → Connection String → Transaction mode (pooler)
-- `SITE_URL`: Must be a full URL including the protocol scheme. Use `http://localhost:4321` for local development or `https://yourdomain.com` for production.
-**Note:** `DATABASE_URL` is only needed for running the database setup script. The application itself uses the Supabase URL and auth keys.
+- Twilio credentials: Twilio Console → Account Dashboard
+- `CRON_SECRET`: Generate a random string (e.g., `openssl rand -hex 32`)
 
-**Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. It's only used in server-side API endpoints.
-
-**For production deployment**, you'll add these same environment variables to Vercel in step 5 (except `DATABASE_URL`, which is only needed locally for the setup script).
+**Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side.
 
 ### 4. Database Setup
 
-Run the database setup script to create the users table with triggers and RLS policies:
+Run the database setup script to create all required tables:
 
 ```bash
 ./db/apply-schema.sh
 ```
 
 This creates:
-- `users` table with email and bio fields
-- Row Level Security (RLS) policies
-- Automatic profile creation trigger on user signup
-- Automatic profile deletion trigger on user deletion
+- **users** table - Extended with phone, timezone, notification preferences
+- **stocks** table - Symbol, name, exchange
+- **user_stocks** junction table - Many-to-many relationship
+- **verification_attempts** table - Rate limiting for phone verification
+- **notifications_log** table - Audit trail for all notifications
+- All RLS policies, triggers, and functions
 
-### 5. Deploy to Vercel
+### 5. Import Stock Tickers
 
-Add environment variables to your Vercel project and deploy:
+Import popular stock tickers into the database:
 
-1. In your Vercel project settings (Settings → Environment Variables), add these:
-   - `PUBLIC_SUPABASE_URL` - Same value as in your `.env.local`
-   - `PUBLIC_SUPABASE_ANON_KEY` - Same value as in your `.env.local`
-   - `SUPABASE_SERVICE_ROLE_KEY` - Same value as in your `.env.local`
-   - `SITE_URL` - Your production URL (e.g., `https://yourdomain.com`)
-2. Trigger a deployment (push to your main branch or click "Redeploy" in Vercel)
-3. Vercel will automatically build and deploy your application
+```bash
+npm run db:import-tickers
+```
 
-## 🚀 Project Structure
+This imports 50 popular stocks (AAPL, MSFT, GOOGL, etc.) that users can track. You can edit `db/import-tickers.ts` to add more stocks.
+
+### 6. Run Development Server
+
+```bash
+npm run dev
+```
+
+Visit http://localhost:4321 to see the application.
+
+## Usage
+
+### User Flow
+
+1. **Register** - Create an account with email
+2. **Set Preferences** - Configure timezone and notification hours
+3. **Add Stocks** - Search and add stocks to track
+4. **Enable SMS** (optional) - Add phone number and verify via SMS code
+5. **Receive Alerts** - Get hourly notifications during your configured time window
+
+### API Endpoints
+
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/signin` - User login
+- `POST /api/auth/signout` - User logout
+- `POST /api/phone/send-verification` - Send SMS verification code
+- `POST /api/phone/verify-code` - Verify SMS code
+- `POST /api/preferences/update` - Update notification preferences
+- `POST /api/stocks/add` - Add stock to user's tracking list
+- `POST /api/stocks/remove` - Remove stock from user's tracking list
+- `POST /api/notifications/send-hourly` - Cron endpoint (protected by CRON_SECRET)
+- `POST /api/sms/incoming` - Twilio webhook for STOP/START/HELP keywords
+
+## Deployment to Vercel
+
+### 1. Add Environment Variables
+
+In your Vercel project settings (Settings → Environment Variables), add all variables from your `.env.local` file:
+- `SITE_URL` - Your production URL (e.g., `https://yourdomain.com`)
+- `PUBLIC_SUPABASE_URL`
+- `PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_PHONE_NUMBER`
+- `TWILIO_VERIFY_SERVICE_SID`
+- `CRON_SECRET`
+
+**Note:** You don't need `DATABASE_URL` in Vercel - it's only for running the local schema setup script.
+
+### 2. Deploy
+
+Push to your main branch or click "Redeploy" in Vercel. The application will automatically build and deploy.
+
+### 3. Configure Twilio Webhook
+
+After deployment, configure the Twilio webhook for incoming SMS:
+1. Go to Twilio Console → Phone Numbers → Manage → Active numbers
+2. Select your phone number
+3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/sms/incoming`
+4. Save changes
+
+### 4. Verify Cron Job
+
+The `vercel.json` file configures an hourly cron job that runs at minute 0 of every hour.
+
+Vercel will automatically call `/api/notifications/send-hourly` with the `x-vercel-cron-secret` header.
+
+The cron job:
+1. Queries users who need notifications based on their timezone and time window
+2. Fetches their tracked stocks
+3. Sends via email and/or SMS based on preferences
+4. Logs all notification attempts to `notifications_log` table
+
+## Project Structure
 
 ```text
 /
 ├── public/
 │   └── favicons/           # Favicon files
 ├── src/
-│   ├── components/         # Reusable Astro components
+│   ├── components/         # Reusable components
 │   │   ├── Navigation.astro
 │   │   ├── Hero.astro
 │   │   ├── Features.astro
-│   │   └── CTA.astro
+│   │   ├── CTA.astro
+│   │   ├── PhoneInput.vue  # Phone input with validation
+│   │   └── StockInput.vue  # Fuzzy search stock selector
 │   ├── layouts/
 │   │   └── Layout.astro    # Main layout with meta tags
-│   ├── lib/                # Utility functions and clients
+│   ├── lib/                # Services and utilities
 │   │   ├── supabase.ts     # Supabase client configuration
-│   │   └── users.ts        # User service functions
+│   │   ├── users.ts        # User service functions
+│   │   ├── stocks.ts       # Stock management functions
+│   │   ├── twilio.ts       # Twilio SMS and verification
+│   │   ├── phone-validation.ts  # Phone number validation
+│   │   ├── rate-limiting.ts     # Rate limiting checks
+│   │   ├── email.ts        # Email notifications
+│   │   └── notifications.ts     # Notification logging
 │   ├── pages/              # File-based routing
 │   │   ├── api/            # API endpoints
-│   │   │   ├── auth/       # Authentication endpoints
-│   │   │   │   ├── delete-account.ts
-│   │   │   │   ├── forgot-password.ts
-│   │   │   │   ├── register.ts
-│   │   │   │   ├── resend-verification.ts
-│   │   │   │   ├── signin.ts
-│   │   │   │   └── signout.ts
-│   │   │   └── profile/    # Profile management
-│   │   │       └── update.ts
+│   │   │   ├── auth/       # Authentication
+│   │   │   ├── phone/      # Phone verification
+│   │   │   ├── preferences/ # User preferences
+│   │   │   ├── stocks/     # Stock management
+│   │   │   ├── notifications/ # Cron job
+│   │   │   └── sms/        # Twilio webhook
 │   │   ├── index.astro     # Landing page
 │   │   ├── register.astro
-│   │   ├── forgot.astro
-│   │   ├── recover.astro
-│   │   ├── unconfirmed.astro
-│   │   ├── dashboard.astro
+│   │   ├── alerts.astro    # Main alerts dashboard
 │   │   └── profile.astro
 │   ├── styles/
 │   │   └── safelist-tailwindcss.txt
-│   ├── global.css          # Global styles
-│   └── env.d.ts            # TypeScript environment types
+│   ├── global.css
+│   └── env.d.ts
+├── db/                     # Database setup
+│   ├── schema.sql          # Complete database schema
+│   ├── apply-schema.sh     # Schema setup script
+│   └── import-tickers.ts   # Stock data import script
 ├── tests/                  # Vitest unit tests
-├── db/                     # Database setup scripts
-│   ├── users-table.sql
-│   └── apply-schema.sh
-├── astro.config.ts         # Astro + Vercel configuration
+├── astro.config.ts         # Astro + Vercel + Vue config
+├── vercel.json             # Cron job configuration
 ├── biome.jsonc             # Linter/formatter config
 ├── tsconfig.json
 ├── env.example             # Environment variables template
 └── package.json
 ```
 
-**Key Features:**
-- 🔐 Authentication and PostgreSQL database with Supabase
-- 👤 User profile management
-- 🎨 Modern UI with Tailwind CSS
-- 🚀 Serverless deployment on Vercel
+## Database Schema
 
-To learn more about the folder structure of an Astro project, refer to [Astro's guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+### users
+- Core fields: `id`, `email`, `created_at`, `updated_at`
+- Phone: `phone_country_code`, `phone_number`, `full_phone`, `phone_verified`, `sms_opted_out`
+- Notifications: `timezone`, `notification_start_hour`, `notification_end_hour`, `notify_via_email`, `notify_via_sms`
 
-## 🧞 Commands
+### stocks
+- `symbol` (PRIMARY KEY) - Stock ticker symbol
+- `name` - Company name
+- `exchange` - NYSE or NASDAQ
 
-All commands are run from the root of the project, from a terminal:
+### user_stocks
+- `user_id` - References users
+- `symbol` - References stocks
+- `created_at` - When stock was added
+- Primary key on (user_id, symbol)
+
+### verification_attempts
+- Tracks phone verification attempts for rate limiting
+- Max 3 attempts per phone per hour
+
+### notifications_log
+- Audit trail of all notification attempts
+- Tracks delivery status, method, and message content
+
+## Commands
+
+All commands are run from the root of the project:
 
 | Command                   | Action                                           |
 | :------------------------ | :----------------------------------------------- |
@@ -155,6 +280,7 @@ All commands are run from the root of the project, from a terminal:
 | `npm run dev`            | Starts local dev server at `localhost:4321`      |
 | `npm run build`          | Build your production site to `./dist/`          |
 | `npm run preview`        | Preview your build locally, before deploying     |
+| `npm run db:import-tickers` | Import stock tickers into database            |
 | `npm run test:unit`      | Run unit tests with Vitest                       |
 | `npm run check:ts`       | Run TypeScript type checking                     |
 | `npm run check:biome`    | Run Biome linter and formatter (auto-fix)        |
@@ -162,16 +288,75 @@ All commands are run from the root of the project, from a terminal:
 | `npm run outdated`       | Check for outdated packages                      |
 | `npm run update`         | Update all packages to latest versions           |
 
-## Additional Packages/Tools added (These commands have already been run)
+## Troubleshooting
 
-```shell
-npm astro add tailwind sitemap
-npm add --save-dev --save-exact @biomejs/biome
-npm biome init
-npm add --save-dev husky
-npm exec husky init
+### Phone Verification Not Working
+
+1. Check Twilio credentials in `.env.local`
+2. Verify your Twilio phone number is active
+3. Check Twilio Verify service is created and active
+4. Review rate limiting in `verification_attempts` table
+5. Check Twilio logs in the Console for delivery issues
+
+### Cron Jobs Not Running
+
+1. Verify `CRON_SECRET` is set in Vercel environment variables
+2. Check Vercel cron logs in dashboard (Deployments → Functions → Cron)
+3. Ensure timezone calculations are correct in `send-hourly.ts`
+4. Test the endpoint manually with the correct header
+
+### Database Connection Issues
+
+1. Verify `DATABASE_URL` and Supabase credentials
+2. Check RLS policies are properly configured
+3. Ensure service role key has admin access
+4. Try running `./db/apply-schema.sh` again
+
+### Email Notifications Not Sending
+
+The current `email.ts` implementation is a placeholder that logs to console. To enable actual email sending, integrate with:
+- [Resend](https://resend.com) - Recommended, developer-friendly API
+- [SendGrid](https://sendgrid.com) - Popular enterprise option
+- [AWS SES](https://aws.amazon.com/ses/) - Cost-effective for high volume
+
+### SMS Not Being Delivered
+
+1. Check Twilio phone number is SMS-enabled
+2. Verify recipient phone number format
+3. Check SMS length doesn't exceed 160 characters
+4. Review Twilio error logs in Console
+5. Ensure you're not hitting Twilio rate limits
+
+## Security Features
+
+- ✅ Row Level Security (RLS) on all database tables
+- ✅ Rate limiting on phone verification (3 attempts/hour)
+- ✅ Cron endpoint protected by secret header
+- ✅ Phone verification via Twilio Verify API
+- ✅ SMS opt-out support (STOP keyword compliance)
+- ✅ Service role key never exposed to client
+- ✅ Traditional form submissions (no client-side state)
+
+## Adding More Stocks
+
+Edit `db/import-tickers.ts` to add more stocks to the `POPULAR_STOCKS` array:
+
+```typescript
+const POPULAR_STOCKS = [
+  { symbol: "AAPL", name: "Apple Inc.", exchange: "NASDAQ" },
+  { symbol: "YOUR_STOCK", name: "Your Company", exchange: "NYSE" },
+  // ... add more
+];
 ```
 
-## Pre-commit Hook Configuration
+Then run:
 
-A pre-commit hook has been configured in `.husky/pre-commit` that runs biome check, tsc and astro check before each commit to format, lint and type check the code.
+```bash
+npm run db:import-tickers
+```
+
+The upsert will update existing stocks and add new ones.
+
+## License
+
+MIT
