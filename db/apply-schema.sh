@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Apply complete database schema to Supabase
-# This script creates all tables (users, stocks, user_stocks, verification_attempts, notifications_log)
+# This script creates all tables (users, stocks, user_stocks, alerts_log)
 # and sets up RLS policies, triggers, and domains
 #
 # Usage:
@@ -44,9 +44,8 @@ fi
 echo -e "${GREEN}Connecting to database...${NC}"
 
 echo -e "${YELLOW}Dropping existing tables...${NC}"
-psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS notifications_log CASCADE;"
+psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS alerts_log CASCADE;"
 psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS user_stocks CASCADE;"
-psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS verification_attempts CASCADE;"
 psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS stocks CASCADE;"
 psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS users CASCADE;"
 psql "$DATABASE_URL" -c "DROP DOMAIN IF EXISTS delivery_status CASCADE;"

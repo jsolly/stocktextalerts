@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "../../../../lib/supabase";
 import { createUserService } from "../../../../lib/users";
 
 /* =============
-Inlined from lib/rate-limiting.ts and lib/twilio.ts
+Inlined from lib/twilio.ts
 ============= */
 
 const twilioAccountSid = import.meta.env.TWILIO_ACCOUNT_SID;
@@ -16,41 +16,6 @@ if (!twilioAccountSid || !twilioAuthToken || !twilioVerifyServiceSid) {
 }
 
 const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
-
-const MAX_ATTEMPTS = 3;
-const WINDOW_HOURS = 1;
-
-async function checkVerificationRateLimit(
-	phoneCountryCode: string,
-	phoneNumber: string,
-): Promise<{ allowed: boolean; error?: string }> {
-	const supabase = createSupabaseServerClient();
-
-	const oneHourAgo = new Date();
-	oneHourAgo.setHours(oneHourAgo.getHours() - WINDOW_HOURS);
-
-	const { data, error } = await supabase
-		.from("verification_attempts")
-		.select("id")
-		.eq("phone_country_code", phoneCountryCode)
-		.eq("phone_number", phoneNumber)
-		.gte("attempted_at", oneHourAgo.toISOString());
-
-	if (error) {
-		console.error("Rate limit check error:", error);
-		return { allowed: false, error: "Failed to check rate limit" };
-	}
-
-	if (data && data.length >= MAX_ATTEMPTS) {
-		const unit = WINDOW_HOURS === 1 ? "hour" : "hours";
-		return {
-			allowed: false,
-			error: `Too many verification attempts. Please try again in ${WINDOW_HOURS} ${unit}`,
-		};
-	}
-
-	return { allowed: true };
-}
 
 async function checkVerification(
 	fullPhone: string,
@@ -95,16 +60,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		const userData = await userService.getById(user.id);
 		if (!userData.phone_country_code || !userData.phone_number) {
 			return redirect("/alerts?error=phone_not_set");
-		}
-
-		const rateLimit = await checkVerificationRateLimit(
-			userData.phone_country_code,
-			userData.phone_number,
-		);
-		if (!rateLimit.allowed) {
-			return redirect(
-				`/alerts?error=${encodeURIComponent(rateLimit.error || "rate_limit_exceeded")}`,
-			);
 		}
 
 		const fullPhone = `${userData.phone_country_code}${userData.phone_number}`;

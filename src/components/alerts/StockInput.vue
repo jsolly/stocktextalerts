@@ -3,13 +3,14 @@
 		<label for="stock_search" class="block text-sm font-medium text-slate-700 mb-1">
 			Search Stocks
 		</label>
-		<input ref="inputRef" type="text" id="stock_search" v-model="rawSearchQuery" @input="handleInput"
-			@keydown="handleKeydown" placeholder="Search by symbol or company name..." autocomplete="off" role="combobox"
-			:aria-expanded="showDropdown" aria-controls="stock_dropdown" aria-autocomplete="list"
-			class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-			:class="{ 'border-red-500 ring-2 ring-red-500': showError }" @focus="showDropdown = true" />
+	<input ref="inputRef" type="text" id="stock_search" v-model="rawSearchQuery" @input="handleInput"
+		@keydown="handleKeydown" placeholder="Search by symbol or company name..." autocomplete="off" role="combobox"
+		:aria-expanded="showDropdown" aria-controls="stock_dropdown" aria-autocomplete="list"
+		:aria-activedescendant="highlightedIndex >= 0 ? `stock_option_${highlightedIndex}` : undefined"
+		class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+		@focus="showDropdown = true" />
 
-		<div id="stock_dropdown" v-show="showDropdown && (searchQuery.length >= 1 || filteredStocks.length > 0)" ref="dropdownEl" role="listbox"
+	<div id="stock_dropdown" v-show="showDropdown && (searchQuery.length >= 1 || filteredStocks.length > 0)" role="listbox"
 			class="absolute z-50 w-full mt-1 bg-white shadow-lg rounded-lg border border-slate-200 max-h-60 overflow-auto">
 			<div v-if="isSearching" class="px-4 py-2 text-sm text-slate-500">
 				Searching...
@@ -18,16 +19,16 @@
 				class="px-4 py-2 text-sm text-slate-500">
 				No stocks found
 			</div>
-			<div v-for="(result, index) in filteredStocks" :key="result.item.value" role="option"
-				:aria-selected="highlightedIndex === index" :data-highlighted="highlightedIndex === index"
-				@click="selectStock(result)"
-				class="w-full px-4 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer"
-				:class="{ 'bg-blue-100': highlightedIndex === index }">
-				{{ result.item.label }}
-			</div>
+		<div v-for="(result, index) in filteredStocks" :key="result.item.value" role="option"
+			:id="`stock_option_${index}`"
+			:aria-selected="highlightedIndex === index" :data-highlighted="highlightedIndex === index"
+			@click="selectStock(result)"
+			class="w-full px-4 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer"
+			:class="{ 'bg-blue-100': highlightedIndex === index }">
+			{{ result.item.label }}
 		</div>
-		<p v-if="showError" class="mt-1 text-sm text-red-600">Please select a stock from the list</p>
 	</div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -63,7 +64,6 @@ const props = defineProps<Props>();
 const selectedStock = ref<string | null>(null);
 const rawSearchQuery = ref("");
 const searchQuery = refDebounced(rawSearchQuery, 300);
-const showError = ref(false);
 const isSearching = ref(false);
 
 watch(rawSearchQuery, (newValue, oldValue) => {
@@ -90,7 +90,6 @@ const filteredStocks = computed(() => {
 });
 
 const containerRef = ref<HTMLElement | null>(null);
-const dropdownEl = ref<HTMLElement | null>(null);
 const inputRef = ref<HTMLInputElement | null>(null);
 
 const resetDropdown = () => {
@@ -106,10 +105,6 @@ const selectStock = (result: FuseResult) => {
 	selectedStock.value = result.item.value;
 	rawSearchQuery.value = "";
 	resetDropdown();
-
-	if (showError.value) {
-		showError.value = false;
-	}
 
 	if (props.onSelect) {
 		props.onSelect(result.item.value);
@@ -128,10 +123,6 @@ const handleInput = () => {
 		selectedStock.value = null;
 		showDropdown.value = true;
 		highlightedIndex.value = -1;
-
-		if (showError.value) {
-			showError.value = false;
-		}
 	}
 };
 

@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "../../../../lib/supabase";
 import { createUserService } from "../../../../lib/users";
 
 /* =============
-Inlined from lib/phone-validation.ts, lib/rate-limiting.ts, and lib/twilio.ts
+Inlined from lib/phone-validation.ts and lib/twilio.ts
 ============= */
 
 const twilioAccountSid = import.meta.env.TWILIO_ACCOUNT_SID;
@@ -18,9 +18,6 @@ if (!twilioAccountSid || !twilioAuthToken || !twilioVerifyServiceSid) {
 }
 
 const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
-
-const MAX_ATTEMPTS = 3;
-const WINDOW_HOURS = 1;
 
 interface PhoneValidationResult {
 	isValid: boolean;
@@ -55,69 +52,6 @@ function validatePhone(
 			isValid: false,
 			error: error instanceof Error ? error.message : "Phone validation failed",
 		};
-	}
-}
-
-async function checkVerificationRateLimit(
-	phoneCountryCode: string,
-	phoneNumber: string,
-): Promise<{ allowed: boolean; error?: string }> {
-	const supabase = createSupabaseServerClient();
-
-	const oneHourAgo = new Date();
-	oneHourAgo.setHours(oneHourAgo.getHours() - WINDOW_HOURS);
-
-	const cleanupResult = await supabase
-		.from("verification_attempts")
-		.delete()
-		.lt("attempted_at", oneHourAgo.toISOString());
-
-	if (cleanupResult.error) {
-		console.error(
-			"Non-blocking cleanup error: failed to delete old verification_attempts",
-			{
-				table: "verification_attempts",
-				filter: `attempted_at < ${oneHourAgo.toISOString()}`,
-				error: cleanupResult.error,
-			},
-		);
-	}
-
-	const { data, error } = await supabase
-		.from("verification_attempts")
-		.select("id")
-		.eq("phone_country_code", phoneCountryCode)
-		.eq("phone_number", phoneNumber)
-		.gte("attempted_at", oneHourAgo.toISOString());
-
-	if (error) {
-		console.error("Rate limit check error:", error);
-		return { allowed: false, error: "Failed to check rate limit" };
-	}
-
-	if (data && data.length >= MAX_ATTEMPTS) {
-		return {
-			allowed: false,
-			error: `Too many verification attempts. Please try again in ${WINDOW_HOURS} hour`,
-		};
-	}
-
-	return { allowed: true };
-}
-
-async function logVerificationAttempt(
-	phoneCountryCode: string,
-	phoneNumber: string,
-): Promise<void> {
-	const supabase = createSupabaseServerClient();
-
-	const { error } = await supabase.from("verification_attempts").insert({
-		phone_country_code: phoneCountryCode,
-		phone_number: phoneNumber,
-	});
-
-	if (error) {
-		console.error("Failed to log verification attempt:", error);
 	}
 }
 
@@ -161,32 +95,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		if (
 			!validation.isValid ||
 			!validation.countryCode ||
-			!validation.nationalNumber
+			!validation.nationalNumber ||
+			!validation.fullPhone
 		) {
 			return redirect("/alerts?error=invalid_phone");
-		}
-
-		const rateLimit = await checkVerificationRateLimit(
-			validation.countryCode,
-			validation.nationalNumber,
-		);
-
-		if (!rateLimit.allowed) {
-			return redirect(
-				`/alerts?error=${encodeURIComponent(rateLimit.error || "rate_limit")}`,
-			);
-		}
-
-		await logVerificationAttempt(
-			validation.countryCode,
-			validation.nationalNumber,
-		);
-
-		const fullPhone = validation.fullPhone;
-		if (!fullPhone) {
-			throw new Error(
-				"Unexpected: fullPhone missing after successful validation",
-			);
 		}
 
 		await userService.update(user.id, {
@@ -195,7 +107,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			phone_verified: false,
 		});
 
-		const result = await sendVerification(fullPhone);
+		const result = await sendVerification(validation.fullPhone);
 		if (!result.success) {
 			await userService.update(user.id, {
 				phone_country_code: null,

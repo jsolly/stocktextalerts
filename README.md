@@ -104,7 +104,6 @@ This creates:
 - **users** table - Extended with phone, timezone, alert settings
 - **stocks** table - Symbol, name, exchange
 - **user_stocks** junction table - Many-to-many relationship
-- **verification_attempts** table - Rate limiting for phone verification
 - **alerts_log** table - Audit trail for all alerts
 - All RLS policies, triggers, and functions
 
@@ -197,37 +196,57 @@ The cron job:
 ├── public/
 │   └── favicons/           # Favicon files
 ├── src/
-│   ├── components/         # Reusable components
-│   │   ├── Navigation.astro
-│   │   ├── Hero.astro
-│   │   ├── Features.astro
-│   │   ├── CTA.astro
-│   │   ├── PhoneInput.vue  # Phone input with validation
-│   │   └── StockInput.vue  # Fuzzy search stock selector
+│   ├── components/
+│   │   ├── alerts/         # Alert-related components
+│   │   │   ├── AlertSettings.astro
+│   │   │   ├── SetupRequiredBanner.astro
+│   │   │   ├── StockInput.vue      # Fuzzy search stock selector
+│   │   │   └── TrackedStocks.astro
+│   │   ├── landing/        # Landing page components
+│   │   │   ├── CTA.astro
+│   │   │   ├── Features.astro
+│   │   │   └── Hero.astro
+│   │   ├── layout/
+│   │   │   └── Navigation.astro
+│   │   └── profile/        # Profile page components
+│   │       ├── AccountManagement.astro
+│   │       ├── DangerZone.astro
+│   │       └── PhoneInput.vue      # Phone input with validation
 │   ├── layouts/
 │   │   └── Layout.astro    # Main layout with meta tags
 │   ├── lib/                # Services and utilities
+│   │   ├── format.ts       # Formatting utilities
 │   │   ├── supabase.ts     # Supabase client configuration
-│   │   ├── users.ts        # User service functions
-│   │   ├── stocks.ts       # Stock management functions
-│   │   ├── twilio.ts       # Twilio SMS and verification
-│   │   ├── phone-validation.ts  # Phone number validation
-│   │   ├── rate-limiting.ts     # Rate limiting checks
-│   │   ├── email.ts        # Email alerts
-│   │   └── alerts.ts       # Alert logging
+│   │   └── users.ts        # User service functions
 │   ├── pages/              # File-based routing
+│   │   ├── alerts/
+│   │   │   ├── index.astro # Main alerts dashboard
+│   │   │   └── stocks.ts   # Stock data for fuzzy search
 │   │   ├── api/            # API endpoints
-│   │   │   ├── auth/       # Authentication
-│   │   │   ├── phone/      # Phone verification
-│   │   │   ├── alerts/     # Alert settings & cron
-│   │   │   ├── stocks/     # Stock management
-│   │   │   └── sms/        # Twilio webhook
+│   │   │   ├── alerts/
+│   │   │   │   ├── send-hourly.ts  # Cron job endpoint
+│   │   │   │   ├── update.ts       # Update alert settings
+│   │   │   │   └── sms/
+│   │   │   │       ├── incoming.ts        # Twilio webhook (STOP/START)
+│   │   │   │       ├── send-verification.ts
+│   │   │   │       └── verify-code.ts
+│   │   │   ├── auth/       # Authentication endpoints
+│   │   │   │   ├── delete-account.ts
+│   │   │   │   ├── forgot-password.ts
+│   │   │   │   ├── register.ts
+│   │   │   │   ├── resend-verification.ts
+│   │   │   │   ├── signin.ts
+│   │   │   │   └── signout.ts
+│   │   │   └── stocks/     # Stock management
+│   │   │       ├── add.ts
+│   │   │       └── remove.ts
+│   │   ├── auth/
+│   │   │   ├── forgot.astro
+│   │   │   ├── recover.astro
+│   │   │   ├── register.astro
+│   │   │   └── unconfirmed.astro
 │   │   ├── index.astro     # Landing page
-│   │   ├── register.astro
-│   │   ├── alerts.astro    # Main alerts dashboard
-│   │   └── profile.astro
-│   ├── styles/
-│   │   └── safelist-tailwindcss.txt
+│   │   └── profile.astro   # User profile page
 │   ├── global.css
 │   └── env.d.ts
 ├── db/                     # Database setup
@@ -235,6 +254,7 @@ The cron job:
 │   ├── apply-schema.sh     # Schema setup script
 │   └── import-tickers.ts   # Stock data import script
 ├── tests/                  # Vitest unit tests
+│   └── basic.test.ts
 ├── astro.config.ts         # Astro + Vercel + Vue config
 ├── vercel.json             # Cron job configuration
 ├── biome.jsonc             # Linter/formatter config
@@ -260,10 +280,6 @@ The cron job:
 - `symbol` - References stocks
 - `created_at` - When stock was added
 - Primary key on (user_id, symbol)
-
-### verification_attempts
-- Tracks phone verification attempts for rate limiting
-- Max 3 attempts per phone per hour
 
 ### alerts_log
 - Audit trail of all alert attempts
@@ -294,8 +310,7 @@ All commands are run from the root of the project:
 1. Check Twilio credentials in `.env.local`
 2. Verify your Twilio phone number is active
 3. Check Twilio Verify service is created and active
-4. Review rate limiting in `verification_attempts` table
-5. Check Twilio logs in the Console for delivery issues
+4. Check Twilio logs in the Console for delivery issues
 
 ### Cron Jobs Not Running
 

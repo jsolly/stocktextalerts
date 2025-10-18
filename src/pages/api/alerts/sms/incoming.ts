@@ -12,7 +12,19 @@ export const POST: APIRoute = async ({ request }) => {
 
 	// Validate Twilio signature before processing
 	const signature = request.headers.get("x-twilio-signature") || "";
-	const url = request.url;
+
+	// Reconstruct full URL from forwarded headers for proxy environments like Vercel
+	// Twilio signs the public URL, but request.url may contain internal proxy URLs
+	const requestUrl = new URL(request.url);
+	const proto =
+		request.headers.get("x-forwarded-proto") ||
+		requestUrl.protocol.slice(0, -1);
+	const host =
+		request.headers.get("x-forwarded-host") ||
+		request.headers.get("host") ||
+		requestUrl.host;
+	const url = `${proto}://${host}${requestUrl.pathname}${requestUrl.search}`;
+
 	const formData = await request.formData();
 
 	// Convert FormData to params object for Twilio validation
@@ -68,7 +80,7 @@ export const POST: APIRoute = async ({ request }) => {
 		const userId = users[0].id;
 		let responseMessage = "";
 
-		if (body === "STOP" || body === "UNSUBSCRIBE") {
+		if (["STOP", "UNSUBSCRIBE", "QUIT", "END", "CANCEL"].includes(body)) {
 			const { error: updateError } = await supabase
 				.from("users")
 				.update({ sms_opted_out: true })
@@ -81,7 +93,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 			responseMessage =
 				"You have been unsubscribed from SMS alerts. Reply START to resume.";
-		} else if (body === "START" || body === "SUBSCRIBE") {
+		} else if (["START", "SUBSCRIBE", "YES", "UNSTOP"].includes(body)) {
 			const { error: updateError } = await supabase
 				.from("users")
 				.update({ sms_opted_out: false })
@@ -94,7 +106,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 			responseMessage =
 				"You have been subscribed to SMS alerts. Reply STOP to unsubscribe.";
-		} else if (body === "HELP") {
+		} else if (body === "HELP" || body === "INFO") {
 			responseMessage =
 				"Stock Text Alerts: Reply STOP to unsubscribe, START to subscribe. Manage stocks at your dashboard.";
 		} else {

@@ -8,7 +8,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
-		return redirect("/auth/signin?error=unauthorized&returnTo=/alerts");
+		return redirect("/?error=unauthorized&returnTo=/alerts");
 	}
 
 	try {

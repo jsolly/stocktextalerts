@@ -3,8 +3,8 @@ import AlertSettings from "../../components/alerts/AlertSettings.astro";
 import SetupRequiredBanner from "../../components/alerts/SetupRequiredBanner.astro";
 import TrackedStocks from "../../components/alerts/TrackedStocks.astro";
 import Navigation from "../../components/layout/Navigation.astro";
-import PhoneVerification from "../../components/profile/PhoneVerification.astro";
 import Layout from "../../layouts/Layout.astro";
+import { formatMessage } from "../../lib/format";
 import { createSupabaseServerClient } from "../../lib/supabase";
 import { createUserService } from "../../lib/users";
 import { getAllStocks, getUserStocks } from "./stocks";
@@ -49,29 +49,26 @@ const errorMessage = url.searchParams.get("error");
 				<p class="text-lg text-gray-600">Configure your notification preferences and track stocks</p>
 			</div>
 
-			{successMessage && (
-				<div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-					<p class="text-green-800">{successMessage.replace(/_/g, ' ')}</p>
-				</div>
-			)}
+		{successMessage && (
+			<div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+				<p class="text-green-800">{formatMessage(successMessage)}</p>
+			</div>
+		)}
 
-			{errorMessage && (
-				<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-					<p class="text-red-800">{errorMessage.replace(/_/g, ' ')}</p>
-				</div>
-			)}
+		{errorMessage && (
+			<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+				<p class="text-red-800">{formatMessage(errorMessage)}</p>
+			</div>
+		)}
 
 		<!-- Section 1: Setup Required Banner -->
 		<SetupRequiredBanner user={user} />
 
-		<!-- Section 2: Phone Setup (conditional) -->
-		<PhoneVerification user={user} />
-
-	<!-- Section 3: Alert Settings -->
-	<AlertSettings user={user} />
-
-		<!-- Section 4: Stock Selection -->
+		<!-- Section 2: Stock Selection -->
 		<TrackedStocks stockOptions={stockOptions} userStocks={userStocks} />
+
+		<!-- Section 3: Alert Settings -->
+		<AlertSettings user={user} />
 		</div>
 	</div>
 </Layout>

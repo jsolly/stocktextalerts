@@ -3,7 +3,7 @@ Domains and Extensions
 ============= */
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- US Timezones domain
 CREATE DOMAIN timezone AS TEXT
@@ -96,20 +96,6 @@ CREATE TABLE IF NOT EXISTS user_stocks (
 );
 
 /* =============
-Verification Attempts Table
-============= */
-
-CREATE TABLE IF NOT EXISTS verification_attempts (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  phone_country_code VARCHAR(5) NOT NULL,
-  phone_number VARCHAR(15) NOT NULL,
-  attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_verification_attempts_phone_time 
-ON verification_attempts(phone_country_code, phone_number, attempted_at);
-
-/* =============
 Alerts Log Table
 ============= */
 
@@ -141,7 +127,9 @@ CREATE POLICY "Users can view own profile" ON users
   FOR SELECT USING ((SELECT auth.uid()) = id);
 
 CREATE POLICY "Users can update own profile" ON users
-  FOR UPDATE USING ((SELECT auth.uid()) = id);
+  FOR UPDATE 
+  USING ((SELECT auth.uid()) = id)
+  WITH CHECK ((SELECT auth.uid()) = id);
 
 CREATE POLICY "Users can delete own profile" ON users
   FOR DELETE USING ((SELECT auth.uid()) = id);
