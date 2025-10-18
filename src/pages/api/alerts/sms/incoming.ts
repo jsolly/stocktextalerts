@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { parsePhoneNumber } from "libphonenumber-js";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import twilio from "twilio";
 import { createSupabaseAdminClient } from "../../../../lib/db-client";
 
@@ -10,24 +10,9 @@ export const POST: APIRoute = async ({ request }) => {
 		return new Response("Server misconfigured", { status: 500 });
 	}
 
-	// Validate Twilio signature before processing
 	const signature = request.headers.get("x-twilio-signature") || "";
-
-	// Reconstruct full URL from forwarded headers for proxy environments like Vercel
-	// Twilio signs the public URL, but request.url may contain internal proxy URLs
-	const requestUrl = new URL(request.url);
-	const proto =
-		request.headers.get("x-forwarded-proto") ||
-		requestUrl.protocol.slice(0, -1);
-	const host =
-		request.headers.get("x-forwarded-host") ||
-		request.headers.get("host") ||
-		requestUrl.host;
-	const url = `${proto}://${host}${requestUrl.pathname}${requestUrl.search}`;
-
 	const formData = await request.formData();
 
-	// Convert FormData to params object for Twilio validation
 	const params: Record<string, string> = {};
 	for (const [key, value] of formData.entries()) {
 		params[key] = value.toString();
@@ -36,16 +21,15 @@ export const POST: APIRoute = async ({ request }) => {
 	const isValid = twilio.validateRequest(
 		twilioAuthToken,
 		signature,
-		url,
+		request.url,
 		params,
 	);
 	if (!isValid) {
 		return new Response("Invalid signature", { status: 403 });
 	}
 
-	const supabase = createSupabaseAdminClient();
-
 	try {
+		const supabase = createSupabaseAdminClient();
 		const from = formData.get("From") as string;
 		const body = (formData.get("Body") as string)?.trim().toUpperCase();
 
@@ -57,7 +41,7 @@ export const POST: APIRoute = async ({ request }) => {
 		let phoneNumber: string;
 
 		try {
-			const parsed = parsePhoneNumber(from);
+			const parsed = parsePhoneNumberFromString(from);
 			if (!parsed?.isValid()) {
 				return new Response("Invalid phone format", { status: 400 });
 			}
@@ -75,7 +59,10 @@ export const POST: APIRoute = async ({ request }) => {
 			.eq("phone_number", phoneNumber);
 
 		if (error || !users || users.length === 0) {
-			return new Response("User not found", { status: 404 });
+			return new Response(
+				`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+				{ status: 200, headers: { "Content-Type": "text/xml" } },
+			);
 		}
 
 		const userId = users[0].id;

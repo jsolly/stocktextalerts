@@ -17,10 +17,12 @@
 					</select>
 					<input type="hidden" name="phone_country_code" :value="`+${getCountryCallingCode(country)}`" />
 				</div>
-				<div class="flex-1 relative">
-				<input type="tel" id="phone_number" v-model="phoneNumber" @input="handlePhoneInput" @blur="handleBlur"
-						class="w-full rounded-r-lg py-2 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
-						:placeholder="computedPlaceholder" name="phone" required />
+			<div class="flex-1 relative">
+			<input type="tel" id="phone_number" v-model="phoneNumber" @input="handlePhoneInput" @blur="handleBlur"
+					:aria-describedby="showError ? 'phone-error' : undefined"
+					class="w-full rounded-r-lg py-2 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
+					:placeholder="computedPlaceholder" name="phone" required
+					inputmode="tel" autocomplete="tel" />
 					<div v-if="phoneNumber" class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
 						<CheckCircleIcon v-if="isValid" class="h-5 w-5 text-green-500" aria-hidden="true" />
 						<ExclamationCircleIcon v-else class="h-5 w-5 text-red-500" aria-hidden="true" />
@@ -28,7 +30,7 @@
 				</div>
 			</div>
 		</div>
-		<p v-if="showError" class="mt-1 text-sm text-red-600">Please enter a valid phone number</p>
+		<p v-if="showError" id="phone-error" class="mt-1 text-sm text-red-600">Please enter a valid phone number</p>
 	</div>
 </template>
 
@@ -41,7 +43,7 @@ import {
 	getExampleNumber,
 	isValidPhoneNumber,
 } from "libphonenumber-js";
-import metadata from "libphonenumber-js/metadata.min.json";
+import examples from "libphonenumber-js/examples.mobile.json";
 import { computed, ref, watch } from "vue";
 
 type Country = "US";
@@ -65,7 +67,7 @@ watch(country, () => {
 });
 
 const computedPlaceholder = computed(() => {
-	const exampleNumber = getExampleNumber(country.value, metadata as unknown as Examples);
+	const exampleNumber = getExampleNumber(country.value, examples as unknown as Examples);
 	return exampleNumber ? exampleNumber.formatNational() : "(555) 555-5555";
 });
 
@@ -86,10 +88,7 @@ function handlePhoneInput(e: Event) {
 	phoneNumber.value = formatted;
 	lastDigits.value = newDigits;
 
-	// clear error only when valid
-	showError.value = phoneNumber.value
-		? !isValidPhoneNumber(phoneNumber.value, country.value)
-		: true;
+	// Don't show error while typing; handled on blur
 }
 
 const isValid = computed(() => {

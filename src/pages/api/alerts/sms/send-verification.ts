@@ -38,13 +38,14 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 		const result = await sendVerification(validation.fullPhone);
 		if (!result.success) {
+			console.error("SMS verification failed:", result.error);
 			await userService.update(user.id, {
 				phone_country_code: null,
 				phone_number: null,
 				phone_verified: false,
 			});
 			return redirect(
-				`/alerts?error=${encodeURIComponent(result.error || "verification_failed")}`,
+				`/alerts?error=${encodeURIComponent("verification_failed")}`,
 			);
 		}
 

@@ -19,16 +19,31 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect("/alerts?error=symbol_required");
 		}
 
-		const { error } = await supabase.from("user_stocks").insert({
-			user_id: user.id,
-			symbol: symbol.toUpperCase(),
-		});
+		const normalizedSymbol = symbol.toUpperCase();
 
-		if (error) {
-			console.error("Error adding user stock:", error);
-			return redirect(
-				`/alerts?error=${encodeURIComponent(error.message || "failed_to_add_stock")}`,
-			);
+		const { data: existing, error: checkError } = await supabase
+			.from("user_stocks")
+			.select("symbol")
+			.eq("user_id", user.id)
+			.eq("symbol", normalizedSymbol)
+			.maybeSingle();
+
+		if (checkError) {
+			console.error("Error checking existing stock:", checkError);
+			return redirect("/alerts?error=failed_to_add_stock");
+		}
+
+		if (existing) {
+			return redirect("/alerts?info=stock_already_exists");
+		}
+
+		const { error: insertError } = await supabase
+			.from("user_stocks")
+			.insert([{ user_id: user.id, symbol: normalizedSymbol }]);
+
+		if (insertError) {
+			console.error("Error adding user stock:", insertError);
+			return redirect("/alerts?error=failed_to_add_stock");
 		}
 
 		return redirect("/alerts?success=stock_added");

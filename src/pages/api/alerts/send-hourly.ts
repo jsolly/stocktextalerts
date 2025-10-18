@@ -50,10 +50,9 @@ interface AlertLog {
 }
 
 async function logAlert(
+	supabase: ReturnType<typeof createSupabaseAdminClient>,
 	log: AlertLog,
 ): Promise<{ success: boolean; error?: string }> {
-	const supabase = createSupabaseAdminClient();
-
 	const { error } = await supabase.from("alerts_log").insert({
 		user_id: log.user_id,
 		type: log.type,
@@ -174,11 +173,11 @@ export const POST: APIRoute = async ({ request }) => {
 			if (user.alert_via_email) {
 				const emailResult = await sendEmail(
 					user.email,
-					"Your Daily Stock Alert",
+					"Your Hourly Stock Alert",
 					`Your tracked stocks: ${stocksList}`,
 				);
 
-				await logAlert({
+				await logAlert(supabase, {
 					user_id: user.id,
 					type: "hourly_update",
 					delivery_method: "email",
@@ -205,7 +204,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 				const smsResult = await sendSMS(fullPhone, smsMessage);
 
-				await logAlert({
+				await logAlert(supabase, {
 					user_id: user.id,
 					type: "hourly_update",
 					delivery_method: "sms",

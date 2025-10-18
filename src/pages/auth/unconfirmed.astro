@@ -115,7 +115,7 @@ if (success === "true") {
     try {
       const lastSentStr = localStorage.getItem(COOLDOWN_KEY);
       
-      if (!lastSentStr || typeof lastSentStr !== 'string') {
+      if (!lastSentStr) {
         // no prior send; leave button enabled
         return;
       }

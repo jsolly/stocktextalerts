@@ -5,7 +5,7 @@
 		</label>
 	<input ref="inputRef" type="text" id="stock_search" v-model="rawSearchQuery" @input="handleInput"
 		@keydown="handleKeydown" placeholder="Search by symbol or company name..." autocomplete="off" role="combobox"
-		:aria-expanded="showDropdown" aria-controls="stock_dropdown" aria-autocomplete="list"
+		aria-haspopup="listbox" :aria-expanded="showDropdown" aria-controls="stock_dropdown" aria-autocomplete="list"
 		:aria-activedescendant="highlightedIndex >= 0 ? `stock_option_${highlightedIndex}` : undefined"
 		class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 		@focus="showDropdown = true" />
@@ -113,6 +113,7 @@ const selectStock = (result: FuseResult) => {
 	const event = new CustomEvent('stock-selected', {
 		detail: { symbol: result.item.value },
 		bubbles: true,
+		composed: true,
 	});
 	inputRef.value?.dispatchEvent(event);
 };
@@ -127,6 +128,12 @@ const handleInput = () => {
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
+	if (e.key === 'Escape') {
+		e.preventDefault();
+		resetDropdown();
+		return;
+	}
+
 	if (rawSearchQuery.value.length < 1 || filteredStocks.value.length === 0) return;
 
 	const maxIndex = filteredStocks.value.length - 1;

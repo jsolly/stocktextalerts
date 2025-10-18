@@ -10,6 +10,14 @@ export interface PhoneValidationResult {
 	error?: string;
 }
 
+interface TwilioError {
+	code?: number;
+	message?: string;
+	more_info?: string;
+	status?: number;
+	details?: unknown;
+}
+
 export function validatePhone(
 	phone: string,
 	country: CountryCode = "US",
@@ -42,7 +50,11 @@ export function validatePhone(
 Phone Verification
 ============= */
 
-function createVerificationClient() {
+type VerificationClientResult =
+	| { client: ReturnType<typeof twilio>; serviceSid: string; error?: never }
+	| { client: null; serviceSid: null; error: string };
+
+function createVerificationClient(): VerificationClientResult {
 	const twilioAccountSid = import.meta.env.TWILIO_ACCOUNT_SID;
 	const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
 	const twilioVerifyServiceSid = import.meta.env.TWILIO_VERIFY_SERVICE_SID;
@@ -51,14 +63,13 @@ function createVerificationClient() {
 		return {
 			client: null,
 			serviceSid: null,
-			error: "Missing Twilio configuration in environment variables" as const,
+			error: "Missing Twilio configuration in environment variables",
 		};
 	}
 
 	return {
 		client: twilio(twilioAccountSid, twilioAuthToken),
 		serviceSid: twilioVerifyServiceSid,
-		error: undefined,
 	};
 }
 
@@ -79,17 +90,16 @@ export async function sendVerification(
 
 		return { success: true };
 	} catch (error) {
-		const e = error as any;
+		const e = error as TwilioError;
 		console.error("Verification send error:", {
-			message: e?.message,
-			code: e?.code,
-			status: e?.status,
-			moreInfo: e?.moreInfo,
+			message: e.message,
+			code: e.code,
+			status: e.status,
+			more_info: e.more_info,
 		});
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Failed to send verification",
+			error: e.message || "Failed to send verification",
 		};
 	}
 }
@@ -116,16 +126,16 @@ export async function checkVerification(
 
 		return { success: false, error: "Invalid verification code" };
 	} catch (error) {
-		const e = error as any;
+		const e = error as TwilioError;
 		console.error("Verification check error:", {
-			message: e?.message,
-			code: e?.code,
-			status: e?.status,
-			moreInfo: e?.moreInfo,
+			message: e.message,
+			code: e.code,
+			status: e.status,
+			more_info: e.more_info,
 		});
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Verification failed",
+			error: e.message || "Verification failed",
 		};
 	}
 }
