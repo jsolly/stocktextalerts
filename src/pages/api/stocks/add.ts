@@ -21,25 +21,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 		const normalizedSymbol = symbol.toUpperCase();
 
-		const { data: existing, error: checkError } = await supabase
-			.from("user_stocks")
-			.select("symbol")
-			.eq("user_id", user.id)
-			.eq("symbol", normalizedSymbol)
-			.maybeSingle();
-
-		if (checkError) {
-			console.error("Error checking existing stock:", checkError);
-			return redirect("/alerts?error=failed_to_add_stock");
-		}
-
-		if (existing) {
-			return redirect("/alerts?info=stock_already_exists");
-		}
-
 		const { error: insertError } = await supabase
 			.from("user_stocks")
-			.insert([{ user_id: user.id, symbol: normalizedSymbol }]);
+			.upsert(
+				{ user_id: user.id, symbol: normalizedSymbol },
+				{ onConflict: "user_id,symbol" },
+			);
 
 		if (insertError) {
 			console.error("Error adding user stock:", insertError);

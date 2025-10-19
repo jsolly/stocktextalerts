@@ -56,7 +56,6 @@ type KeyActions = {
 	ArrowDown: () => void;
 	ArrowUp: () => void;
 	Enter: () => void;
-	Escape: () => void;
 };
 
 const props = defineProps<Props>();
@@ -165,7 +164,6 @@ const handleKeydown = (e: KeyboardEvent) => {
 				selectStock(filteredStocks.value[highlightedIndex.value]);
 			}
 		},
-		Escape: resetDropdown,
 	};
 
 	if (actions[e.key as keyof KeyActions]) {

@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from "../../../lib/db-client";
 Inlined from lib/alerts.ts, lib/email.ts, and lib/twilio.ts
 ============= */
 
-const twilioAccountSid = import.meta.env.TWILIO_ACCOUNT_SID;
+const twilioAccountSid = import.meta.env.TWILIO_ORG_SID;
 const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = import.meta.env.TWILIO_PHONE_NUMBER;
 
