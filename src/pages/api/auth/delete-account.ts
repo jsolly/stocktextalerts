@@ -31,7 +31,8 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 		cookies.delete("sb-refresh-token", { path: "/" });
 
 		return redirect("/?success=account_deleted");
-	} catch {
+	} catch (err) {
+		console.error("Failed to delete user account:", err);
 		return redirect("/?error=delete_failed");
 	}
 };

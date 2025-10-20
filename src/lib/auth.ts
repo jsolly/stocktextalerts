@@ -17,7 +17,6 @@ export function getAuthErrorMessage(error: string | null): string {
 		case "invalid_code_format":
 			return "Enter a 6-digit verification code";
 		case "rate_limit":
-			return "Too many attempts. Please try again later.";
 		case "too_many_attempts":
 			return "Too many attempts. Please try again later.";
 		case "failed":
