@@ -51,14 +51,3 @@ export function getAuthSuccessMessage(code: string | null): string {
 			return "";
 	}
 }
-
-export function getAuthWarningMessage(code: string | null): string {
-	if (!code) return "";
-
-	switch (code) {
-		case "partial_deletion":
-			return "Your account login was deleted, but some data cleanup is still pending. Our team has been notified and will complete the cleanup shortly.";
-		default:
-			return "";
-	}
-}

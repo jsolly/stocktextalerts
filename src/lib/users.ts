@@ -81,9 +81,37 @@ export function createUserService(
 				alert_via_sms?: boolean;
 			},
 		) {
+			const sanitized = { ...updates };
+
+			if ("alert_start_hour" in sanitized) {
+				const value = sanitized.alert_start_hour;
+				if (value !== null && value !== undefined) {
+					const numValue = typeof value === "string" ? Number(value) : value;
+					if (!Number.isFinite(numValue) || !isValidHour(numValue)) {
+						throw new Error(
+							`alert_start_hour must be an integer between 0 and 23, got: ${value}`,
+						);
+					}
+					sanitized.alert_start_hour = numValue as Hour;
+				}
+			}
+
+			if ("alert_end_hour" in sanitized) {
+				const value = sanitized.alert_end_hour;
+				if (value !== null && value !== undefined) {
+					const numValue = typeof value === "string" ? Number(value) : value;
+					if (!Number.isFinite(numValue) || !isValidHour(numValue)) {
+						throw new Error(
+							`alert_end_hour must be an integer between 0 and 23, got: ${value}`,
+						);
+					}
+					sanitized.alert_end_hour = numValue as Hour;
+				}
+			}
+
 			const { data, error } = await supabase
 				.from("users")
-				.update(updates)
+				.update(sanitized)
 				.eq("id", id)
 				.select()
 				.single();

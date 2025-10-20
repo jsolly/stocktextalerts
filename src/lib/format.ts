@@ -23,7 +23,9 @@ const MESSAGE_ALLOWLIST: Record<string, string> = {
 	user_not_found: "User not found",
 };
 
-export function formatMessage(message: string | null): string {
+type MessageKey = keyof typeof MESSAGE_ALLOWLIST;
+
+export function formatMessage(message: MessageKey | null): string {
 	if (!message) return "";
 	return MESSAGE_ALLOWLIST[message] ?? "";
 }

@@ -32,15 +32,16 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	}
 
 	if (data.user) {
-		try {
-			await supabase.from("users").upsert({
-				id: data.user.id,
-				email: data.user.email,
-				timezone: validatedTimezone,
-				time_format: validatedTimeFormat,
-			});
-		} catch (error) {
-			console.error("Failed to create user profile:", error);
+		const { error: profileError } = await supabase.from("users").upsert({
+			id: data.user.id,
+			email: data.user.email,
+			timezone: validatedTimezone,
+			time_format: validatedTimeFormat,
+		});
+
+		if (profileError) {
+			console.error("Failed to create user profile:", profileError);
+			return redirect("/auth/register?error=profile_creation_failed");
 		}
 	}
 
