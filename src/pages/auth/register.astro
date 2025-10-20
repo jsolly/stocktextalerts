@@ -56,7 +56,7 @@ if (error) {
         </div>
       )}
 
-      <form class="mt-8 space-y-6" action="/api/auth/register" method="post">
+      <form class="mt-8 space-y-6" action="/api/auth/email/register" method="post" id="register-form">
         <div class="rounded-md shadow-sm -space-y-px">
           <div>
             <label for="email" class="sr-only">Email</label>
@@ -83,6 +83,10 @@ if (error) {
             />
           </div>
         </div>
+        
+        <!-- Hidden timezone and time format fields -->
+        <input type="hidden" name="timezone" id="timezone" />
+        <input type="hidden" name="time_format" id="time_format" />
         <div>
           <button 
             type="submit" 
@@ -96,4 +100,32 @@ if (error) {
     </div>
   </div>
 </Layout>
+
+<script>
+	document.addEventListener('DOMContentLoaded', () => {
+		const form = document.getElementById('register-form') as HTMLFormElement;
+		const timezoneInput = document.getElementById('timezone') as HTMLInputElement;
+		const timeFormatInput = document.getElementById('time_format') as HTMLInputElement;
+		
+		if (!form || !timezoneInput || !timeFormatInput) return;
+
+		// Detect user's timezone and time format
+		if (Intl && Intl.DateTimeFormat) {
+			try {
+				// Detect timezone
+				const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+				timezoneInput.value = detectedTimezone;
+
+				// Detect time format preference
+				const formatter = new Intl.DateTimeFormat(navigator.language);
+				const is12Hour = formatter.resolvedOptions().hour12;
+				timeFormatInput.value = is12Hour ? '12h' : '24h';
+			} catch (error) {
+				// Fallback to defaults if detection fails
+				timezoneInput.value = 'America/New_York';
+				timeFormatInput.value = '24h';
+			}
+		}
+	});
+</script>
 

@@ -1,13 +1,13 @@
 ---
-import AlertSettings from "../../components/alerts/AlertSettings.astro";
-import SetupRequiredBanner from "../../components/alerts/SetupRequiredBanner.astro";
-import TrackedStocks from "../../components/alerts/TrackedStocks.astro";
-import Navigation from "../../components/layout/Navigation.astro";
-import Layout from "../../layouts/Layout.astro";
-import { createSupabaseServerClient } from "../../lib/db-client";
-import { formatMessage } from "../../lib/format";
-import { createUserService } from "../../lib/users";
-import { getAllStocks, getUserStocks } from "./stocks";
+import AlertSettings from "../components/alerts/AlertSettings.astro";
+import SetupRequiredBanner from "../components/alerts/SetupRequiredBanner.astro";
+import TrackedStocks from "../components/alerts/TrackedStocks.astro";
+import Navigation from "../components/layout/Navigation.astro";
+import Layout from "../layouts/Layout.astro";
+import { createSupabaseServerClient } from "../lib/db-client";
+import { formatMessage } from "../lib/format";
+import { getAllStocks, getUserStocks } from "../lib/stocks";
+import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
 const users = createUserService(supabase, Astro.cookies);
@@ -72,4 +72,5 @@ const errorMessage = url.searchParams.get("error");
 		</div>
 	</div>
 </Layout>
+
 

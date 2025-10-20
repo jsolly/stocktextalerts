@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_verified BOOLEAN DEFAULT false NOT NULL,
   sms_opted_out BOOLEAN DEFAULT false NOT NULL,
   timezone timezone,
+  time_format VARCHAR(3) DEFAULT '24h' NOT NULL CHECK (time_format IN ('12h', '24h')),
   alert_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (alert_start_hour >= 0 AND alert_start_hour <= 23),
   alert_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (alert_end_hour >= 0 AND alert_end_hour <= 23),
   alert_via_email BOOLEAN DEFAULT true NOT NULL,
@@ -195,43 +196,3 @@ CREATE TRIGGER update_alerts_log_updated_at
   BEFORE UPDATE ON alerts_log
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
-/* =============
-User Lifecycle Functions
-============= */
-
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-AS $$
-BEGIN
-  INSERT INTO public.users (id, email)
-  VALUES (NEW.id, NEW.email);
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
-
-CREATE OR REPLACE FUNCTION public.handle_user_delete()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-AS $$
-BEGIN
-  DELETE FROM public.users WHERE id = OLD.id;
-  RETURN OLD;
-END;
-$$;
-
-CREATE OR REPLACE TRIGGER on_auth_user_deleted
-  BEFORE DELETE ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_user_delete();
-

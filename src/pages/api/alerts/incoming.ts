@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import twilio from "twilio";
-import { createSupabaseAdminClient } from "../../../../lib/db-client";
+import { createSupabaseAdminClient } from "../../../lib/db-client";
 
 export const POST: APIRoute = async ({ request }) => {
 	const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;

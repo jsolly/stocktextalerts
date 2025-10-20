@@ -40,7 +40,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 		return redirect("/alerts?success=phone_verified");
 	} catch (error) {
-		console.error("Verify code error:", error);
+		console.error(
+			"Verify code error:",
+			error instanceof Error ? error.message : "Unknown error",
+		);
 		return redirect("/alerts?error=server_error");
 	}
 };

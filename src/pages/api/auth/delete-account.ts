@@ -16,10 +16,29 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 
 	try {
 		const supabaseAdmin = createSupabaseAdminClient();
-		const { error } = await supabaseAdmin.auth.admin.deleteUser(authUser.id);
 
-		if (error) {
-			throw error;
+		const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(
+			authUser.id,
+		);
+
+		if (authError) {
+			console.error("Auth user deletion failed:", authError);
+			return redirect("/profile?error=delete_failed");
+		}
+
+		const { error: dbError } = await supabaseAdmin
+			.from("users")
+			.delete()
+			.eq("id", authUser.id);
+
+		if (dbError) {
+			console.error(
+				"Database user deletion failed after successful auth deletion:",
+				dbError,
+			);
+			cookies.delete("sb-access-token", { path: "/" });
+			cookies.delete("sb-refresh-token", { path: "/" });
+			return redirect("/?warning=partial_delete");
 		}
 
 		cookies.delete("sb-access-token", { path: "/" });

@@ -30,24 +30,19 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect("/alerts?error=invalid_phone");
 		}
 
+		const result = await sendVerification(validation.fullPhone);
+		if (!result.success) {
+			console.error("SMS verification failed:", result.error);
+			return redirect(
+				`/alerts?error=${encodeURIComponent("verification_failed")}`,
+			);
+		}
+
 		await userService.update(user.id, {
 			phone_country_code: validation.countryCode,
 			phone_number: validation.nationalNumber,
 			phone_verified: false,
 		});
-
-		const result = await sendVerification(validation.fullPhone);
-		if (!result.success) {
-			console.error("SMS verification failed:", result.error);
-			await userService.update(user.id, {
-				phone_country_code: null,
-				phone_number: null,
-				phone_verified: false,
-			});
-			return redirect(
-				`/alerts?error=${encodeURIComponent("verification_failed")}`,
-			);
-		}
 
 		return redirect("/alerts?success=verification_sent");
 	} catch (error) {

@@ -98,19 +98,21 @@ import Layout from "../../layouts/Layout.astro";
     const type = search.get('type');
 
     if (token && type === 'recovery') {
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'recovery'
-      });
+      (async () => {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'recovery'
+        });
 
-      if (error) {
-        console.error('Token verification failed:', error);
-        showMessage('Invalid or expired reset link.', 'error', true);
-        // Hide the form since the token is invalid
-        if (form) {
-          form.style.display = 'none';
+        if (error) {
+          console.error('Token verification failed:', error);
+          showMessage('Invalid or expired reset link.', 'error', true);
+          // Hide the form since the token is invalid
+          if (form) {
+            form.style.display = 'none';
+          }
         }
-      }
+      })();
     }
   }
 
@@ -155,9 +157,17 @@ import Layout from "../../layouts/Layout.astro";
 
     showMessage('Password updated! Redirecting to sign in...', 'success');
     
+    // Auto-redirect to sign-in page after 3 seconds
+    const redirectTimeoutId = setTimeout(() => {
+      window.location.href = '/';
+    }, AUTO_REDIRECT_DELAY);
+    
     // Add manual redirect button
     setTimeout(() => {
       if (!messageDiv) return;
+      
+      // Cancel auto-redirect since we're showing the manual button
+      clearTimeout(redirectTimeoutId);
       
       messageDiv.innerHTML = '';
       
@@ -183,11 +193,6 @@ import Layout from "../../layouts/Layout.astro";
       container.appendChild(flexContainer);
       messageDiv.appendChild(container);
     }, MESSAGE_UPDATE_DELAY);
-    
-    // Auto-redirect to sign-in page after 3 seconds
-    setTimeout(() => {
-      window.location.href = '/';
-    }, AUTO_REDIRECT_DELAY);
   });
 
   function showMessage(text: string, type: 'success' | 'error', showForgotLink = false) {

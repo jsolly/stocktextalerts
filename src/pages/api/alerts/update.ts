@@ -12,6 +12,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	}
 
 	try {
+		const currentUser = await userService.getById(user.id);
+
 		const formData = await request.formData();
 
 		const timezone = formData.get("timezone") as string | null;
@@ -22,25 +24,26 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 		const updates: Parameters<typeof userService.update>[1] = {};
 
-		const isDeliveryMethodsUpdate =
-			alertViaEmailRaw !== "preserve" && alertViaSmsRaw !== "preserve";
-		const isScheduleUpdate = timezone !== null;
-
-		if (isDeliveryMethodsUpdate) {
-			const alertViaEmail = alertViaEmailRaw === "on";
-			const alertViaSms = alertViaSmsRaw === "on";
-
-			if (!alertViaEmail && !alertViaSms) {
-				return redirect("/alerts?error=at_least_one_alert_method");
-			}
-
-			updates.alert_via_email = alertViaEmail;
-			updates.alert_via_sms = alertViaSms;
+		// Handle delivery methods independently
+		if (alertViaEmailRaw !== null && alertViaEmailRaw !== "preserve") {
+			updates.alert_via_email = alertViaEmailRaw === "on";
+		}
+		if (alertViaSmsRaw !== null && alertViaSmsRaw !== "preserve") {
+			updates.alert_via_sms = alertViaSmsRaw === "on";
 		}
 
-		if (isScheduleUpdate) {
+		// Handle schedule settings
+		if (timezone !== null) {
 			if (!timezone) {
 				return redirect("/alerts?error=timezone_required");
+			}
+
+			// Validate timezone format
+			try {
+				Intl.DateTimeFormat(undefined, { timeZone: timezone });
+			} catch (error) {
+				console.error("Invalid timezone provided:", timezone, error);
+				return redirect("/alerts?error=invalid_timezone");
 			}
 
 			updates.timezone = timezone;
@@ -56,6 +59,21 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 				const endHour = Number.parseInt(alertEndHour.toString(), 10);
 				if (!Number.isNaN(endHour) && endHour >= 0 && endHour <= 23) {
 					updates.alert_end_hour = endHour;
+				}
+			}
+
+			// Validate hour range when any hour is being updated
+			if (
+				updates.alert_start_hour !== undefined ||
+				updates.alert_end_hour !== undefined
+			) {
+				const effectiveStart =
+					updates.alert_start_hour ?? currentUser.alert_start_hour;
+				const effectiveEnd =
+					updates.alert_end_hour ?? currentUser.alert_end_hour;
+
+				if (effectiveStart >= effectiveEnd) {
+					return redirect("/alerts?error=invalid_hour_range");
 				}
 			}
 		}

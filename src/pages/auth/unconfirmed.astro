@@ -77,7 +77,7 @@ if (success === "true") {
         )}
 
         <div class="space-y-4">
-          <form id="resend-form" action="/api/auth/resend-verification" method="post">
+          <form id="resend-form" action="/api/auth/email/resend-verification" method="post">
             <input type="hidden" name="email" value={email || ""} />
             <button
               id="resend-btn"

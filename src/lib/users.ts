@@ -49,6 +49,7 @@ export function createUserService(
 				phone_verified?: boolean;
 				sms_opted_out?: boolean;
 				timezone?: string | null;
+				time_format?: string;
 				alert_start_hour?: number;
 				alert_end_hour?: number;
 				alert_via_email?: boolean;

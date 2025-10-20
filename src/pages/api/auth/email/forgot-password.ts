@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
-import { createSupabaseServerClient } from "../../../lib/db-client";
+import { createSupabaseServerClient } from "../../../../lib/db-client";
+import { getSiteUrl } from "../../../../lib/env";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
 	const supabase = createSupabaseServerClient();
@@ -12,13 +13,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			return redirect("/auth/forgot?error=email_required");
 		}
 
-		const siteUrl = import.meta.env.SITE_URL;
-		if (!siteUrl) {
-			console.error("SITE_URL environment variable is not configured");
-			return redirect("/auth/forgot?error=server_error");
-		}
-
-		const redirectTo = new URL("/auth/recover", siteUrl).toString();
+		const redirectTo = new URL("/auth/recover", getSiteUrl()).toString();
 
 		const { error } = await supabase.auth.resetPasswordForEmail(email, {
 			redirectTo,

@@ -137,16 +137,24 @@ Visit <http://localhost:4321> to see the application.
 
 ### API Endpoints
 
-- `POST /api/auth/register` - User registration
+**Authentication:**
+- `POST /api/auth/email/register` - User registration
+- `POST /api/auth/email/forgot-password` - Request password reset
+- `POST /api/auth/email/resend-verification` - Resend verification email
 - `POST /api/auth/signin` - User login
 - `POST /api/auth/signout` - User logout
-- `POST /api/alerts/sms/send-verification` - Send SMS verification code
-- `POST /api/alerts/sms/verify-code` - Verify SMS code
+- `POST /api/auth/delete-account` - Delete user account
+- `POST /api/auth/sms/send-verification` - Send SMS verification code
+- `POST /api/auth/sms/verify-code` - Verify SMS code
+
+**Alerts:**
 - `POST /api/alerts/update` - Update alert settings
-- `POST /api/stocks/add` - Add stock to user's tracking list
-- `POST /api/stocks/remove` - Remove stock from user's tracking list
 - `POST /api/alerts/send-hourly` - Cron endpoint (protected by CRON_SECRET)
-- `POST /api/alerts/sms/incoming` - Twilio webhook for STOP/START/HELP keywords
+- `POST /api/alerts/incoming` - Twilio webhook for STOP/START/HELP keywords
+
+**Stocks:**
+- `POST /api/alerts/stocks/add` - Add stock to user's tracking list
+- `POST /api/alerts/stocks/remove` - Remove stock from user's tracking list
 
 ## Deployment to Vercel
 
@@ -174,7 +182,7 @@ Push to your main branch or click "Redeploy" in Vercel. The application will aut
 After deployment, configure the Twilio webhook for incoming SMS:
 1. Go to Twilio Console → Phone Numbers → Manage → Active numbers
 2. Select your phone number
-3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/alerts/sms/incoming`
+3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/alerts/incoming`
 4. Save changes
 
 ### 4. Verify Cron Job
@@ -226,20 +234,21 @@ The cron job:
 │   │   │   ├── alerts/
 │   │   │   │   ├── send-hourly.ts  # Cron job endpoint
 │   │   │   │   ├── update.ts       # Update alert settings
-│   │   │   │   └── sms/
-│   │   │   │       ├── incoming.ts        # Twilio webhook (STOP/START)
-│   │   │   │       ├── send-verification.ts
-│   │   │   │       └── verify-code.ts
-│   │   │   ├── auth/       # Authentication endpoints
-│   │   │   │   ├── delete-account.ts
-│   │   │   │   ├── forgot-password.ts
-│   │   │   │   ├── register.ts
-│   │   │   │   ├── resend-verification.ts
-│   │   │   │   ├── signin.ts
-│   │   │   │   └── signout.ts
-│   │   │   └── stocks/     # Stock management
-│   │   │       ├── add.ts
-│   │   │       └── remove.ts
+│   │   │   │   ├── incoming.ts     # Twilio webhook (STOP/START)
+│   │   │   │   └── stocks/
+│   │   │   │       ├── add.ts
+│   │   │   │       └── remove.ts
+│   │   │   └── auth/       # Authentication endpoints
+│   │   │       ├── delete-account.ts
+│   │   │       ├── signin.ts
+│   │   │       ├── signout.ts
+│   │   │       ├── email/
+│   │   │       │   ├── forgot-password.ts
+│   │   │       │   ├── register.ts
+│   │   │       │   └── resend-verification.ts
+│   │   │       └── sms/
+│   │   │           ├── send-verification.ts
+│   │   │           └── verify-code.ts
 │   │   ├── auth/
 │   │   │   ├── forgot.astro
 │   │   │   ├── recover.astro

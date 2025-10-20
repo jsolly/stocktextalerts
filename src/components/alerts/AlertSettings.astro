@@ -33,12 +33,12 @@ const hours = Array.from({ length: 24 }, (_, i) => i);
 <div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
 	<h2 class="text-2xl font-bold text-gray-900 mb-4">Alert Settings</h2>
 	
-	<div class="space-y-4">
-		<label class="block text-sm font-medium text-slate-700 mb-2">
-			Alert Delivery Methods (select at least one)
-		</label>
+	<form method="POST" action="/api/alerts/update" class="space-y-6">
 		<div class="space-y-4">
-			<form method="POST" action="/api/alerts/update" class="space-y-4">
+			<label class="block text-sm font-medium text-slate-700 mb-2">
+				Alert Delivery Methods
+			</label>
+			<div class="space-y-4">
 				<label class="flex items-center cursor-pointer">
 					<input type="checkbox" name="alert_via_email" class="mr-2 cursor-pointer" checked={user.alert_via_email} />
 					<span>Email Alerts</span>
@@ -48,11 +48,6 @@ const hours = Array.from({ length: 24 }, (_, i) => i);
 					<input type="checkbox" name="alert_via_sms" class="mr-2 cursor-pointer" checked={user.alert_via_sms} />
 					<span>Text Message Alerts</span>
 				</label>
-				
-				<button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm cursor-pointer">
-					Update Delivery Methods
-				</button>
-			</form>
 			
 			{user.sms_opted_out && (
 				<div class="ml-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -72,15 +67,15 @@ const hours = Array.from({ length: 24 }, (_, i) => i);
 						</div>
 					) : (
 						<div class="space-y-4">
-							<form method="POST" action="/api/alerts/sms/send-verification" class="space-y-4">
+							<form method="POST" action="/api/auth/sms/send-verification" class="space-y-4">
 								<PhoneInput client:only="vue" />
 								<button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm mt-4 cursor-pointer">
 									Send Verification Code
 								</button>
 							</form>
 
-							{user.phone_number && !user.phone_verified && (
-								<form method="POST" action="/api/alerts/sms/verify-code" class="space-y-4">
+						{user.phone_number && !user.phone_verified && (
+							<form method="POST" action="/api/auth/sms/verify-code" class="space-y-4">
 									<div>
 										<label for="code" class="block text-sm font-medium text-slate-700 mb-2">
 											Enter Verification Code
@@ -100,9 +95,7 @@ const hours = Array.from({ length: 24 }, (_, i) => i);
 				</div>
 			)}
 		</div>
-	</div>
 
-	<form method="POST" action="/api/alerts/update" class="space-y-6">
 		<div class="mt-8 mb-8">
 			<label for="timezone" class="block text-sm font-medium text-slate-700 mb-1">
 				Timezone <span class="text-red-500">*</span>
@@ -147,29 +140,14 @@ const hours = Array.from({ length: 24 }, (_, i) => i);
 			</div>
 		</div>
 
-		<input type="hidden" name="alert_via_email" value="preserve" />
-		<input type="hidden" name="alert_via_sms" value="preserve" />
-
-		<button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer mt-6">
-			Save Schedule Settings
+		<button type="submit" id="save-button" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer mt-6 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+			Save
 		</button>
 	</form>
 </div>
 
 <script>
 	document.addEventListener('DOMContentLoaded', () => {
-		if (!Intl || !Intl.DateTimeFormat) {
-			return;
-		}
-
-		const timezoneSelect = document.getElementById('timezone') as HTMLSelectElement;
-		if (timezoneSelect && !timezoneSelect.value) {
-			const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-			const option = timezoneSelect.querySelector(`option[value="${detectedTimezone}"]`);
-			if (option) {
-				timezoneSelect.value = detectedTimezone;
-			}
-		}
 
 		// Handle SMS checkbox toggle
 		const smsCheckbox = document.querySelector('input[name="alert_via_sms"]') as HTMLInputElement;
@@ -180,5 +158,43 @@ const hours = Array.from({ length: 24 }, (_, i) => i);
 				phoneVerificationSection.classList.toggle('hidden', !smsCheckbox.checked);
 			});
 		}
+
+		// Track form changes to enable/disable save button
+		const saveButton = document.getElementById('save-button') as HTMLButtonElement;
+		const form = document.querySelector('form') as HTMLFormElement;
+		
+		if (!saveButton || !form) return;
+
+		// Store initial values AFTER all DOM manipulation is complete
+		const initialValues = {
+			alert_via_email: (document.querySelector('input[name="alert_via_email"]') as HTMLInputElement)?.checked || false,
+			alert_via_sms: (document.querySelector('input[name="alert_via_sms"]') as HTMLInputElement)?.checked || false,
+			timezone: (document.querySelector('select[name="timezone"]') as HTMLSelectElement)?.value || '',
+			alert_start_hour: (document.querySelector('select[name="alert_start_hour"]') as HTMLSelectElement)?.value || '',
+			alert_end_hour: (document.querySelector('select[name="alert_end_hour"]') as HTMLSelectElement)?.value || ''
+		};
+
+		function checkForChanges() {
+			const currentValues = {
+				alert_via_email: (document.querySelector('input[name="alert_via_email"]') as HTMLInputElement)?.checked || false,
+				alert_via_sms: (document.querySelector('input[name="alert_via_sms"]') as HTMLInputElement)?.checked || false,
+				timezone: (document.querySelector('select[name="timezone"]') as HTMLSelectElement)?.value || '',
+				alert_start_hour: (document.querySelector('select[name="alert_start_hour"]') as HTMLSelectElement)?.value || '',
+				alert_end_hour: (document.querySelector('select[name="alert_end_hour"]') as HTMLSelectElement)?.value || ''
+			};
+
+			const hasChanges = Object.keys(initialValues).some(key => 
+				initialValues[key as keyof typeof initialValues] !== currentValues[key as keyof typeof currentValues]
+			);
+
+			saveButton.disabled = !hasChanges;
+		}
+
+		// Add change listeners to all form inputs
+		form.addEventListener('change', checkForChanges);
+		form.addEventListener('input', checkForChanges);
+
+		// Initial check
+		checkForChanges();
 	});
 </script>
