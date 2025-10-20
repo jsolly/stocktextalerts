@@ -1,6 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AstroCookies } from "astro";
 
+export type TimeFormat = "12h" | "24h";
+export type Hour = number & { readonly __brand: "Hour" };
+
+export function isValidHour(value: number): value is Hour {
+	return Number.isInteger(value) && value >= 0 && value <= 23;
+}
+
 export interface User {
 	id: string;
 	email: string;
@@ -10,9 +17,9 @@ export interface User {
 	phone_verified: boolean;
 	sms_opted_out: boolean;
 	timezone: string | null;
-	time_format: string;
-	alert_start_hour: number;
-	alert_end_hour: number;
+	time_format: TimeFormat;
+	alert_start_hour: Hour;
+	alert_end_hour: Hour;
 	alert_via_email: boolean;
 	alert_via_sms: boolean;
 	created_at: string;
@@ -67,9 +74,9 @@ export function createUserService(
 				phone_verified?: boolean;
 				sms_opted_out?: boolean;
 				timezone?: string | null;
-				time_format?: string;
-				alert_start_hour?: number;
-				alert_end_hour?: number;
+				time_format?: TimeFormat;
+				alert_start_hour?: Hour;
+				alert_end_hour?: Hour;
 				alert_via_email?: boolean;
 				alert_via_sms?: boolean;
 			},

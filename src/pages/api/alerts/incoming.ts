@@ -83,7 +83,11 @@ export const POST: APIRoute = async ({ request }) => {
 
 		let responseMessage = "";
 
-		if (["STOP", "UNSUBSCRIBE", "QUIT", "END", "CANCEL"].includes(body)) {
+		const stopRe = /\b(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)\b/;
+		const startRe = /\b(START|SUBSCRIBE|YES|UNSTOP)\b/;
+		const helpRe = /\b(HELP|INFO)\b/;
+
+		if (stopRe.test(body)) {
 			const { error: updateError } = await supabase
 				.from("users")
 				.update({ sms_opted_out: true })
@@ -96,7 +100,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 			responseMessage =
 				"You have been unsubscribed from SMS alerts. Reply START to resume.";
-		} else if (["START", "SUBSCRIBE", "YES", "UNSTOP"].includes(body)) {
+		} else if (startRe.test(body)) {
 			const { error: updateError } = await supabase
 				.from("users")
 				.update({ sms_opted_out: false })
@@ -109,7 +113,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 			responseMessage =
 				"You have been subscribed to SMS alerts. Reply STOP to unsubscribe.";
-		} else if (body === "HELP" || body === "INFO") {
+		} else if (helpRe.test(body)) {
 			responseMessage =
 				"StockTextAlerts: Reply STOP to unsubscribe, START to subscribe. Msg & data rates may apply. Help: reply HELP or visit your dashboard.";
 		} else {

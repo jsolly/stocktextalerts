@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../../lib/db-client";
-import { checkVerification } from "../../../../lib/phone";
+import { buildFullPhone, checkVerification } from "../../../../lib/phone";
 import { createUserService } from "../../../../lib/users";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
@@ -30,7 +30,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect("/alerts?error=phone_not_set");
 		}
 
-		const fullPhone = `${userData.phone_country_code}${userData.phone_number}`;
+		const fullPhone = buildFullPhone(
+			userData.phone_country_code,
+			userData.phone_number,
+		);
 		const result = await checkVerification(fullPhone, code);
 
 		if (!result.success) {

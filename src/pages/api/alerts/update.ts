@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/db-client";
-import { createUserService } from "../../../lib/users";
+import { validateTimezone } from "../../../lib/timezones";
+import { createUserService, type Hour } from "../../../lib/users";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const supabase = createSupabaseServerClient();
@@ -32,49 +33,40 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 		// Handle timezone updates
 		if (timezone !== null) {
-			if (!timezone) {
+			const trimmedTimezone = timezone.trim();
+
+			if (!trimmedTimezone) {
 				return redirect("/alerts?error=timezone_required");
 			}
 
-			// Validate timezone format
-			try {
-				Intl.DateTimeFormat(undefined, { timeZone: timezone });
-			} catch (error) {
-				console.error("Invalid timezone provided:", timezone, error);
+			const validatedTimezone = validateTimezone(trimmedTimezone);
+			if (validatedTimezone !== trimmedTimezone) {
+				console.error("Invalid timezone provided:", trimmedTimezone);
 				return redirect("/alerts?error=invalid_timezone");
 			}
-
-			updates.timezone = timezone;
+			updates.timezone = validatedTimezone;
 		}
 
 		// Handle alert start hour
 		if (alertStartHour !== null) {
 			const startHour = Number.parseInt(alertStartHour.toString(), 10);
 
-			if (Number.isNaN(startHour)) {
+			if (Number.isNaN(startHour) || startHour < 0 || startHour > 23) {
 				return redirect("/alerts?error=invalid_start_hour");
 			}
 
-			if (startHour < 0 || startHour > 23) {
-				return redirect("/alerts?error=invalid_start_hour");
-			}
-
-			updates.alert_start_hour = startHour;
+			updates.alert_start_hour = startHour as Hour;
 		}
 
 		// Handle alert end hour
 		if (alertEndHour !== null) {
 			const endHour = Number.parseInt(alertEndHour.toString(), 10);
 
-			if (Number.isNaN(endHour)) {
+			if (Number.isNaN(endHour) || endHour < 0 || endHour > 23) {
 				return redirect("/alerts?error=invalid_end_hour");
 			}
 
-			if (endHour < 0 || endHour > 23) {
-				return redirect("/alerts?error=invalid_end_hour");
-			}
-
-			updates.alert_end_hour = endHour;
+			updates.alert_end_hour = endHour as Hour;
 		}
 
 		if (Object.keys(updates).length === 0) {

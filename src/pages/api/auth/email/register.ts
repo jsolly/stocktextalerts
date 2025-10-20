@@ -1,5 +1,9 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../../lib/db-client";
+import {
+	validateTimeFormat,
+	validateTimezone,
+} from "../../../../lib/timezones";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
 	const supabase = createSupabaseServerClient();
@@ -7,12 +11,15 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const formData = await request.formData();
 	const email = formData.get("email")?.toString();
 	const password = formData.get("password")?.toString();
-	const timezone = formData.get("timezone")?.toString();
-	const timeFormat = formData.get("time_format")?.toString();
+	const timezoneHint = formData.get("timezone")?.toString();
+	const timeFormatHint = formData.get("time_format")?.toString();
 
 	if (!email || !password) {
 		return redirect("/auth/register?error=missing_fields");
 	}
+
+	const validatedTimezone = validateTimezone(timezoneHint);
+	const validatedTimeFormat = validateTimeFormat(timeFormatHint);
 
 	const { data, error } = await supabase.auth.signUp({
 		email,
@@ -29,8 +36,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			await supabase.from("users").upsert({
 				id: data.user.id,
 				email: data.user.email,
-				timezone: timezone || null,
-				time_format: timeFormat || "24h",
+				timezone: validatedTimezone,
+				time_format: validatedTimeFormat,
 			});
 		} catch (error) {
 			console.error("Failed to create user profile:", error);

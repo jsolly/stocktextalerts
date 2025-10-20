@@ -5,12 +5,9 @@ import Layout from "../../layouts/Layout.astro";
 const search = Astro.url.searchParams;
 const success = search.get("success");
 const error = search.get("error");
-const secondsParam = search.get("seconds");
-const secondsNum = secondsParam ? Number.parseInt(secondsParam, 10) : null;
+const secondsNum = Number.parseInt(search.get("seconds") ?? "", 10);
 const seconds =
-	Number.isFinite(secondsNum ?? NaN) && (secondsNum as number) >= 0
-		? String(secondsNum)
-		: null;
+	Number.isFinite(secondsNum) && secondsNum >= 0 ? String(secondsNum) : null;
 
 let message = "";
 let messageType: "success" | "error" | null = null;

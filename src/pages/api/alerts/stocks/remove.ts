@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../../lib/db-client";
+import { validateTickerSymbol } from "../../../../lib/stocks";
 import { createUserService } from "../../../../lib/users";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
@@ -8,7 +9,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
-		return redirect("/auth/register?error=unauthorized");
+		return redirect("/?error=unauthorized&returnTo=/alerts");
 	}
 
 	try {
@@ -25,8 +26,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect("/alerts?error=symbol_required");
 		}
 
-		const tickerRegex = /^[A-Z]{1,5}$/;
-		if (!tickerRegex.test(symbol)) {
+		if (!validateTickerSymbol(symbol)) {
 			return redirect("/alerts?error=invalid_symbol");
 		}
 
@@ -38,9 +38,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 		if (error) {
 			console.error("Error removing user stock:", error);
-			return redirect(
-				`/alerts?error=${encodeURIComponent(error.message || "failed_to_remove_stock")}`,
-			);
+			return redirect("/alerts?error=failed_to_remove_stock");
 		}
 
 		return redirect("/alerts?success=stock_removed");

@@ -72,6 +72,27 @@ async function logAlert(
 	return { success: true };
 }
 
+async function alertSentThisHour(
+	supabase: ReturnType<typeof createSupabaseAdminClient>,
+	userId: string,
+	type: string,
+	deliveryMethod: DeliveryMethod,
+): Promise<boolean> {
+	const hourStart = new Date();
+	hourStart.setUTCMinutes(0, 0, 0);
+
+	const { data } = await supabase
+		.from("alerts_log")
+		.select("id")
+		.eq("user_id", userId)
+		.eq("type", type)
+		.eq("delivery_method", deliveryMethod)
+		.gte("sent_at", hourStart.toISOString())
+		.limit(1);
+
+	return (data?.length ?? 0) > 0;
+}
+
 async function sendEmail(
 	to: string,
 	subject: string,
@@ -171,22 +192,33 @@ export const POST: APIRoute = async ({ request }) => {
 			const stocksList = symbols.join(", ");
 
 			if (user.alert_via_email) {
-				const emailResult = await sendEmail(
-					user.email,
-					"Your Hourly Stock Alert",
-					`Your tracked stocks: ${stocksList}`,
+				const alreadySent = await alertSentThisHour(
+					supabase,
+					user.id,
+					"hourly_update",
+					"email",
 				);
 
-				await logAlert(supabase, {
-					user_id: user.id,
-					type: "hourly_update",
-					delivery_method: "email",
-					status: emailResult.success ? "sent" : "failed",
-					message: `Stocks: ${stocksList}`,
-				});
+				if (!alreadySent) {
+					const emailResult = await sendEmail(
+						user.email,
+						"Your Hourly Stock Alert",
+						`Your tracked stocks: ${stocksList}`,
+					);
 
-				if (emailResult.success) {
-					sentCount++;
+					await logAlert(supabase, {
+						user_id: user.id,
+						type: "hourly_update",
+						delivery_method: "email",
+						status: emailResult.success ? "sent" : "failed",
+						message: `Stocks: ${stocksList}`,
+					});
+
+					if (emailResult.success) {
+						sentCount++;
+					}
+				} else {
+					skippedCount++;
 				}
 			}
 
@@ -197,23 +229,34 @@ export const POST: APIRoute = async ({ request }) => {
 				user.phone_country_code &&
 				user.phone_number
 			) {
-				const fullPhone = `${user.phone_country_code}${user.phone_number}`;
-				const smsMessage = truncateSMS(
-					`Tracked: ${stocksList}. Reply STOP to opt out.`,
+				const alreadySent = await alertSentThisHour(
+					supabase,
+					user.id,
+					"hourly_update",
+					"sms",
 				);
 
-				const smsResult = await sendSMS(fullPhone, smsMessage);
+				if (!alreadySent) {
+					const fullPhone = `${user.phone_country_code}${user.phone_number}`;
+					const smsMessage = truncateSMS(
+						`Tracked: ${stocksList}. Reply STOP to opt out.`,
+					);
 
-				await logAlert(supabase, {
-					user_id: user.id,
-					type: "hourly_update",
-					delivery_method: "sms",
-					status: smsResult.success ? "sent" : "failed",
-					message: smsMessage,
-				});
+					const smsResult = await sendSMS(fullPhone, smsMessage);
 
-				if (smsResult.success) {
-					sentCount++;
+					await logAlert(supabase, {
+						user_id: user.id,
+						type: "hourly_update",
+						delivery_method: "sms",
+						status: smsResult.success ? "sent" : "failed",
+						message: smsMessage,
+					});
+
+					if (smsResult.success) {
+						sentCount++;
+					}
+				} else {
+					skippedCount++;
 				}
 			}
 		}

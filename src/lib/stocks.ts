@@ -36,3 +36,8 @@ export async function getUserStocks(
 
 	return data || [];
 }
+
+export function validateTickerSymbol(symbol: string): boolean {
+	const tickerRegex = /^[A-Z][A-Z0-9.-]{0,9}$/;
+	return tickerRegex.test(symbol);
+}

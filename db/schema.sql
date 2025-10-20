@@ -6,6 +6,7 @@ Domains and Extensions
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- US Timezones domain
+-- NOTE: Keep this list synchronized with src/lib/timezones.ts
 CREATE DOMAIN timezone AS TEXT
 CHECK (VALUE IN (
   'America/New_York',
@@ -124,6 +125,15 @@ ON alerts_log(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_alerts_log_sent_at 
 ON alerts_log(sent_at);
+
+-- Prevent duplicate deliveries per user/type/method within the same hour
+CREATE UNIQUE INDEX IF NOT EXISTS ux_alerts_log_user_type_method_hour
+ON alerts_log (
+  user_id,
+  type,
+  delivery_method,
+  date_trunc('hour', sent_at)
+);
 
 /* =============
 Row Level Security - Users

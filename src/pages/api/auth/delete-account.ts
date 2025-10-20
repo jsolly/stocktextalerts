@@ -18,96 +18,62 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 		const supabaseAdmin = createSupabaseAdminClient();
 
 		/* =============
-		Two-Phase Deletion Strategy
+		Auth-First Deletion Strategy
 		=============
-		Delete DB record first, then auth user. This ordering prevents orphaned
-		DB rows (the original issue). If DB deletion fails, we abort before
-		touching auth. If auth deletion fails after DB deletion, we attempt a
-		compensating transaction to restore the DB record and maintain consistency.
+		Delete auth user first, then DB record. This ordering prioritizes data
+		safety over preventing orphaned DB rows:
 		
-		Note: For true atomicity, consider moving this to a Supabase Edge Function
-		with explicit transaction boundaries or implementing a saga pattern with
-		a retry queue for failed auth deletions.
+		- If auth deletion fails: Nothing is deleted. User can retry safely.
+		- If DB deletion fails: Auth is gone but DB record remains (orphaned).
+		  This is safe because RLS policies prevent access without auth.
+		  Orphaned records can be cleaned up with a periodic maintenance job.
+		
+		This approach is simpler and prevents data loss compared to DB-first
+		deletion with compensating transactions (which can't restore cascade-
+		deleted child records like user_stocks and alerts_log).
 		*/
 
-		// Phase 1: Delete from database (users table, tracked_stocks cascade via FK)
-		const { data: deletedUser, error: dbError } = await supabaseAdmin
-			.from("users")
-			.delete()
-			.eq("id", authUser.id)
-			.select()
-			.single();
-
-		if (dbError) {
-			console.error("Database user deletion failed:", {
-				userId: authUser.id,
-				error: dbError,
-			});
-			return redirect("/profile?error=delete_failed");
-		}
-
-		console.log("DB record deleted successfully:", { userId: authUser.id });
-
-		// Phase 2: Delete from auth with compensating action on failure
+		// Phase 1: Delete from auth
 		const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(
 			authUser.id,
 		);
 
 		if (authError) {
-			console.error(
-				"Auth deletion failed after DB deletion - attempting compensating action:",
-				{
-					userId: authUser.id,
-					error: authError,
-				},
-			);
-
-			// Compensating action: restore the DB record
-			const { error: restoreError } = await supabaseAdmin.from("users").insert({
-				id: deletedUser.id,
-				email: deletedUser.email,
-				phone_country_code: deletedUser.phone_country_code,
-				phone_number: deletedUser.phone_number,
-				phone_verified: deletedUser.phone_verified,
-				sms_opted_out: deletedUser.sms_opted_out,
-				timezone: deletedUser.timezone,
-				time_format: deletedUser.time_format,
-				alert_start_hour: deletedUser.alert_start_hour,
-				alert_end_hour: deletedUser.alert_end_hour,
-				alert_via_email: deletedUser.alert_via_email,
-				alert_via_sms: deletedUser.alert_via_sms,
-				created_at: deletedUser.created_at,
-				updated_at: deletedUser.updated_at,
-			});
-
-			if (restoreError) {
-				console.error(
-					"CRITICAL: Failed to restore DB record after auth deletion failure - manual intervention required:",
-					{
-						userId: authUser.id,
-						authError,
-						restoreError,
-						deletedUserData: deletedUser,
-					},
-				);
-				// User is in inconsistent state but auth still exists, so they can retry
-				return redirect("/profile?error=delete_partial");
-			}
-
-			console.log("Compensating action successful - DB record restored:", {
+			console.error("Auth user deletion failed:", {
 				userId: authUser.id,
+				error: authError,
 			});
 			return redirect("/profile?error=delete_failed");
+		}
+
+		console.log("Auth user deleted successfully:", { userId: authUser.id });
+
+		// Phase 2: Delete from database (users table, user_stocks and alerts_log cascade via FK)
+		const { error: dbError } = await supabaseAdmin
+			.from("users")
+			.delete()
+			.eq("id", authUser.id);
+
+		cookies.delete("sb-access-token", { path: "/" });
+		cookies.delete("sb-refresh-token", { path: "/" });
+
+		if (dbError) {
+			console.error(
+				"DB deletion failed after auth deletion - orphaned record created:",
+				{
+					userId: authUser.id,
+					error: dbError,
+				},
+			);
+			// Auth is deleted but DB records remain. User should be informed.
+			return redirect("/?warning=partial_deletion");
 		}
 
 		console.log("Account deletion completed successfully:", {
 			userId: authUser.id,
 		});
 
-		cookies.delete("sb-access-token", { path: "/" });
-		cookies.delete("sb-refresh-token", { path: "/" });
-
-		return redirect("/");
+		return redirect("/?success=account_deleted");
 	} catch (error) {
 		console.error("Account deletion failed with exception:", {
 			userId: authUser.id,

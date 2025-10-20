@@ -7,10 +7,10 @@ interface Props {
 
 const { user } = Astro.props;
 
-const needsSetup =
-	(user.alert_via_sms && !user.phone_verified) ||
-	(!user.alert_via_email && !user.alert_via_sms) ||
-	!user.timezone;
+const needsPhoneVerification = user.alert_via_sms && !user.phone_verified;
+const needsAlertMethod = !user.alert_via_email && !user.alert_via_sms;
+const needsTimezone = !user.timezone;
+const needsSetup = needsPhoneVerification || needsAlertMethod || needsTimezone;
 ---
 
 {needsSetup && (
@@ -18,13 +18,13 @@ const needsSetup =
 		<h2 class="text-xl font-semibold text-yellow-900 mb-2">Setup Required</h2>
 		<p class="text-yellow-800 mb-4">Please complete your setup to receive alerts:</p>
 		<ul class="list-disc list-inside text-yellow-800 space-y-1">
-			{user.alert_via_sms && !user.phone_verified && (
+			{needsPhoneVerification && (
 				<li>Verify your phone number below</li>
 			)}
-			{!user.alert_via_email && !user.alert_via_sms && (
+			{needsAlertMethod && (
 				<li>Enable at least one alert method</li>
 			)}
-			{!user.timezone && (
+			{needsTimezone && (
 				<li>Set your timezone in settings</li>
 			)}
 		</ul>

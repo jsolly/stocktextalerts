@@ -10,6 +10,39 @@ export interface PhoneValidationResult {
 	error?: string;
 }
 
+function normalizeCountryCode(countryCode: string): string {
+	let normalized = countryCode.replace(/[^\d+]/g, "");
+	const digitCount = (normalized.match(/\d/g) || []).length;
+	if (digitCount === 0) {
+		throw new Error("Country code must contain at least one digit");
+	}
+	const plusCount = (normalized.match(/\+/g) || []).length;
+	if (plusCount > 1) {
+		normalized = normalized.replace(/\+/g, "");
+		normalized = `+${normalized}`;
+	}
+	if (normalized.startsWith("+")) {
+		return normalized;
+	}
+	return `+${normalized}`;
+}
+
+function normalizePhoneNumber(phoneNumber: string): string {
+	return phoneNumber.replace(/\D/g, "");
+}
+
+export function buildFullPhone(
+	countryCode: string,
+	nationalNumber: string,
+): string {
+	if (!countryCode?.trim() || !nationalNumber?.trim()) {
+		throw new Error("Country code and national number are required");
+	}
+	const normalizedCountryCode = normalizeCountryCode(countryCode);
+	const normalizedNationalNumber = normalizePhoneNumber(nationalNumber);
+	return `${normalizedCountryCode}${normalizedNationalNumber}`;
+}
+
 interface TwilioError {
 	code?: number;
 	message?: string;
@@ -32,11 +65,16 @@ export function validatePhone(
 			};
 		}
 
+		const rawCountryCode = `+${phoneNumber.countryCallingCode}`;
+		const rawNationalNumber = phoneNumber.nationalNumber;
+		const normalizedCountryCode = normalizeCountryCode(rawCountryCode);
+		const normalizedNationalNumber = normalizePhoneNumber(rawNationalNumber);
+
 		return {
 			isValid: true,
-			countryCode: `+${phoneNumber.countryCallingCode}`,
-			nationalNumber: phoneNumber.nationalNumber,
-			fullPhone: phoneNumber.number,
+			countryCode: normalizedCountryCode,
+			nationalNumber: normalizedNationalNumber,
+			fullPhone: `${normalizedCountryCode}${normalizedNationalNumber}`,
 		};
 	} catch (error) {
 		return {

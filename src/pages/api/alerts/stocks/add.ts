@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../../lib/db-client";
+import { validateTickerSymbol } from "../../../../lib/stocks";
 import { createUserService } from "../../../../lib/users";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
@@ -8,18 +9,26 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
-		return redirect("/auth/register?error=unauthorized");
+		return redirect("/?error=unauthorized&returnTo=/alerts");
 	}
 
 	try {
 		const formData = await request.formData();
-		const symbol = formData.get("symbol") as string;
+		const rawSymbol = formData.get("symbol");
 
-		if (!symbol) {
+		if (!rawSymbol || typeof rawSymbol !== "string") {
 			return redirect("/alerts?error=symbol_required");
 		}
 
-		const normalizedSymbol = symbol.toUpperCase();
+		const normalizedSymbol = rawSymbol.trim().toUpperCase();
+
+		if (!normalizedSymbol) {
+			return redirect("/alerts?error=symbol_required");
+		}
+
+		if (!validateTickerSymbol(normalizedSymbol)) {
+			return redirect("/alerts?error=invalid_symbol");
+		}
 
 		const { error: insertError } = await supabase
 			.from("user_stocks")
