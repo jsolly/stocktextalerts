@@ -30,6 +30,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect("/alerts?error=invalid_phone");
 		}
 
+		const dbUser = await userService.getById(user.id);
+		if (dbUser.sms_opted_out) {
+			return redirect("/alerts?error=sms_opted_out");
+		}
+
 		const result = await sendVerification(validation.fullPhone);
 		if (!result.success) {
 			console.error("SMS verification failed:", result.error);

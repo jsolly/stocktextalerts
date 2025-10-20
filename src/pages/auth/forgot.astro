@@ -63,7 +63,7 @@ if (success === "true") {
         <p class="text-sm text-gray-600 mb-6">Enter your email and we'll send you a link to reset your password.</p>
 
         {message && (
-          <div class={`mb-4 p-4 rounded-md ${messageType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+          <div class={`mb-4 p-4 rounded-md ${messageType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`} role="alert">
             {message}
           </div>
         )}

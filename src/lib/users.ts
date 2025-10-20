@@ -1,6 +1,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AstroCookies } from "astro";
 
+export interface User {
+	id: string;
+	email: string;
+	phone_country_code: string | null;
+	phone_number: string | null;
+	full_phone: string | null;
+	phone_verified: boolean;
+	sms_opted_out: boolean;
+	timezone: string | null;
+	time_format: string;
+	alert_start_hour: number;
+	alert_end_hour: number;
+	alert_via_email: boolean;
+	alert_via_sms: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
 export function createUserService(
 	supabase: SupabaseClient,
 	cookies: AstroCookies,

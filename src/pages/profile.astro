@@ -2,6 +2,7 @@
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
+import { getAuthErrorMessage } from "../lib/auth";
 import { createSupabaseServerClient } from "../lib/db-client";
 import { createUserService } from "../lib/users";
 
@@ -34,12 +35,7 @@ if (user.phone_number && user.phone_country_code) {
 
 const search = Astro.url.searchParams;
 const error = search.get("error");
-
-let message = "";
-
-if (error === "delete_failed") {
-	message = "Failed to delete account. Please try again.";
-}
+const errorMessage = getAuthErrorMessage(error);
 ---
 
 <Layout title="Profile" description="Edit your profile">
@@ -64,9 +60,9 @@ if (error === "delete_failed") {
         <h1 class="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
         <p class="text-gray-600 mb-8">View your account information</p>
 
-        {message && (
-          <div class="mb-6 p-4 rounded-md bg-red-50 border border-red-200 text-red-700">
-            {message}
+        {errorMessage && (
+          <div class="mb-6 p-4 rounded-md bg-red-50 border border-red-200 text-red-700" role="alert">
+            {errorMessage}
           </div>
         )}
 
@@ -80,7 +76,8 @@ if (error === "delete_failed") {
               id="email"
               name="email"
               value={user.email}
-              disabled
+              readonly
+              aria-readonly="true"
               class="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
             />
             <p class="mt-2 text-sm text-gray-500">Email cannot be changed. Contact support if you need to update your email address.</p>
@@ -97,7 +94,8 @@ if (error === "delete_failed") {
                   id="phone_country_code"
                   name="phone_country_code"
                   value={user.phone_country_code || "+1"}
-                  disabled
+                  readonly
+                  aria-readonly="true"
                   class="w-full px-4 py-3 border border-gray-300 rounded-l-md bg-gray-100 text-gray-500 cursor-not-allowed"
                 />
               </div>
@@ -106,7 +104,8 @@ if (error === "delete_failed") {
                 id="phone_number"
                 name="phone_number"
                 value={formattedPhone}
-                disabled
+                readonly
+                aria-readonly="true"
                 class="flex-1 px-4 py-3 border border-gray-300 border-l-0 rounded-r-md bg-gray-100 text-gray-500 cursor-not-allowed"
                 placeholder="(555) 555-5555"
               />
@@ -141,7 +140,8 @@ if (error === "delete_failed") {
               id="timezone"
               name="timezone"
               value={user.timezone || 'Not set'}
-              disabled
+              readonly
+              aria-readonly="true"
               class="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
             />
             <p class="mt-2 text-sm text-gray-500">Timezone cannot be changed here. Use the alerts page to update your timezone.</p>
@@ -156,7 +156,8 @@ if (error === "delete_failed") {
               id="time_format"
               name="time_format"
               value={user.time_format === '12h' ? '12-hour (AM/PM)' : '24-hour'}
-              disabled
+              readonly
+              aria-readonly="true"
               class="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
             />
             <p class="mt-2 text-sm text-gray-500">Time format cannot be changed here. Contact support if you need to update your time format preference.</p>

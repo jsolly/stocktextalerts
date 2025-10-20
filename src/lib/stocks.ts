@@ -17,10 +17,7 @@ export async function getAllStocks(supabase: SupabaseClient): Promise<Stock[]> {
 		.select("symbol, name, exchange")
 		.order("symbol");
 
-	if (error) {
-		console.error("Error fetching stocks:", error);
-		return [];
-	}
+	if (error) throw error;
 
 	return data || [];
 }
@@ -35,10 +32,7 @@ export async function getUserStocks(
 		.eq("user_id", userId)
 		.order("created_at", { ascending: false });
 
-	if (error) {
-		console.error("Error fetching user stocks:", error);
-		return [];
-	}
+	if (error) throw error;
 
 	return data || [];
 }

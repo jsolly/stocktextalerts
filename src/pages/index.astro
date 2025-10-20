@@ -4,6 +4,7 @@ import Features from "../components/landing/Features.astro";
 import Hero from "../components/landing/Hero.astro";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
+import { getAuthErrorMessage, getAuthSuccessMessage } from "../lib/auth";
 import { createSupabaseServerClient } from "../lib/db-client";
 import { createUserService } from "../lib/users";
 
@@ -13,6 +14,9 @@ const user = await users.getCurrentUser();
 const isAuthenticated = !!user;
 const search = Astro.url.searchParams;
 const errorCode = search.get("error");
+const errorMessage = getAuthErrorMessage(errorCode);
+const successCode = search.get("success");
+const successMessage = getAuthSuccessMessage(successCode);
 const emailPrefill = search.get("email") ?? "";
 
 // Handle password reset redirects
@@ -45,23 +49,20 @@ if (token && type === "recovery") {
           
           <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg border border-gray-200 p-8 mb-20">
             <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Sign in to your account</h2>
-            {errorCode === "invalid_credentials" && (
-              <div class="mb-4 rounded-md bg-red-50 p-4">
+            {successMessage && (
+              <div class="mb-4 rounded-md bg-green-50 p-4" role="alert">
                 <div class="flex">
                   <div class="ml-0">
-                    <h3 class="text-sm font-medium text-red-800">Invalid email or password</h3>
-                    <div class="mt-2 text-sm text-red-700">
-                      <p>Please check your credentials and try again.</p>
-                    </div>
+                    <h3 class="text-sm font-medium text-green-800">{successMessage}</h3>
                   </div>
                 </div>
               </div>
             )}
-            {errorCode === "missing_fields" && (
-              <div class="mb-4 rounded-md bg-red-50 p-4">
+            {errorMessage && (
+              <div class="mb-4 rounded-md bg-red-50 p-4" role="alert">
                 <div class="flex">
                   <div class="ml-0">
-                    <h3 class="text-sm font-medium text-red-800">Email and password are required</h3>
+                    <h3 class="text-sm font-medium text-red-800">{errorMessage}</h3>
                   </div>
                 </div>
               </div>

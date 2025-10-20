@@ -14,10 +14,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	try {
 		const formData = await request.formData();
-		const code = formData.get("code") as string;
+		const rawCode = formData.get("code");
+		const code = typeof rawCode === "string" ? rawCode.trim() : "";
 
 		if (!code) {
 			return redirect("/alerts?error=code_required");
+		}
+
+		if (!/^\d{6}$/.test(code)) {
+			return redirect("/alerts?error=invalid_code");
 		}
 
 		const userData = await userService.getById(user.id);

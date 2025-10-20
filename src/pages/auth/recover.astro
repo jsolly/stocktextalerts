@@ -73,9 +73,6 @@ import Layout from "../../layouts/Layout.astro";
     import.meta.env.PUBLIC_SUPABASE_ANON_KEY
   );
 
-  const MESSAGE_UPDATE_DELAY = 500;
-  const AUTO_REDIRECT_DELAY = 3000;
-
   // Get DOM elements first
   const form = document.getElementById('reset-form') as HTMLFormElement;
   const messageDiv = document.getElementById('message') as HTMLDivElement;
@@ -152,47 +149,7 @@ import Layout from "../../layouts/Layout.astro";
       return;
     }
 
-    // Disable form to prevent resubmission
-    submitButton.disabled = true;
-
-    showMessage('Password updated! Redirecting to sign in...', 'success');
-    
-    // Auto-redirect to sign-in page after 3 seconds
-    const redirectTimeoutId = setTimeout(() => {
-      window.location.href = '/';
-    }, AUTO_REDIRECT_DELAY);
-    
-    // Add manual redirect button
-    setTimeout(() => {
-      if (!messageDiv) return;
-      
-      // Cancel auto-redirect since we're showing the manual button
-      clearTimeout(redirectTimeoutId);
-      
-      messageDiv.innerHTML = '';
-      
-      const container = document.createElement('div');
-      container.className = 'bg-green-50 text-green-700 p-4 rounded-md';
-      
-      const flexContainer = document.createElement('div');
-      flexContainer.className = 'flex items-center justify-between';
-      
-      const textContainer = document.createElement('div');
-      const strong = document.createElement('strong');
-      strong.textContent = 'Password updated!';
-      textContainer.appendChild(strong);
-      textContainer.appendChild(document.createTextNode(' You can now sign in with your new password.'));
-      
-      const link = document.createElement('a');
-      link.href = '/';
-      link.className = 'ml-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors';
-      link.textContent = 'Sign In Now';
-      
-      flexContainer.appendChild(textContainer);
-      flexContainer.appendChild(link);
-      container.appendChild(flexContainer);
-      messageDiv.appendChild(container);
-    }, MESSAGE_UPDATE_DELAY);
+    window.location.href = '/?success=password_reset';
   });
 
   function showMessage(text: string, type: 'success' | 'error', showForgotLink = false) {
@@ -203,6 +160,7 @@ import Layout from "../../layouts/Layout.astro";
     if (showForgotLink) {
       const container = document.createElement('div');
       container.className = 'bg-red-50 text-red-700 p-4 rounded-md';
+      container.setAttribute('role', 'alert');
       
       const textDiv = document.createElement('div');
       textDiv.className = 'mb-2';
@@ -219,6 +177,7 @@ import Layout from "../../layouts/Layout.astro";
     } else {
       messageDiv.textContent = text;
       messageDiv.className = `mt-4 p-4 rounded-md ${type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`;
+      messageDiv.setAttribute('role', 'alert');
     }
     
     messageDiv.classList.remove('hidden');

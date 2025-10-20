@@ -17,11 +17,7 @@
 
 <script>
 	document.addEventListener('DOMContentLoaded', () => {
-		const el = document.getElementById('delete-form') as HTMLFormElement | null;
-		if (!el) {
-			console.error('DangerZone: #delete-form not found');
-			return;
-		}
+		const el = document.getElementById('delete-form') as HTMLFormElement;
 		el.addEventListener('submit', (e) => {
 			const confirmed = confirm(
 				'Are you sure you want to delete your account? This action cannot be undone.'

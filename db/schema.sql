@@ -100,6 +100,9 @@ CREATE TABLE IF NOT EXISTS user_stocks (
   PRIMARY KEY (user_id, symbol)
 );
 
+CREATE INDEX IF NOT EXISTS idx_user_stocks_user_id_created_at 
+ON user_stocks(user_id, created_at DESC);
+
 /* =============
 Alerts Log Table
 ============= */

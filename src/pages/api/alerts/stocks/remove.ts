@@ -13,17 +13,28 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	try {
 		const formData = await request.formData();
-		const symbol = formData.get("symbol") as string;
+		const rawSymbol = formData.get("symbol");
+
+		if (!rawSymbol || typeof rawSymbol !== "string") {
+			return redirect("/alerts?error=symbol_required");
+		}
+
+		const symbol = rawSymbol.trim().toUpperCase();
 
 		if (!symbol) {
 			return redirect("/alerts?error=symbol_required");
+		}
+
+		const tickerRegex = /^[A-Z]{1,5}$/;
+		if (!tickerRegex.test(symbol)) {
+			return redirect("/alerts?error=invalid_symbol");
 		}
 
 		const { error } = await supabase
 			.from("user_stocks")
 			.delete()
 			.eq("user_id", user.id)
-			.eq("symbol", symbol.toUpperCase());
+			.eq("symbol", symbol);
 
 		if (error) {
 			console.error("Error removing user stock:", error);

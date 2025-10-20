@@ -20,9 +20,10 @@
 			<div class="flex-1 relative">
 			<input type="tel" id="phone_number" v-model="phoneNumber" @input="handlePhoneInput" @blur="handleBlur"
 					:aria-describedby="showError ? 'phone-error' : undefined"
+					:aria-invalid="showError ? 'true' : undefined"
 					class="w-full rounded-r-lg py-2 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
 					:placeholder="computedPlaceholder" name="phone" required
-					inputmode="tel" autocomplete="tel" />
+					inputmode="tel" autocomplete="tel-national" />
 					<div v-if="phoneNumber" class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
 						<CheckCircleIcon v-if="isValid" class="h-5 w-5 text-green-500" aria-hidden="true" />
 						<ExclamationCircleIcon v-else class="h-5 w-5 text-red-500" aria-hidden="true" />
@@ -30,7 +31,7 @@
 				</div>
 			</div>
 		</div>
-		<p v-if="showError" id="phone-error" class="mt-1 text-sm text-red-600">Please enter a valid phone number</p>
+		<p v-if="showError" id="phone-error" role="alert" class="mt-1 text-sm text-red-600">Please enter a valid phone number</p>
 	</div>
 </template>
 

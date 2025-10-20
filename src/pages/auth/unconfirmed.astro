@@ -71,7 +71,7 @@ if (success === "true") {
         </div>
 
         {message && (
-          <div class={`p-4 rounded-md ${messageType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+          <div class={`p-4 rounded-md ${messageType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`} role="alert">
             {message}
           </div>
         )}

@@ -12,8 +12,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	}
 
 	try {
-		const currentUser = await userService.getById(user.id);
-
 		const formData = await request.formData();
 
 		const timezone = formData.get("timezone") as string | null;
@@ -32,7 +30,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			updates.alert_via_sms = alertViaSmsRaw === "on";
 		}
 
-		// Handle schedule settings
+		// Handle timezone updates
 		if (timezone !== null) {
 			if (!timezone) {
 				return redirect("/alerts?error=timezone_required");
@@ -47,35 +45,36 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			}
 
 			updates.timezone = timezone;
+		}
 
-			if (alertStartHour !== null) {
-				const startHour = Number.parseInt(alertStartHour.toString(), 10);
-				if (!Number.isNaN(startHour) && startHour >= 0 && startHour <= 23) {
-					updates.alert_start_hour = startHour;
-				}
+		// Handle alert start hour
+		if (alertStartHour !== null) {
+			const startHour = Number.parseInt(alertStartHour.toString(), 10);
+
+			if (Number.isNaN(startHour)) {
+				return redirect("/alerts?error=invalid_start_hour");
 			}
 
-			if (alertEndHour !== null) {
-				const endHour = Number.parseInt(alertEndHour.toString(), 10);
-				if (!Number.isNaN(endHour) && endHour >= 0 && endHour <= 23) {
-					updates.alert_end_hour = endHour;
-				}
+			if (startHour < 0 || startHour > 23) {
+				return redirect("/alerts?error=invalid_start_hour");
 			}
 
-			// Validate hour range when any hour is being updated
-			if (
-				updates.alert_start_hour !== undefined ||
-				updates.alert_end_hour !== undefined
-			) {
-				const effectiveStart =
-					updates.alert_start_hour ?? currentUser.alert_start_hour;
-				const effectiveEnd =
-					updates.alert_end_hour ?? currentUser.alert_end_hour;
+			updates.alert_start_hour = startHour;
+		}
 
-				if (effectiveStart >= effectiveEnd) {
-					return redirect("/alerts?error=invalid_hour_range");
-				}
+		// Handle alert end hour
+		if (alertEndHour !== null) {
+			const endHour = Number.parseInt(alertEndHour.toString(), 10);
+
+			if (Number.isNaN(endHour)) {
+				return redirect("/alerts?error=invalid_end_hour");
 			}
+
+			if (endHour < 0 || endHour > 23) {
+				return redirect("/alerts?error=invalid_end_hour");
+			}
+
+			updates.alert_end_hour = endHour;
 		}
 
 		if (Object.keys(updates).length === 0) {

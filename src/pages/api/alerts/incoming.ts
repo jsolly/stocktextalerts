@@ -111,7 +111,7 @@ export const POST: APIRoute = async ({ request }) => {
 				"You have been subscribed to SMS alerts. Reply STOP to unsubscribe.";
 		} else if (body === "HELP" || body === "INFO") {
 			responseMessage =
-				"Stock Text Alerts: Reply STOP to unsubscribe, START to subscribe. Manage stocks at your dashboard.";
+				"StockTextAlerts: Reply STOP to unsubscribe, START to subscribe. Msg & data rates may apply. Help: reply HELP or visit your dashboard.";
 		} else {
 			responseMessage = "Unknown command. Reply HELP for options.";
 		}
