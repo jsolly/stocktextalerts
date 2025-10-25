@@ -26,6 +26,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		}
 
 		const userData = await userService.getById(user.id);
+		if (!userData) {
+			console.error(
+				`Auth user exists but database user record missing - ID: ${user.id}, email: ${user.email}, endpoint: sms/verify-code`,
+			);
+			return redirect("/alerts?error=user_not_found");
+		}
 		if (!userData.phone_country_code || !userData.phone_number) {
 			return redirect("/alerts?error=phone_not_set");
 		}

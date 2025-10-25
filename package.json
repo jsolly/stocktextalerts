@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"license": "MIT",
 	"scripts": {
-		"dev": "astro dev",
+		"dev": "astro dev 2>&1 | tee logs/dev.log",
 		"build": "astro build",
 		"preview": "astro preview",
 		"prepare": "if [ -z \"$CI\" ]; then husky; fi",

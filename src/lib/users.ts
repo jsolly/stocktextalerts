@@ -9,7 +9,7 @@ export function isValidHour(value: number): value is Hour {
 }
 
 function validateAndConvertHour(
-	value: Hour | number | string | null | undefined,
+	value: string | number | Hour | null | undefined,
 	fieldName: string,
 ): Hour {
 	if (value === null || value === undefined) {
@@ -76,7 +76,7 @@ export function createUserService(
 				.from("users")
 				.select("*")
 				.eq("id", id)
-				.single();
+				.maybeSingle();
 
 			if (error) throw error;
 			return data;

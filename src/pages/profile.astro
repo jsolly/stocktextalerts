@@ -17,6 +17,13 @@ if (!authUser) {
 
 const user = await users.getById(authUser.id);
 
+if (!user) {
+	console.error(
+		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email}, page: profile`,
+	);
+	return Astro.redirect("/?error=user_not_found");
+}
+
 // Format phone number for display
 let formattedPhone = user.phone_number || "";
 if (user.phone_number && user.phone_country_code) {

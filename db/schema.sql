@@ -144,6 +144,9 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own profile" ON users
   FOR SELECT USING ((SELECT auth.uid()) = id);
 
+CREATE POLICY "Users can insert own profile" ON users
+  FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
+
 CREATE POLICY "Users can update own profile" ON users
   FOR UPDATE 
   USING ((SELECT auth.uid()) = id)

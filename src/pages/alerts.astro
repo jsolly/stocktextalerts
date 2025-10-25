@@ -21,6 +21,9 @@ if (!authUser) {
 const user = await users.getById(authUser.id);
 
 if (!user) {
+	console.error(
+		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email}, page: alerts`,
+	);
 	return Astro.redirect("/?error=user_not_found");
 }
 
