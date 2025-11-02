@@ -17,7 +17,15 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"suspicious": {
+				"noConsole": {
+					"level": "error",
+					"options": {
+						"allow": ["assert", "error", "info", "warn"]
+					}
+				}
+			}
 		}
 	},
 	"overrides": [

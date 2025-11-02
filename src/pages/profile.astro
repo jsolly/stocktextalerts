@@ -4,6 +4,7 @@ import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage } from "../lib/auth";
 import { createSupabaseServerClient } from "../lib/db-client";
+import { truncateEmailForLogging } from "../lib/format";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
@@ -19,7 +20,7 @@ const user = await users.getById(authUser.id);
 
 if (!user) {
 	console.error(
-		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email}, page: profile`,
+		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email ? truncateEmailForLogging(authUser.email) : "none"}, page: profile`,
 	);
 	return Astro.redirect("/?error=user_not_found");
 }

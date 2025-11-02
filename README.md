@@ -74,7 +74,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 DATABASE_URL=postgresql://postgres:password@host:5432/database
 
 # Twilio Configuration
-TWILIO_ORG_SID=your-twilio-org-sid
+TWILIO_ACCOUNT_SID=your-twilio-account-sid
 TWILIO_AUTH_TOKEN=your-twilio-auth-token
 TWILIO_PHONE_NUMBER=+1234567890
 TWILIO_VERIFY_SERVICE_SID=your-verify-service-sid
@@ -165,7 +165,7 @@ In your Vercel project settings (Settings → Environment Variables), add all va
 - `PUBLIC_SUPABASE_URL`
 - `PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `TWILIO_ORG_SID`
+- `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_PHONE_NUMBER`
 - `TWILIO_VERIFY_SERVICE_SID`
@@ -263,7 +263,10 @@ The cron job:
 │   ├── apply-schema.sh     # Schema setup script
 │   └── import-tickers.ts   # Stock data import script
 ├── tests/                  # Vitest unit tests
-│   └── basic.test.ts
+│   ├── phone-normalization.test.ts
+│   ├── pii-truncation.test.ts
+│   ├── sanity.test.ts
+│   └── timezone-validation.test.ts
 ├── astro.config.ts         # Astro + Vercel + Vue config
 ├── vercel.json             # Cron job configuration
 ├── biome.jsonc             # Linter/formatter config

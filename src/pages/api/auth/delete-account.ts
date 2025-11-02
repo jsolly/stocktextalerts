@@ -32,7 +32,10 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 
 		return redirect("/?success=account_deleted");
 	} catch (err) {
-		console.error("Failed to delete user account:", err);
+		console.error("Failed to delete user account", {
+			userId: authUser?.id,
+			error: err,
+		});
 		return redirect("/?error=delete_failed");
 	}
 };

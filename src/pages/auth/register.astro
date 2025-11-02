@@ -126,10 +126,12 @@ if (error) {
 				const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 				timezoneInput.value = detectedTimezone;
 
-				// Detect time format preference
-				const formatter = new Intl.DateTimeFormat(navigator.language);
-				const is12Hour = formatter.resolvedOptions().hour12;
-				timeFormatInput.value = is12Hour ? '12h' : '24h';
+			// Detect time format preference
+			const formatter = new Intl.DateTimeFormat(navigator.language, {
+				hour: 'numeric'
+			});
+			const hour12 = formatter.resolvedOptions().hour12;
+			timeFormatInput.value = hour12 === undefined ? '12h' : (hour12 ? '12h' : '24h');
 			} catch (error) {
 				console.error('Timezone detection failed:', error);
 			}
@@ -142,16 +144,11 @@ if (error) {
 		detectAndSetTimezone();
 
 		// Re-detect on form submission if values are empty
-		form.addEventListener('submit', (e) => {
+		form.addEventListener('submit', () => {
 			// If values are empty, try to detect again
+			// Server-side validation will handle missing values
 			if (!timezoneInput.value || !timeFormatInput.value) {
 				detectAndSetTimezone();
-			}
-			
-			// If detection still failed, show an error
-			if (!timezoneInput.value || !timeFormatInput.value) {
-				console.error('Timezone detection failed - form will submit with empty values');
-				alert('Unable to detect your timezone. Please try refreshing the page or use a different browser.');
 			}
 		});
 	});

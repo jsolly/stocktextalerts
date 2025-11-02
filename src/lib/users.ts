@@ -4,26 +4,6 @@ import type { AstroCookies } from "astro";
 export type TimeFormat = "12h" | "24h";
 export type Hour = number & { readonly __brand: "Hour" };
 
-export function isValidHour(value: number): value is Hour {
-	return Number.isInteger(value) && value >= 0 && value <= 23;
-}
-
-function validateAndConvertHour(
-	value: string | number | Hour | null | undefined,
-	fieldName: string,
-): Hour {
-	if (value === null || value === undefined) {
-		throw new Error(`${fieldName} cannot be null or undefined`);
-	}
-	const numValue = typeof value === "string" ? Number(value) : value;
-	if (!Number.isFinite(numValue) || !isValidHour(numValue)) {
-		throw new Error(
-			`${fieldName} must be an integer between 0 and 23, got: ${value}`,
-		);
-	}
-	return numValue as Hour;
-}
-
 export interface User {
 	id: string;
 	email: string;
@@ -91,41 +71,15 @@ export function createUserService(
 				sms_opted_out?: boolean;
 				timezone?: string | null;
 				time_format?: TimeFormat;
-				alert_start_hour?: string | number | Hour;
-				alert_end_hour?: string | number | Hour;
+				alert_start_hour?: Hour;
+				alert_end_hour?: Hour;
 				alert_via_email?: boolean;
 				alert_via_sms?: boolean;
 			},
 		) {
-			const sanitized = { ...updates };
-
-			if ("alert_start_hour" in sanitized) {
-				if (
-					sanitized.alert_start_hour !== null &&
-					sanitized.alert_start_hour !== undefined
-				) {
-					sanitized.alert_start_hour = validateAndConvertHour(
-						sanitized.alert_start_hour,
-						"alert_start_hour",
-					);
-				}
-			}
-
-			if ("alert_end_hour" in sanitized) {
-				if (
-					sanitized.alert_end_hour !== null &&
-					sanitized.alert_end_hour !== undefined
-				) {
-					sanitized.alert_end_hour = validateAndConvertHour(
-						sanitized.alert_end_hour,
-						"alert_end_hour",
-					);
-				}
-			}
-
 			const { data, error } = await supabase
 				.from("users")
-				.update(sanitized)
+				.update(updates)
 				.eq("id", id)
 				.select()
 				.single();

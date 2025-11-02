@@ -66,24 +66,22 @@ export const US_TIMEZONES = [
 export type TimezoneValue = (typeof US_TIMEZONES)[number]["value"];
 
 const VALID_TIMEZONES = new Set<string>(US_TIMEZONES.map((tz) => tz.value));
-const DEFAULT_TIMEZONE = "America/New_York";
 
 const VALID_TIME_FORMATS = new Set(["12h", "24h"]);
-const DEFAULT_TIME_FORMAT = "24h";
+const DEFAULT_TIME_FORMAT = "12h";
 
-export function validateTimezone(timezone: string | undefined | null): string {
+export function validateTimezone(
+	timezone: string | undefined | null,
+): string | null {
 	if (!timezone || typeof timezone !== "string") {
-		console.warn(
-			"Invalid timezone format received (empty or non-string), using default",
-		);
-		return DEFAULT_TIMEZONE;
+		return null;
 	}
 
 	const trimmed = timezone.trim();
 
 	if (!VALID_TIMEZONES.has(trimmed)) {
-		console.warn(`Invalid timezone received: "${trimmed}", using default`);
-		return DEFAULT_TIMEZONE;
+		console.warn(`Invalid timezone received: "${trimmed}", using null`);
+		return null;
 	}
 
 	return trimmed;

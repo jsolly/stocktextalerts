@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../../lib/db-client";
+import { truncateEmailForLogging } from "../../../../lib/format";
 import { buildFullPhone, checkVerification } from "../../../../lib/phone";
 import { createUserService } from "../../../../lib/users";
 
@@ -28,7 +29,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		const userData = await userService.getById(user.id);
 		if (!userData) {
 			console.error(
-				`Auth user exists but database user record missing - ID: ${user.id}, email: ${user.email}, endpoint: sms/verify-code`,
+				`Auth user exists but database user record missing - ID: ${user.id}, email: ${user.email ? truncateEmailForLogging(user.email) : "none"}, endpoint: sms/verify-code`,
 			);
 			return redirect("/alerts?error=user_not_found");
 		}

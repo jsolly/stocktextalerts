@@ -93,7 +93,7 @@ type VerificationClientResult =
 	| { client: null; serviceSid: null; error: string };
 
 function createVerificationClient(): VerificationClientResult {
-	const twilioAccountSid = import.meta.env.TWILIO_ORG_SID;
+	const twilioAccountSid = import.meta.env.TWILIO_ACCOUNT_SID;
 	const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
 	const twilioVerifyServiceSid = import.meta.env.TWILIO_VERIFY_SERVICE_SID;
 

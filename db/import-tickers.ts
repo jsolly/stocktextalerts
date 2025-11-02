@@ -80,8 +80,8 @@ Import Function
 ============= */
 
 async function importTickers() {
-	console.log("Starting ticker import...");
-	console.log(`Importing ${POPULAR_STOCKS.length} stocks`);
+	console.info("Starting ticker import...");
+	console.info(`Importing ${POPULAR_STOCKS.length} stocks`);
 
 	try {
 		const { data, error } = await supabase
@@ -93,8 +93,8 @@ async function importTickers() {
 			process.exit(1);
 		}
 
-		console.log("✅ Successfully imported tickers");
-		console.log(
+		console.info("✅ Successfully imported tickers");
+		console.info(
 			`Inserted/updated ${POPULAR_STOCKS.length} stocks in the database`,
 		);
 	} catch (error) {
@@ -109,7 +109,7 @@ Main Execution
 
 importTickers()
 	.then(() => {
-		console.log("Import complete!");
+		console.info("Import complete!");
 		process.exit(0);
 	})
 	.catch((error) => {

@@ -5,7 +5,7 @@ import TrackedStocks from "../components/alerts/TrackedStocks.astro";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
 import { createSupabaseServerClient } from "../lib/db-client";
-import { formatMessage } from "../lib/format";
+import { formatMessage, truncateEmailForLogging } from "../lib/format";
 import { getAllStocks, getUserStocks } from "../lib/stocks";
 import { createUserService } from "../lib/users";
 
@@ -22,7 +22,7 @@ const user = await users.getById(authUser.id);
 
 if (!user) {
 	console.error(
-		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email}, page: alerts`,
+		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email ? truncateEmailForLogging(authUser.email) : "none"}, page: alerts`,
 	);
 	return Astro.redirect("/?error=user_not_found");
 }

@@ -10,15 +10,15 @@ describe("validateTimezone", () => {
 		expect(validateTimezone("Pacific/Honolulu")).toBe("Pacific/Honolulu");
 	});
 
-	it("rejects invalid timezones and returns default", () => {
-		expect(validateTimezone("Invalid/Timezone")).toBe("America/New_York");
-		expect(validateTimezone("Europe/London")).toBe("America/New_York");
-		expect(validateTimezone("")).toBe("America/New_York");
+	it("rejects invalid timezones and returns null", () => {
+		expect(validateTimezone("Invalid/Timezone")).toBe(null);
+		expect(validateTimezone("Europe/London")).toBe(null);
+		expect(validateTimezone("")).toBe(null);
 	});
 
-	it("handles null and undefined by returning default", () => {
-		expect(validateTimezone(null)).toBe("America/New_York");
-		expect(validateTimezone(undefined)).toBe("America/New_York");
+	it("handles null and undefined by returning null", () => {
+		expect(validateTimezone(null)).toBe(null);
+		expect(validateTimezone(undefined)).toBe(null);
 	});
 
 	it("trims whitespace from valid timezones", () => {
@@ -26,9 +26,9 @@ describe("validateTimezone", () => {
 	});
 
 	it("rejects non-string input", () => {
-		expect(validateTimezone(123 as unknown as string)).toBe("America/New_York");
-		expect(validateTimezone({} as unknown as string)).toBe("America/New_York");
-		expect(validateTimezone([] as unknown as string)).toBe("America/New_York");
+		expect(validateTimezone(123 as unknown as string)).toBe(null);
+		expect(validateTimezone({} as unknown as string)).toBe(null);
+		expect(validateTimezone([] as unknown as string)).toBe(null);
 	});
 });
 
@@ -45,15 +45,15 @@ describe("validateTimeFormat", () => {
 	});
 
 	it("rejects invalid formats and returns default", () => {
-		expect(validateTimeFormat("invalid")).toBe("24h");
-		expect(validateTimeFormat("12")).toBe("24h");
-		expect(validateTimeFormat("24")).toBe("24h");
-		expect(validateTimeFormat("")).toBe("24h");
+		expect(validateTimeFormat("invalid")).toBe("12h");
+		expect(validateTimeFormat("12")).toBe("12h");
+		expect(validateTimeFormat("24")).toBe("12h");
+		expect(validateTimeFormat("")).toBe("12h");
 	});
 
 	it("handles null and undefined by returning default", () => {
-		expect(validateTimeFormat(null)).toBe("24h");
-		expect(validateTimeFormat(undefined)).toBe("24h");
+		expect(validateTimeFormat(null)).toBe("12h");
+		expect(validateTimeFormat(undefined)).toBe("12h");
 	});
 
 	it("trims whitespace", () => {
@@ -62,8 +62,8 @@ describe("validateTimeFormat", () => {
 	});
 
 	it("rejects non-string input", () => {
-		expect(validateTimeFormat(123 as unknown as string)).toBe("24h");
-		expect(validateTimeFormat({} as unknown as string)).toBe("24h");
-		expect(validateTimeFormat([] as unknown as string)).toBe("24h");
+		expect(validateTimeFormat(123 as unknown as string)).toBe("12h");
+		expect(validateTimeFormat({} as unknown as string)).toBe("12h");
+		expect(validateTimeFormat([] as unknown as string)).toBe("12h");
 	});
 });

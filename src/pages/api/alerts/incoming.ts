@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import twilio from "twilio";
 import { createSupabaseAdminClient } from "../../../lib/db-client";
+import { truncatePhoneForLogging } from "../../../lib/format";
 
 export const POST: APIRoute = async ({ request }) => {
 	const twilioAuthToken = import.meta.env.TWILIO_AUTH_TOKEN;
@@ -48,7 +49,10 @@ export const POST: APIRoute = async ({ request }) => {
 			countryCode = `+${parsed.countryCallingCode}`;
 			phoneNumber = parsed.nationalNumber;
 		} catch {
-			console.error("Failed to parse phone number:", from);
+			console.error(
+				"Failed to parse phone number:",
+				truncatePhoneForLogging(from),
+			);
 			return new Response("Invalid phone format", { status: 400 });
 		}
 

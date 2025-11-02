@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_verified BOOLEAN DEFAULT false NOT NULL,
   sms_opted_out BOOLEAN DEFAULT false NOT NULL,
   timezone timezone,
-  time_format VARCHAR(3) DEFAULT '24h' NOT NULL CHECK (time_format IN ('12h', '24h')),
+  time_format VARCHAR(3) DEFAULT '12h' NOT NULL CHECK (time_format IN ('12h', '24h')),
   alert_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (alert_start_hour >= 0 AND alert_start_hour <= 23),
   alert_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (alert_end_hour >= 0 AND alert_end_hour <= 23),
   alert_via_email BOOLEAN DEFAULT true NOT NULL,

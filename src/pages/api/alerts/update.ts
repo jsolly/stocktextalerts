@@ -40,7 +40,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			}
 
 			const validatedTimezone = validateTimezone(trimmedTimezone);
-			if (validatedTimezone !== trimmedTimezone) {
+			if (!validatedTimezone) {
 				console.error("Invalid timezone provided:", trimmedTimezone);
 				return redirect("/alerts?error=invalid_timezone");
 			}
