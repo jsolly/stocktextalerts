@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AstroCookies } from "astro";
+import type { TimeFormat } from "./timezones";
 
-export type TimeFormat = "12h" | "24h";
 export type Hour = number & { readonly __brand: "Hour" };
 
 export interface User {
@@ -21,6 +21,22 @@ export interface User {
 	created_at: string;
 	updated_at: string;
 }
+
+type UserUpdateInput = Partial<
+	Pick<
+		User,
+		| "phone_country_code"
+		| "phone_number"
+		| "phone_verified"
+		| "sms_opted_out"
+		| "timezone"
+		| "time_format"
+		| "alert_start_hour"
+		| "alert_end_hour"
+		| "alert_via_email"
+		| "alert_via_sms"
+	>
+>;
 
 export function createUserService(
 	supabase: SupabaseClient,
@@ -62,21 +78,7 @@ export function createUserService(
 			return data;
 		},
 
-		async update(
-			id: string,
-			updates: {
-				phone_country_code?: string | null;
-				phone_number?: string | null;
-				phone_verified?: boolean;
-				sms_opted_out?: boolean;
-				timezone?: string | null;
-				time_format?: TimeFormat;
-				alert_start_hour?: Hour;
-				alert_end_hour?: Hour;
-				alert_via_email?: boolean;
-				alert_via_sms?: boolean;
-			},
-		) {
+		async update(id: string, updates: UserUpdateInput) {
 			const { data, error } = await supabase
 				.from("users")
 				.update(updates)

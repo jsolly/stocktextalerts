@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS users (
   alert_via_sms BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  CONSTRAINT alert_hours_order CHECK (alert_start_hour <= alert_end_hour),
   CONSTRAINT phone_country_code_format CHECK (phone_country_code ~ '^\+[0-9]{1,4}$'),
   CONSTRAINT phone_number_format CHECK (phone_number ~ '^[0-9]{10,14}$'),
   CONSTRAINT unique_phone UNIQUE (phone_country_code, phone_number),

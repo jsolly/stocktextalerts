@@ -36,6 +36,7 @@ if (user.phone_number && user.phone_country_code) {
 			formattedPhone = phoneNumber.formatNational();
 		}
 	} catch {
+		console.warn(`Phone number formatting failed for user ${authUser.id}`);
 		// Keep original if parsing fails
 		formattedPhone = user.phone_number;
 	}

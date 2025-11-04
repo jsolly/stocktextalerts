@@ -64,32 +64,35 @@ export const US_TIMEZONES = [
 ] as const;
 
 export type TimezoneValue = (typeof US_TIMEZONES)[number]["value"];
+export type TimeFormat = "12h" | "24h";
 
-const VALID_TIMEZONES = new Set<string>(US_TIMEZONES.map((tz) => tz.value));
+const VALID_TIMEZONES = new Set<TimezoneValue>(
+	US_TIMEZONES.map((tz) => tz.value),
+);
 
-const VALID_TIME_FORMATS = new Set(["12h", "24h"]);
-const DEFAULT_TIME_FORMAT = "12h";
+const VALID_TIME_FORMATS = new Set<TimeFormat>(["12h", "24h"]);
+const DEFAULT_TIME_FORMAT: TimeFormat = "12h";
 
 export function validateTimezone(
 	timezone: string | undefined | null,
-): string | null {
+): TimezoneValue | null {
 	if (!timezone || typeof timezone !== "string") {
 		return null;
 	}
 
 	const trimmed = timezone.trim();
 
-	if (!VALID_TIMEZONES.has(trimmed)) {
+	if (!VALID_TIMEZONES.has(trimmed as TimezoneValue)) {
 		console.warn(`Invalid timezone received: "${trimmed}", using null`);
 		return null;
 	}
 
-	return trimmed;
+	return trimmed as TimezoneValue;
 }
 
 export function validateTimeFormat(
 	timeFormat: string | undefined | null,
-): string {
+): TimeFormat {
 	if (!timeFormat || typeof timeFormat !== "string") {
 		console.warn(
 			"Invalid time format received (empty or non-string), using default",
@@ -99,12 +102,12 @@ export function validateTimeFormat(
 
 	const normalized = timeFormat.toLowerCase().trim();
 
-	if (!VALID_TIME_FORMATS.has(normalized)) {
+	if (!VALID_TIME_FORMATS.has(normalized as TimeFormat)) {
 		console.warn(
 			`Invalid time format received: "${timeFormat}", using default`,
 		);
 		return DEFAULT_TIME_FORMAT;
 	}
 
-	return normalized;
+	return normalized as TimeFormat;
 }
