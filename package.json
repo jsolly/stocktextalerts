@@ -4,6 +4,7 @@
 	"version": "0.0.1",
 	"license": "MIT",
 	"scripts": {
+		"predev": "node -e \"require('fs').mkdirSync('logs', { recursive: true })\"",
 		"dev": "astro dev 2>&1 | tee logs/dev.log",
 		"build": "astro build",
 		"preview": "astro preview",

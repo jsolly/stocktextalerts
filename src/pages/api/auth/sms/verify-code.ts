@@ -40,9 +40,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		const result = await checkVerification(fullPhone, code);
 
 		if (!result.success) {
-			return redirect(
-				`/dashboard?error=${encodeURIComponent(result.error || "invalid_code")}`,
-			);
+			console.error("Verification failed:", result.error);
+			return redirect("/dashboard?error=invalid_code");
 		}
 
 		await userService.update(user.id, {

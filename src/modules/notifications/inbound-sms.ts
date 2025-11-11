@@ -202,10 +202,25 @@ function wrapInTwiml(message: string): string {
 	const twiml = ['<?xml version="1.0" encoding="UTF-8"?>', "<Response>"];
 
 	if (message) {
-		twiml.push(`\t<Message>${message}</Message>`);
+		const escapedMessage = escapeForXml(message);
+		twiml.push(`\t<Message>${escapedMessage}</Message>`);
 	}
 
 	twiml.push("</Response>");
 
 	return twiml.join("\n");
+}
+
+function escapeForXml(message: string): string {
+	const replacements: Record<string, string> = {
+		"&": "&amp;",
+		"<": "&lt;",
+		">": "&gt;",
+		'"': "&quot;",
+		"'": "&apos;",
+	};
+
+	return message.replace(/[&<>"']/g, (character) => {
+		return replacements[character];
+	});
 }
