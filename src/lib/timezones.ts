@@ -1,94 +1,59 @@
-export const US_TIMEZONES = [
-	{ value: "America/New_York", label: "Eastern Time (ET)" },
-	{ value: "America/Detroit", label: "Eastern Time - Detroit (ET)" },
-	{
-		value: "America/Kentucky/Louisville",
-		label: "Eastern Time - Louisville, KY (ET)",
-	},
-	{
-		value: "America/Kentucky/Monticello",
-		label: "Eastern Time - Monticello, KY (ET)",
-	},
-	{
-		value: "America/Indiana/Indianapolis",
-		label: "Eastern Time - Indianapolis (ET)",
-	},
-	{
-		value: "America/Indiana/Vincennes",
-		label: "Eastern Time - Vincennes, IN (ET)",
-	},
-	{
-		value: "America/Indiana/Winamac",
-		label: "Eastern Time - Winamac, IN (ET)",
-	},
-	{
-		value: "America/Indiana/Marengo",
-		label: "Eastern Time - Marengo, IN (ET)",
-	},
-	{
-		value: "America/Indiana/Petersburg",
-		label: "Eastern Time - Petersburg, IN (ET)",
-	},
-	{ value: "America/Indiana/Vevay", label: "Eastern Time - Vevay, IN (ET)" },
-	{ value: "America/Chicago", label: "Central Time (CT)" },
-	{
-		value: "America/Indiana/Tell_City",
-		label: "Central Time - Tell City, IN (CT)",
-	},
-	{ value: "America/Indiana/Knox", label: "Central Time - Knox, IN (CT)" },
-	{ value: "America/Menominee", label: "Central Time - Menominee, MI (CT)" },
-	{
-		value: "America/North_Dakota/Center",
-		label: "Central Time - Center, ND (CT)",
-	},
-	{
-		value: "America/North_Dakota/New_Salem",
-		label: "Central Time - New Salem, ND (CT)",
-	},
-	{
-		value: "America/North_Dakota/Beulah",
-		label: "Central Time - Beulah, ND (CT)",
-	},
-	{ value: "America/Denver", label: "Mountain Time (MT)" },
-	{ value: "America/Boise", label: "Mountain Time - Boise (MT)" },
-	{ value: "America/Phoenix", label: "Mountain Time - Arizona (MT)" },
-	{ value: "America/Los_Angeles", label: "Pacific Time (PT)" },
-	{ value: "America/Anchorage", label: "Alaska Time (AKT)" },
-	{ value: "America/Juneau", label: "Alaska Time - Juneau (AKT)" },
-	{ value: "America/Sitka", label: "Alaska Time - Sitka (AKT)" },
-	{ value: "America/Metlakatla", label: "Alaska Time - Metlakatla (AKT)" },
-	{ value: "America/Yakutat", label: "Alaska Time - Yakutat (AKT)" },
-	{ value: "America/Nome", label: "Alaska Time - Nome (AKT)" },
-	{ value: "America/Adak", label: "Hawaii-Aleutian Time (HST)" },
-	{ value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
-] as const;
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type TimezoneValue = (typeof US_TIMEZONES)[number]["value"];
+export interface TimezoneOption {
+	value: string;
+	label: string;
+	display_order: number;
+}
+
 export type TimeFormat = "12h" | "24h";
 
-const VALID_TIMEZONES = new Set<TimezoneValue>(
-	US_TIMEZONES.map((tz) => tz.value),
-);
+export interface TimezoneValidationResult {
+	value: string | null;
+	valid: boolean;
+	reason?: string;
+}
+
+const SUPPORTED_TIMEZONES =
+	typeof Intl.supportedValuesOf === "function"
+		? new Set(Intl.supportedValuesOf("timeZone"))
+		: null;
+
+function isTimezoneValid(timezone: string): boolean {
+	if (SUPPORTED_TIMEZONES) {
+		return SUPPORTED_TIMEZONES.has(timezone);
+	}
+
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+export async function getTimezoneOptions(
+	supabase: SupabaseClient,
+): Promise<TimezoneOption[]> {
+	const { data, error } = await supabase
+		.from("timezones")
+		.select("value,label,display_order")
+		.eq("active", true)
+		.order("display_order", { ascending: true });
+
+	if (error) {
+		throw new Error(`Failed to load timezones: ${error.message}`);
+	}
+
+	return (data ?? []).map((timezone) => ({
+		value: timezone.value,
+		label: timezone.label,
+		display_order: timezone.display_order,
+	}));
+}
 
 const VALID_TIME_FORMATS = new Set<TimeFormat>(["12h", "24h"]);
 const DEFAULT_TIME_FORMAT: TimeFormat = "12h";
-
-export function validateTimezone(
-	timezone: string | undefined | null,
-): TimezoneValue | null {
-	if (!timezone || typeof timezone !== "string") {
-		return null;
-	}
-
-	const trimmed = timezone.trim();
-
-	if (!VALID_TIMEZONES.has(trimmed as TimezoneValue)) {
-		console.warn(`Invalid timezone received: "${trimmed}", using null`);
-		return null;
-	}
-
-	return trimmed as TimezoneValue;
-}
 
 export function validateTimeFormat(
 	timeFormat: string | undefined | null,
@@ -110,4 +75,28 @@ export function validateTimeFormat(
 	}
 
 	return normalized as TimeFormat;
+}
+
+export function validateTimezone(
+	timezone: string | undefined | null,
+): TimezoneValidationResult {
+	if (!timezone) {
+		return { value: null, valid: true };
+	}
+
+	const candidate = timezone.trim();
+
+	if (candidate === "") {
+		return { value: null, valid: true };
+	}
+
+	if (!isTimezoneValid(candidate)) {
+		return {
+			value: null,
+			valid: false,
+			reason: `Unsupported timezone: ${candidate}`,
+		};
+	}
+
+	return { value: candidate, valid: true };
 }

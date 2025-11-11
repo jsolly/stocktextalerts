@@ -43,7 +43,6 @@ export interface StockOption {
 
 interface Props {
 	stockOptions: StockOption[];
-	onSelect?: (symbol: string) => void;
 }
 
 interface FuseResult {
@@ -59,6 +58,9 @@ type KeyActions = {
 };
 
 const props = defineProps<Props>();
+const emit = defineEmits<{
+	(e: "select", symbol: string): void;
+}>();
 
 const selectedStock = ref<string | null>(null);
 const rawSearchQuery = ref("");
@@ -105,16 +107,7 @@ const selectStock = (result: FuseResult) => {
 	rawSearchQuery.value = "";
 	resetDropdown();
 
-	if (props.onSelect) {
-		props.onSelect(result.item.value);
-	}
-
-	const event = new CustomEvent('stock-selected', {
-		detail: { symbol: result.item.value },
-		bubbles: true,
-		composed: true,
-	});
-	inputRef.value?.dispatchEvent(event);
+	emit("select", result.item.value);
 };
 
 const handleInput = () => {

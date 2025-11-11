@@ -2,11 +2,10 @@
 import "../global.css";
 interface Props {
 	title: string;
-	description?: string;
+	description: string;
 }
 
-const { title = "Change me", description = "Default description" } =
-	Astro.props;
+const { title, description }: Props = Astro.props;
 
 // Replace with your own image
 const socialImageURL = new URL(

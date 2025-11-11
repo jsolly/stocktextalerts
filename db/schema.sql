@@ -5,47 +5,54 @@ Domains and Extensions
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- US Timezones domain
--- NOTE: Keep this list synchronized with src/lib/timezones.ts
-CREATE DOMAIN timezone AS TEXT
-CHECK (VALUE IN (
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Phoenix',
-  'America/Los_Angeles',
-  'America/Anchorage',
-  'Pacific/Honolulu',
-  'America/Detroit',
-  'America/Kentucky/Louisville',
-  'America/Kentucky/Monticello',
-  'America/Indiana/Indianapolis',
-  'America/Indiana/Vincennes',
-  'America/Indiana/Winamac',
-  'America/Indiana/Marengo',
-  'America/Indiana/Petersburg',
-  'America/Indiana/Vevay',
-  'America/Indiana/Tell_City',
-  'America/Indiana/Knox',
-  'America/Menominee',
-  'America/North_Dakota/Center',
-  'America/North_Dakota/New_Salem',
-  'America/North_Dakota/Beulah',
-  'America/Boise',
-  'America/Juneau',
-  'America/Sitka',
-  'America/Metlakatla',
-  'America/Yakutat',
-  'America/Nome',
-  'America/Adak'
-));
+/* =============
+Timezones
+============= */
 
--- Delivery status domain
-CREATE DOMAIN delivery_status AS TEXT
-CHECK (VALUE IN ('sent', 'failed'));
+CREATE TABLE IF NOT EXISTS timezones (
+  value TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  display_order SMALLINT NOT NULL CHECK (display_order >= 0),
+  active BOOLEAN DEFAULT true NOT NULL
+);
+
+INSERT INTO timezones (value, label, display_order, active) VALUES
+  ('America/New_York', 'Eastern Time (ET)', 1, true),
+  ('America/Detroit', 'Eastern Time - Detroit (ET)', 2, true),
+  ('America/Kentucky/Louisville', 'Eastern Time - Louisville, KY (ET)', 3, true),
+  ('America/Kentucky/Monticello', 'Eastern Time - Monticello, KY (ET)', 4, true),
+  ('America/Indiana/Indianapolis', 'Eastern Time - Indianapolis (ET)', 5, true),
+  ('America/Indiana/Vincennes', 'Eastern Time - Vincennes, IN (ET)', 6, true),
+  ('America/Indiana/Winamac', 'Eastern Time - Winamac, IN (ET)', 7, true),
+  ('America/Indiana/Marengo', 'Eastern Time - Marengo, IN (ET)', 8, true),
+  ('America/Indiana/Petersburg', 'Eastern Time - Petersburg, IN (ET)', 9, true),
+  ('America/Indiana/Vevay', 'Eastern Time - Vevay, IN (ET)', 10, true),
+  ('America/Chicago', 'Central Time (CT)', 11, true),
+  ('America/Indiana/Tell_City', 'Central Time - Tell City, IN (CT)', 12, true),
+  ('America/Indiana/Knox', 'Central Time - Knox, IN (CT)', 13, true),
+  ('America/Menominee', 'Central Time - Menominee, MI (CT)', 14, true),
+  ('America/North_Dakota/Center', 'Central Time - Center, ND (CT)', 15, true),
+  ('America/North_Dakota/New_Salem', 'Central Time - New Salem, ND (CT)', 16, true),
+  ('America/North_Dakota/Beulah', 'Central Time - Beulah, ND (CT)', 17, true),
+  ('America/Denver', 'Mountain Time (MT)', 18, true),
+  ('America/Boise', 'Mountain Time - Boise (MT)', 19, true),
+  ('America/Phoenix', 'Mountain Time - Arizona (MT)', 20, true),
+  ('America/Los_Angeles', 'Pacific Time (PT)', 21, true),
+  ('America/Anchorage', 'Alaska Time (AKT)', 22, true),
+  ('America/Juneau', 'Alaska Time - Juneau (AKT)', 23, true),
+  ('America/Sitka', 'Alaska Time - Sitka (AKT)', 24, true),
+  ('America/Metlakatla', 'Alaska Time - Metlakatla (AKT)', 25, true),
+  ('America/Yakutat', 'Alaska Time - Yakutat (AKT)', 26, true),
+  ('America/Nome', 'Alaska Time - Nome (AKT)', 27, true),
+  ('America/Adak', 'Hawaii-Aleutian Time (HST)', 28, true),
+  ('Pacific/Honolulu', 'Hawaii Time (HST)', 29, true)
+ON CONFLICT (value) DO UPDATE SET
+  label = EXCLUDED.label,
+  display_order = EXCLUDED.display_order,
+  active = EXCLUDED.active;
 
 /* =============
-Users Table
+Users
 ============= */
 
 CREATE TABLE IF NOT EXISTS users (
@@ -62,15 +69,15 @@ CREATE TABLE IF NOT EXISTS users (
   ) STORED,
   phone_verified BOOLEAN DEFAULT false NOT NULL,
   sms_opted_out BOOLEAN DEFAULT false NOT NULL,
-  timezone timezone,
+  timezone TEXT REFERENCES timezones(value),
   time_format VARCHAR(3) DEFAULT '12h' NOT NULL CHECK (time_format IN ('12h', '24h')),
-  alert_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (alert_start_hour >= 0 AND alert_start_hour <= 23),
-  alert_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (alert_end_hour >= 0 AND alert_end_hour <= 23),
-  alert_via_email BOOLEAN DEFAULT true NOT NULL,
-  alert_via_sms BOOLEAN DEFAULT false NOT NULL,
+  notification_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (notification_start_hour >= 0 AND notification_start_hour <= 23),
+  notification_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (notification_end_hour >= 0 AND notification_end_hour <= 23),
+  email_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
+  sms_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  CONSTRAINT alert_hours_order CHECK (alert_start_hour <= alert_end_hour),
+  CONSTRAINT notification_hours_order CHECK (notification_start_hour <= notification_end_hour),
   CONSTRAINT phone_country_code_format CHECK (phone_country_code ~ '^\+[0-9]{1,4}$'),
   CONSTRAINT phone_number_format CHECK (phone_number ~ '^[0-9]{10,14}$'),
   CONSTRAINT unique_phone UNIQUE (phone_country_code, phone_number),
@@ -81,18 +88,17 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 /* =============
-Stocks Table
+Stocks
 ============= */
 
 CREATE TABLE IF NOT EXISTS stocks (
   symbol VARCHAR(10) PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  exchange VARCHAR(50) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+  exchange VARCHAR(50) NOT NULL
 );
 
 /* =============
-User Stocks Junction Table
+User Stocks Junction
 ============= */
 
 CREATE TABLE IF NOT EXISTS user_stocks (
@@ -102,38 +108,48 @@ CREATE TABLE IF NOT EXISTS user_stocks (
   PRIMARY KEY (user_id, symbol)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_stocks_user_id_created_at 
-ON user_stocks(user_id, created_at DESC);
-
 /* =============
-Alerts Log Table
+Stock Functions
 ============= */
 
-CREATE TABLE IF NOT EXISTS alerts_log (
+CREATE OR REPLACE FUNCTION public.replace_user_stocks(
+  user_id uuid,
+  symbols text[]
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  DELETE FROM user_stocks WHERE user_stocks.user_id = replace_user_stocks.user_id;
+
+  IF symbols IS NULL OR array_length(symbols, 1) IS NULL THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO user_stocks (user_id, symbol)
+  SELECT replace_user_stocks.user_id, sanitized.symbol
+  FROM (
+    SELECT DISTINCT UPPER(TRIM(BOTH FROM entry)) AS symbol
+    FROM unnest(symbols) AS raw(entry)
+    WHERE TRIM(BOTH FROM entry) <> ''
+  ) AS sanitized;
+END;
+$$;
+
+/* =============
+Notification Log
+============= */
+
+CREATE TABLE IF NOT EXISTS notification_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type VARCHAR(50) NOT NULL,
   delivery_method VARCHAR(10) NOT NULL CHECK (delivery_method IN ('email', 'sms')),
-  sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  status delivery_status NOT NULL,
+  message_delivered BOOLEAN DEFAULT true NOT NULL,
   message TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_alerts_log_user_id 
-ON alerts_log(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_alerts_log_sent_at 
-ON alerts_log(sent_at);
-
--- Prevent duplicate deliveries per user/type/method within the same hour
-CREATE UNIQUE INDEX IF NOT EXISTS ux_alerts_log_user_type_method_hour
-ON alerts_log (
-  user_id,
-  type,
-  delivery_method,
-  date_trunc('hour', sent_at)
 );
 
 /* =============
@@ -181,12 +197,12 @@ CREATE POLICY "Anyone can view stocks" ON stocks
   FOR SELECT USING (true);
 
 /* =============
-Row Level Security - Alerts Log
+Row Level Security - Notification Log
 ============= */
 
-ALTER TABLE alerts_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own alerts" ON alerts_log
+CREATE POLICY "Users can view own notifications" ON notification_log
   FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 /* =============
@@ -209,7 +225,7 @@ CREATE TRIGGER update_users_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_alerts_log_updated_at
-  BEFORE UPDATE ON alerts_log
+CREATE TRIGGER update_notification_log_updated_at
+  BEFORE UPDATE ON notification_log
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();

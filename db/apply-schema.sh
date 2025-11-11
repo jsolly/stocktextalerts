@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Apply complete database schema to Supabase
-# This script creates all tables (users, stocks, user_stocks, alerts_log)
-# and sets up RLS policies, triggers, and domains
+# This script creates all tables (users, timezones, stocks, user_stocks, notification_log)
+# and sets up RLS policies and triggers
 #
 # Usage:
 #   ./db/apply-schema.sh
@@ -44,16 +44,15 @@ fi
 echo -e "${GREEN}Connecting to database...${NC}"
 
 echo -e "${YELLOW}Dropping existing tables...${NC}"
-psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS alerts_log CASCADE;"
+psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS notification_log CASCADE;"
 psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS user_stocks CASCADE;"
 psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS stocks CASCADE;"
 psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS users CASCADE;"
-psql "$DATABASE_URL" -c "DROP DOMAIN IF EXISTS delivery_status CASCADE;"
-psql "$DATABASE_URL" -c "DROP DOMAIN IF EXISTS timezone CASCADE;"
+psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS timezones CASCADE;"
 
 if psql "$DATABASE_URL" -f "db/schema.sql"; then
     echo -e "${GREEN}✅ Database setup completed successfully!${NC}"
-    echo -e "${GREEN}All tables created with RLS policies, triggers, and domains.${NC}"
+    echo -e "${GREEN}All tables created with RLS policies and triggers.${NC}"
 else
     echo -e "${RED}❌ Database setup failed${NC}"
     exit 1

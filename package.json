@@ -11,7 +11,7 @@
 		"test:unit": "vitest --no-watch -t 'unit'",
 		"check:ts": "tsc --noEmit",
 		"check:biome": "biome check --write --no-errors-on-unmatched",
-		"fix": "npm run check:biome && npm run check:ts",
+		"fix": "npm run check:biome && npm run check:ts && npm run test:unit",
 		"outdated": "npm outdated",
 		"update": "npx npm-check-updates -u && npm install",
 		"db:import-tickers": "tsx db/import-tickers.ts"

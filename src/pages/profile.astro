@@ -1,6 +1,8 @@
 ---
-import { parsePhoneNumberFromString } from "libphonenumber-js";
 import Navigation from "../components/layout/Navigation.astro";
+import AccountManagement from "../components/profile/AccountManagement.astro";
+import DangerZone from "../components/profile/DangerZone.astro";
+import ProfilePreferences from "../components/profile/ProfilePreferences.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage } from "../lib/auth";
 import { createSupabaseServerClient } from "../lib/db-client";
@@ -25,23 +27,6 @@ if (!user) {
 	return Astro.redirect("/?error=user_not_found");
 }
 
-// Format phone number for display
-let formattedPhone = user.phone_number || "";
-if (user.phone_number && user.phone_country_code) {
-	try {
-		const phoneNumber = parsePhoneNumberFromString(
-			user.phone_country_code + user.phone_number,
-		);
-		if (phoneNumber) {
-			formattedPhone = phoneNumber.formatNational();
-		}
-	} catch {
-		console.warn(`Phone number formatting failed for user ${authUser.id}`);
-		// Keep original if parsing fails
-		formattedPhone = user.phone_number;
-	}
-}
-
 const search = Astro.url.searchParams;
 const error = search.get("error");
 const errorMessage = getAuthErrorMessage(error);
@@ -55,153 +40,44 @@ const errorMessage = getAuthErrorMessage(error);
       
       <div class="mb-6">
         <a
-          href="/alerts"
+          href="/dashboard"
           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 font-medium"
         >
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
           </svg>
-          Back to Alerts
+          Back to Dashboard
         </a>
       </div>
     
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
-        <p class="text-gray-600 mb-8">View your account information</p>
+      <div class="space-y-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
+          <p class="text-gray-600 mb-6">View your account information</p>
 
-        {errorMessage && (
-          <div class="mb-6 p-4 rounded-md bg-red-50 border border-red-200 text-red-700" role="alert">
-            {errorMessage}
-          </div>
-        )}
-
-        <div class="space-y-6">
-          <div>
-            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={user.email}
-              readonly
-              aria-readonly="true"
-              class="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
-            />
-            <p class="mt-2 text-sm text-gray-500">Email cannot be changed. Contact support if you need to update your email address.</p>
-          </div>
-
-          <div>
-            <label for="phone_number" class="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <div class="flex">
-              <div class="w-24">
-                <input
-                  type="text"
-                  id="phone_country_code"
-                  name="phone_country_code"
-                  value={user.phone_country_code || "+1"}
-                  readonly
-                  aria-readonly="true"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-l-md bg-gray-100 text-gray-500 cursor-not-allowed"
-                />
-              </div>
-              <input
-                type="tel"
-                id="phone_number"
-                name="phone_number"
-                value={formattedPhone}
-                readonly
-                aria-readonly="true"
-                class="flex-1 px-4 py-3 border border-gray-300 border-l-0 rounded-r-md bg-gray-100 text-gray-500 cursor-not-allowed"
-                placeholder="(555) 555-5555"
-              />
+          {errorMessage && (
+            <div class="p-4 rounded-md bg-red-50 border border-red-200 text-red-700" role="alert">
+              {errorMessage}
             </div>
-            <p class="mt-2 text-sm text-gray-500">
-              {user.phone_verified ? (
-                <span class="text-green-600">
-                  <span class="sr-only">Phone verified</span>
-                  <span aria-hidden="true">✓</span> Phone verified
-                </span>
-              ) : user.phone_number ? (
-                <span class="text-yellow-600">
-                  <span class="sr-only">Phone number not verified</span>
-                  <span aria-hidden="true">⚠</span> Phone number not verified
-                </span>
-              ) : (
-                <span>
-                  <span class="sr-only">No phone number on file</span>
-                  No phone number on file
-                </span>
-              )}
-            </p>
-            <p class="mt-1 text-sm text-gray-500">Phone number cannot be changed here. Use the alerts page to update your phone number.</p>
-          </div>
-
-          <div>
-            <label for="timezone" class="block text-sm font-medium text-gray-700 mb-2">
-              Timezone
-            </label>
-            <input
-              type="text"
-              id="timezone"
-              name="timezone"
-              value={user.timezone || 'Not set'}
-              readonly
-              aria-readonly="true"
-              class="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
-            />
-            <p class="mt-2 text-sm text-gray-500">Timezone cannot be changed here. Use the alerts page to update your timezone.</p>
-          </div>
-
-          <div>
-            <label for="time_format" class="block text-sm font-medium text-gray-700 mb-2">
-              Time Format
-            </label>
-            <input
-              type="text"
-              id="time_format"
-              name="time_format"
-              value={user.time_format === '12h' ? '12-hour (AM/PM)' : '24-hour'}
-              readonly
-              aria-readonly="true"
-              class="w-full px-4 py-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
-            />
-            <p class="mt-2 text-sm text-gray-500">Time format cannot be changed here. Contact support if you need to update your time format preference.</p>
-          </div>
+          )}
         </div>
+
+        <AccountManagement
+          email={user.email}
+          phone={user.phone_number}
+          phoneCountryCode={user.phone_country_code}
+          phoneVerified={user.phone_verified}
+        />
+
+        <ProfilePreferences
+          timezone={user.timezone}
+          timeFormat={user.time_format}
+        />
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm border border-red-200 p-8 mt-6">
-        <h2 class="text-xl font-bold text-red-600 mb-2">Danger Zone</h2>
-        <p class="text-gray-600 mb-6">Once you delete your account, there is no going back. Please be certain.</p>
-        
-        <form id="delete-form" action="/api/auth/delete-account" method="post">
-          <button
-            type="submit"
-            class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-md text-sm font-medium transition-colors cursor-pointer"
-          >
-            Delete Account
-          </button>
-        </form>
+      <div class="mt-6">
+        <DangerZone />
       </div>
     </div>
   </div>
 </Layout>
-
-<script>
-  const deleteForm = document.getElementById('delete-form') as HTMLFormElement;
-
-  deleteForm?.addEventListener('submit', (e) => {
-    const confirmed = confirm(
-      'Are you sure you want to delete your account? This action cannot be undone.'
-    );
-
-    if (!confirmed) {
-      e.preventDefault();
-    }
-  });
-</script>
-

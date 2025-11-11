@@ -14,10 +14,10 @@ export interface User {
 	sms_opted_out: boolean;
 	timezone: string | null;
 	time_format: TimeFormat;
-	alert_start_hour: Hour;
-	alert_end_hour: Hour;
-	alert_via_email: boolean;
-	alert_via_sms: boolean;
+	notification_start_hour: Hour;
+	notification_end_hour: Hour;
+	email_notifications_enabled: boolean;
+	sms_notifications_enabled: boolean;
 	created_at: string;
 	updated_at: string;
 }
@@ -31,10 +31,10 @@ type UserUpdateInput = Partial<
 		| "sms_opted_out"
 		| "timezone"
 		| "time_format"
-		| "alert_start_hour"
-		| "alert_end_hour"
-		| "alert_via_email"
-		| "alert_via_sms"
+		| "notification_start_hour"
+		| "notification_end_hour"
+		| "email_notifications_enabled"
+		| "sms_notifications_enabled"
 	>
 >;
 

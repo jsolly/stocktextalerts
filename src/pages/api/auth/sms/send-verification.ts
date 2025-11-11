@@ -10,15 +10,17 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
-		return redirect("/?error=unauthorized&returnTo=/alerts");
+		return redirect("/?error=unauthorized&returnTo=/dashboard");
 	}
 
 	try {
 		const formData = await request.formData();
-		const phoneInput = formData.get("phone") as string;
+		const rawPhone = formData.get("phone");
+		const phoneInput =
+			typeof rawPhone === "string" ? rawPhone.trim() : undefined;
 
 		if (!phoneInput) {
-			return redirect("/alerts?error=phone_required");
+			throw new Error("Missing phone input");
 		}
 
 		const validation = validatePhone(phoneInput);
@@ -28,7 +30,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			!validation.nationalNumber ||
 			!validation.fullPhone
 		) {
-			return redirect("/alerts?error=invalid_phone");
+			throw new Error(validation.error ?? "Invalid phone number");
 		}
 
 		const dbUser = await userService.getById(user.id);
@@ -36,17 +38,17 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			console.error(
 				`Auth user exists but database user record missing - ID: ${user.id}, email: ${user.email ? truncateEmailForLogging(user.email) : "none"}, endpoint: sms/send-verification`,
 			);
-			return redirect("/alerts?error=user_not_found");
+			return redirect("/dashboard?error=user_not_found");
 		}
 		if (dbUser.sms_opted_out) {
-			return redirect("/alerts?error=sms_opted_out");
+			return redirect("/dashboard?error=sms_opted_out");
 		}
 
 		const result = await sendVerification(validation.fullPhone);
 		if (!result.success) {
 			console.error("SMS verification failed:", result.error);
 			return redirect(
-				`/alerts?error=${encodeURIComponent("verification_failed")}`,
+				`/dashboard?error=${encodeURIComponent("verification_failed")}`,
 			);
 		}
 
@@ -56,9 +58,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			phone_verified: false,
 		});
 
-		return redirect("/alerts?success=verification_sent");
+		return redirect("/dashboard?success=verification_sent");
 	} catch (error) {
 		console.error("Send verification error:", error);
-		return redirect("/alerts?error=server_error");
+		return redirect("/dashboard?error=server_error");
 	}
 };

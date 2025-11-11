@@ -4,18 +4,10 @@ export function getAuthErrorMessage(error: string | null): string {
 	switch (error) {
 		case "unauthorized":
 			return "Please sign in to continue";
-		case "missing_phone":
-			return "Phone number is required";
-		case "invalid_phone":
-			return "Invalid phone number format";
 		case "phone_not_set":
 			return "Add a phone number before verifying";
-		case "missing_code":
-			return "Verification code is required";
 		case "invalid_code":
 			return "Invalid or expired verification code";
-		case "invalid_code_format":
-			return "Enter a 6-digit verification code";
 		case "rate_limit":
 		case "too_many_attempts":
 			return "Too many attempts. Please try again later.";
@@ -25,12 +17,10 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Something went wrong. Please try again later.";
 		case "invalid_credentials":
 			return "Invalid email or password";
-		case "missing_fields":
-			return "Email and password are required";
 		case "delete_failed":
 			return "Failed to delete account. Please try again.";
 		case "user_not_found":
-			return "User not found";
+			return "We couldn't find an account for that email.";
 		default:
 			return "An unexpected error occurred. Please try again.";
 	}

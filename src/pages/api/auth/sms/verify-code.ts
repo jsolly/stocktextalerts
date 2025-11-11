@@ -10,7 +10,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
-		return redirect("/?error=unauthorized&returnTo=/alerts");
+		return redirect("/?error=unauthorized&returnTo=/dashboard");
 	}
 
 	try {
@@ -18,12 +18,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		const rawCode = formData.get("code");
 		const code = typeof rawCode === "string" ? rawCode.trim() : "";
 
-		if (!code) {
-			return redirect("/alerts?error=code_required");
-		}
-
-		if (!/^\d{6}$/.test(code)) {
-			return redirect("/alerts?error=invalid_code");
+		if (!code || !/^\d{6}$/.test(code)) {
+			throw new Error("Invalid verification code input");
 		}
 
 		const userData = await userService.getById(user.id);
@@ -31,10 +27,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			console.error(
 				`Auth user exists but database user record missing - ID: ${user.id}, email: ${user.email ? truncateEmailForLogging(user.email) : "none"}, endpoint: sms/verify-code`,
 			);
-			return redirect("/alerts?error=user_not_found");
+			return redirect("/dashboard?error=user_not_found");
 		}
 		if (!userData.phone_country_code || !userData.phone_number) {
-			return redirect("/alerts?error=phone_not_set");
+			return redirect("/dashboard?error=phone_not_set");
 		}
 
 		const fullPhone = buildFullPhone(
@@ -45,7 +41,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 		if (!result.success) {
 			return redirect(
-				`/alerts?error=${encodeURIComponent(result.error || "invalid_code")}`,
+				`/dashboard?error=${encodeURIComponent(result.error || "invalid_code")}`,
 			);
 		}
 
@@ -53,12 +49,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			phone_verified: true,
 		});
 
-		return redirect("/alerts?success=phone_verified");
+		return redirect("/dashboard?success=phone_verified");
 	} catch (error) {
 		console.error(
 			"Verify code error:",
 			error instanceof Error ? error.message : "Unknown error",
 		);
-		return redirect("/alerts?error=server_error");
+		return redirect("/dashboard?error=server_error");
 	}
 };

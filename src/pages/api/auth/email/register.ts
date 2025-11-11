@@ -16,12 +16,30 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const password = formData.get("password")?.toString();
 	const timezoneHint = formData.get("timezone")?.toString();
 	const timeFormatHint = formData.get("time_format")?.toString();
+	const trimmedTimezone = timezoneHint?.trim();
+	const timezoneValidation = validateTimezone(trimmedTimezone);
+
+	if (!timezoneValidation.valid) {
+		const message =
+			timezoneValidation.reason ?? "Unsupported timezone provided.";
+		console.warn("Invalid timezone during registration:", {
+			timezoneHint: trimmedTimezone,
+			message,
+		});
+
+		const redirectUrl = `/auth/register?error=invalid_timezone&message=${encodeURIComponent(
+			message,
+		)}`;
+
+		return redirect(redirectUrl);
+	}
+
+	const normalizedTimezone = timezoneValidation.value;
 
 	if (!email || !password) {
 		return redirect("/auth/register?error=missing_fields");
 	}
 
-	const validatedTimezone = validateTimezone(timezoneHint);
 	const validatedTimeFormat = validateTimeFormat(timeFormatHint);
 
 	const { data, error } = await supabase.auth.signUp({
@@ -41,18 +59,25 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		const userProfileData = {
 			id: data.user.id,
 			email,
-			timezone: validatedTimezone,
+			timezone: normalizedTimezone,
 			time_format: validatedTimeFormat,
 		};
 
-		const { error: profileError } = await adminSupabase
+		const { data: profile, error: profileError } = await adminSupabase
 			.from("users")
 			.upsert(userProfileData, {
 				onConflict: "id",
-			});
+			})
+			.select()
+			.single();
 
 		if (profileError) {
 			console.error("Failed to create user profile:", profileError);
+			return redirect("/auth/register?error=profile_creation_failed");
+		}
+
+		if (!profile) {
+			console.error("Profile creation returned no data");
 			return redirect("/auth/register?error=profile_creation_failed");
 		}
 	}

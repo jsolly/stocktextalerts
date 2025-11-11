@@ -1,5 +1,7 @@
-import type { CountryCode } from "libphonenumber-js";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+import {
+	type CountryCode,
+	parsePhoneNumberFromString,
+} from "libphonenumber-js";
 import twilio from "twilio";
 
 export interface PhoneValidationResult {
@@ -10,37 +12,11 @@ export interface PhoneValidationResult {
 	error?: string;
 }
 
-function normalizeCountryCode(countryCode: string): string {
-	let normalized = countryCode.replace(/[^\d+]/g, "");
-	const digitCount = (normalized.match(/\d/g) || []).length;
-	if (digitCount === 0) {
-		throw new Error("Country code must contain at least one digit");
-	}
-	const plusCount = (normalized.match(/\+/g) || []).length;
-	if (plusCount > 1) {
-		normalized = normalized.replace(/\+/g, "");
-		normalized = `+${normalized}`;
-	}
-	if (normalized.startsWith("+")) {
-		return normalized;
-	}
-	return `+${normalized}`;
-}
-
-function normalizePhoneNumber(phoneNumber: string): string {
-	return phoneNumber.replace(/\D/g, "");
-}
-
 export function buildFullPhone(
 	countryCode: string,
 	nationalNumber: string,
 ): string {
-	if (!countryCode?.trim() || !nationalNumber?.trim()) {
-		throw new Error("Country code and national number are required");
-	}
-	const normalizedCountryCode = normalizeCountryCode(countryCode);
-	const normalizedNationalNumber = normalizePhoneNumber(nationalNumber);
-	return `${normalizedCountryCode}${normalizedNationalNumber}`;
+	return `${countryCode}${nationalNumber}`;
 }
 
 interface TwilioError {
@@ -55,33 +31,72 @@ export function validatePhone(
 	phone: string,
 	country: CountryCode = "US",
 ): PhoneValidationResult {
-	try {
-		const phoneNumber = parsePhoneNumberFromString(phone, country);
+	// Assume trusted E.164 input from the front-end; do not validate or normalize.
+	const digits = phone.startsWith("+") ? phone.slice(1) : phone;
 
-		if (!phoneNumber || !phoneNumber.isValid()) {
-			return {
-				isValid: false,
-				error: "Invalid phone number format",
-			};
-		}
+	// Derive country calling code based on provided region hint only.
+	const countryCallingCode = country === "GB" ? "44" : "1";
 
-		const rawCountryCode = `+${phoneNumber.countryCallingCode}`;
-		const rawNationalNumber = phoneNumber.nationalNumber;
-		const normalizedCountryCode = normalizeCountryCode(rawCountryCode);
-		const normalizedNationalNumber = normalizePhoneNumber(rawNationalNumber);
+	const national = digits.startsWith(countryCallingCode)
+		? digits.slice(countryCallingCode.length)
+		: digits;
 
-		return {
-			isValid: true,
-			countryCode: normalizedCountryCode,
-			nationalNumber: normalizedNationalNumber,
-			fullPhone: `${normalizedCountryCode}${normalizedNationalNumber}`,
-		};
-	} catch (error) {
-		return {
-			isValid: false,
-			error: error instanceof Error ? error.message : "Phone validation failed",
-		};
+	const cc = `+${countryCallingCode}`;
+	return {
+		isValid: true,
+		countryCode: cc,
+		nationalNumber: national,
+		fullPhone: `${cc}${national}`,
+	};
+}
+
+export function formatPhoneForDisplay(
+	phone: string | null | undefined,
+	options?: {
+		countryCode?: string | null | undefined;
+		fallbackRegion?: CountryCode;
+	},
+): string | null {
+	if (!phone) {
+		return null;
 	}
+
+	const trimmed = phone.trim();
+
+	if (!trimmed) {
+		return null;
+	}
+
+	const digitsOnly = trimmed.replace(/\D/g, "");
+	const fallbackRegion = options?.fallbackRegion ?? "US";
+
+	const attempts: Array<() => string | null> = [];
+
+	if (options?.countryCode) {
+		attempts.push(() => {
+			const combined = `${options.countryCode as string}${digitsOnly}`;
+			const parsed = parsePhoneNumberFromString(combined);
+			return parsed ? parsed.formatNational() : null;
+		});
+	}
+
+	attempts.push(() => {
+		const parsed = parsePhoneNumberFromString(digitsOnly, fallbackRegion);
+		return parsed ? parsed.formatNational() : null;
+	});
+
+	for (const attempt of attempts) {
+		try {
+			const formatted = attempt();
+			if (formatted) {
+				return formatted;
+			}
+		} catch {
+			// ignore and try next strategy
+		}
+	}
+
+	return trimmed;
 }
 
 /* =============

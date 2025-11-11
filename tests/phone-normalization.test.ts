@@ -7,41 +7,6 @@ describe("Phone Normalization unit", () => {
 			const result = buildFullPhone("+1", "5551234567");
 			expect(result).toBe("+15551234567");
 		});
-
-		it("strips non-digit characters from country code except single leading +", () => {
-			const result = buildFullPhone("+1-", "5551234567");
-			expect(result).toBe("+15551234567");
-		});
-
-		it("strips spaces and dashes from country code", () => {
-			const result = buildFullPhone("+ 44 ", "7911123456");
-			expect(result).toBe("+447911123456");
-		});
-
-		it("strips parentheses and dashes from country code", () => {
-			const result = buildFullPhone("+(44)", "7911123456");
-			expect(result).toBe("+447911123456");
-		});
-
-		it("handles multiple + signs by keeping only one", () => {
-			const result = buildFullPhone("++1+", "5551234567");
-			expect(result).toBe("+15551234567");
-		});
-
-		it("adds + if missing from country code", () => {
-			const result = buildFullPhone("1", "5551234567");
-			expect(result).toBe("+15551234567");
-		});
-
-		it("strips all non-digits from phone number", () => {
-			const result = buildFullPhone("+1", "(555) 123-4567");
-			expect(result).toBe("+15551234567");
-		});
-
-		it("handles phone number with spaces and dashes", () => {
-			const result = buildFullPhone("+44", "79 11 123 456");
-			expect(result).toBe("+447911123456");
-		});
 	});
 
 	describe("validatePhone", () => {
@@ -75,12 +40,6 @@ describe("Phone Normalization unit", () => {
 			expect(result.isValid).toBe(true);
 			expect(result.countryCode).toBe("+1");
 			expect(result.countryCode?.match(/\+/g)?.length).toBe(1);
-		});
-
-		it("rejects invalid phone numbers", () => {
-			const result = validatePhone("123");
-			expect(result.isValid).toBe(false);
-			expect(result.error).toBeDefined();
 		});
 	});
 });

@@ -1,12 +1,15 @@
 ---
-import AlertSettings from "../components/alerts/AlertSettings.astro";
-import SetupRequiredBanner from "../components/alerts/SetupRequiredBanner.astro";
-import TrackedStocks from "../components/alerts/TrackedStocks.astro";
+import { readFile } from "node:fs/promises";
+import NotificationPreferences from "../components/dashboard/NotificationPreferences.astro";
+import SetupRequiredBanner from "../components/dashboard/SetupRequiredBanner.astro";
+import TrackedStocksPanel from "../components/dashboard/TrackedStocksPanel.vue";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
 import { createSupabaseServerClient } from "../lib/db-client";
 import { formatMessage, truncateEmailForLogging } from "../lib/format";
-import { getAllStocks, getUserStocks } from "../lib/stocks";
+import type { Stock } from "../lib/stocks";
+import { getUserStocks } from "../lib/stocks";
+import { getTimezoneOptions } from "../lib/timezones";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
@@ -22,14 +25,18 @@ const user = await users.getById(authUser.id);
 
 if (!user) {
 	console.error(
-		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email ? truncateEmailForLogging(authUser.email) : "none"}, page: alerts`,
+		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email ? truncateEmailForLogging(authUser.email) : "none"}, page: dashboard`,
 	);
 	return Astro.redirect("/?error=user_not_found");
 }
 
-const [allStocks, userStocks] = await Promise.all([
-	getAllStocks(supabase),
+const stocksFileUrl = new URL("../../db/us-stocks.json", import.meta.url);
+const stocksFileContents = await readFile(stocksFileUrl, "utf-8");
+const { data: allStocks } = JSON.parse(stocksFileContents) as { data: Stock[] };
+
+const [userStocks, timezones] = await Promise.all([
 	getUserStocks(supabase, authUser.id),
+	getTimezoneOptions(supabase),
 ]);
 
 const stockOptions = allStocks.map((stock) => ({
@@ -42,13 +49,13 @@ const successMessage = url.searchParams.get("success");
 const errorMessage = url.searchParams.get("error");
 ---
 
-<Layout title="Stock Alerts" description="Manage your stock alerts">
+<Layout title="Dashboard" description="Review and manage your stock notifications">
 	<div class="min-h-screen bg-gray-50">
 		<Navigation user={authUser} />
 		
 		<div class="max-w-4xl mx-auto px-6 py-12">
 			<div class="mb-8">
-				<h1 class="text-4xl font-bold text-gray-900 mb-2">Stock Alerts</h1>
+				<h1 class="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
 				<p class="text-lg text-gray-600">Configure your notification preferences and track stocks</p>
 			</div>
 
@@ -68,10 +75,14 @@ const errorMessage = url.searchParams.get("error");
 		<SetupRequiredBanner user={user} />
 
 		<!-- Section 2: Stock Selection -->
-		<TrackedStocks stockOptions={stockOptions} userStocks={userStocks} />
+		<TrackedStocksPanel
+			client:only="vue"
+			stockOptions={stockOptions}
+			initialSymbols={userStocks.map(stock => stock.symbol)}
+		/>
 
-		<!-- Section 3: Alert Settings -->
-		<AlertSettings user={user} />
+		<!-- Section 3: Notification Preferences -->
+		<NotificationPreferences user={user} timezones={timezones} />
 		</div>
 	</div>
 </Layout>
