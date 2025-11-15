@@ -128,7 +128,7 @@ if (success === "true") {
         setButtonCooldown(remaining);
       }
     } catch (err) {
-      console.warn('Failed to access localStorage for cooldown:', err);
+      console.error('Failed to access localStorage for cooldown:', err);
       // leave button enabled on error
     }
   }
@@ -137,7 +137,7 @@ if (success === "true") {
     try {
       localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
     } catch (err) {
-      console.warn('Failed to save cooldown timestamp to localStorage:', err);
+      console.error('Failed to save cooldown timestamp to localStorage:', err);
     }
   });
 

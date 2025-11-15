@@ -1,17 +1,26 @@
 import type { APIRoute } from "astro";
-import { createSupabaseServerClient } from "../../../../lib/db-client";
 import { getSiteUrl } from "../../../../lib/env";
+import { createSupabaseServerClient } from "../../../../lib/supabase";
+import { parseWithSchema } from "../../form-utils";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
 	const supabase = createSupabaseServerClient();
 
 	try {
 		const formData = await request.formData();
-		const email = formData.get("email")?.toString();
+		const parsed = parseWithSchema(formData, {
+			email: { type: "string", required: true },
+		} as const);
 
-		if (!email) {
-			return redirect("/auth/forgot?error=email_required");
+		if (!parsed.ok) {
+			const errors = parsed.allErrors;
+			console.error("Password reset request rejected due to invalid form", {
+				errors,
+			});
+			return redirect("/auth/forgot?error=invalid_form");
 		}
+
+		const email = parsed.data.email;
 
 		const redirectTo = new URL("/auth/recover", getSiteUrl()).toString();
 

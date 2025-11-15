@@ -1,107 +1,12 @@
-import {
-	type CountryCode,
-	parsePhoneNumberFromString,
-} from "libphonenumber-js";
 import twilio from "twilio";
 
-export interface PhoneValidationResult {
-	isValid: boolean;
-	countryCode?: string;
-	nationalNumber?: string;
-	fullPhone?: string;
-	error?: string;
-}
-
-export function buildFullPhone(
-	countryCode: string,
-	nationalNumber: string,
-): string {
-	return `${countryCode}${nationalNumber}`;
-}
-
-interface TwilioError {
+type TwilioError = {
 	code?: number;
 	message?: string;
 	more_info?: string;
 	status?: number;
 	details?: unknown;
-}
-
-export function validatePhone(
-	phone: string,
-	country: CountryCode = "US",
-): PhoneValidationResult {
-	// Assume trusted E.164 input from the front-end; do not validate or normalize.
-	const digits = phone.startsWith("+") ? phone.slice(1) : phone;
-
-	// Derive country calling code based on provided region hint only.
-	const countryCallingCode = country === "GB" ? "44" : "1";
-
-	const national = digits.startsWith(countryCallingCode)
-		? digits.slice(countryCallingCode.length)
-		: digits;
-
-	const cc = `+${countryCallingCode}`;
-	return {
-		isValid: true,
-		countryCode: cc,
-		nationalNumber: national,
-		fullPhone: `${cc}${national}`,
-	};
-}
-
-export function formatPhoneForDisplay(
-	phone: string | null | undefined,
-	options?: {
-		countryCode?: string | null | undefined;
-		fallbackRegion?: CountryCode;
-	},
-): string | null {
-	if (!phone) {
-		return null;
-	}
-
-	const trimmed = phone.trim();
-
-	if (!trimmed) {
-		return null;
-	}
-
-	const digitsOnly = trimmed.replace(/\D/g, "");
-	const fallbackRegion = options?.fallbackRegion ?? "US";
-
-	const attempts: Array<() => string | null> = [];
-
-	if (options?.countryCode) {
-		attempts.push(() => {
-			const combined = `${options.countryCode as string}${digitsOnly}`;
-			const parsed = parsePhoneNumberFromString(combined);
-			return parsed ? parsed.formatNational() : null;
-		});
-	}
-
-	attempts.push(() => {
-		const parsed = parsePhoneNumberFromString(digitsOnly, fallbackRegion);
-		return parsed ? parsed.formatNational() : null;
-	});
-
-	for (const attempt of attempts) {
-		try {
-			const formatted = attempt();
-			if (formatted) {
-				return formatted;
-			}
-		} catch {
-			// ignore and try next strategy
-		}
-	}
-
-	return trimmed;
-}
-
-/* =============
-Phone Verification
-============= */
+};
 
 type VerificationClientResult =
 	| { client: ReturnType<typeof twilio>; serviceSid: string; error?: never }

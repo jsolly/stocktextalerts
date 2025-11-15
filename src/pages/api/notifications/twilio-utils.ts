@@ -1,10 +1,10 @@
 /* =============
-Twilio Helpers
+Twilio SMS
 ============= */
 
 import twilio from "twilio";
 
-import type { DeliveryResult } from "./notifications";
+import type { DeliveryResult } from "./contracts";
 
 export interface TwilioConfig {
 	accountSid: string;

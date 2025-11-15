@@ -1,11 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, test, vi } from "vitest";
-import type { SmsRequest } from "../../src/lib/twilio";
-import type { EmailRequest } from "../../src/modules/notifications/hourly";
+import type { EmailRequest } from "../src/pages/api/notifications/hourly-utils";
 import {
 	type EmailSender,
 	sendHourlyNotifications,
-} from "../../src/modules/notifications/hourly";
+} from "../src/pages/api/notifications/hourly-utils";
+import type { SmsRequest } from "../src/pages/api/notifications/twilio-utils";
 
 describe("sendHourlyNotifications [unit]", () => {
 	test("delivers notifications via email and sms and logs results", async () => {

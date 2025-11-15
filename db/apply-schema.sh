@@ -58,5 +58,5 @@ else
     exit 1
 fi
 
-echo -e "${GREEN}🎉 Setup complete! You can now run the import-tickers script.${NC}"
+echo -e "${GREEN}🎉 Setup complete! You can now run: npm run db:import-tickers${NC}"
 

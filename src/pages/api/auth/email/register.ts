@@ -2,45 +2,32 @@ import type { APIRoute } from "astro";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
-} from "../../../../lib/db-client";
-import {
-	validateTimeFormat,
-	validateTimezone,
-} from "../../../../lib/timezones";
+} from "../../../../lib/supabase";
+import { parseWithSchema } from "../../form-utils";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
 	const supabase = createSupabaseServerClient();
 
 	const formData = await request.formData();
-	const email = formData.get("email")?.toString();
-	const password = formData.get("password")?.toString();
-	const timezoneHint = formData.get("timezone")?.toString();
-	const timeFormatHint = formData.get("time_format")?.toString();
-	const trimmedTimezone = timezoneHint?.trim();
-	const timezoneValidation = validateTimezone(trimmedTimezone);
+	const parsed = parseWithSchema(formData, {
+		email: { type: "string", required: true },
+		password: { type: "string", required: true },
+		timezone: { type: "string", required: true },
+		time_format: {
+			type: "enum",
+			required: true,
+			values: ["12h", "24h"] as const,
+		},
+	} as const);
 
-	if (!timezoneValidation.valid) {
-		const message =
-			timezoneValidation.reason ?? "Unsupported timezone provided.";
-		console.warn("Invalid timezone during registration:", {
-			timezoneHint: trimmedTimezone,
-			message,
+	if (!parsed.ok) {
+		console.error("Registration attempt rejected due to invalid form", {
+			errors: parsed.allErrors,
 		});
-
-		const redirectUrl = `/auth/register?error=invalid_timezone&message=${encodeURIComponent(
-			message,
-		)}`;
-
-		return redirect(redirectUrl);
+		return redirect("/auth/register?error=invalid_form");
 	}
 
-	const normalizedTimezone = timezoneValidation.value;
-
-	if (!email || !password) {
-		return redirect("/auth/register?error=missing_fields");
-	}
-
-	const validatedTimeFormat = validateTimeFormat(timeFormatHint);
+	const { email, password, timezone, time_format } = parsed.data;
 
 	const { data, error } = await supabase.auth.signUp({
 		email,
@@ -59,8 +46,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		const userProfileData = {
 			id: data.user.id,
 			email,
-			timezone: normalizedTimezone,
-			time_format: validatedTimeFormat,
+			timezone,
+			time_format,
 		};
 
 		const { data: profile, error: profileError } = await adminSupabase

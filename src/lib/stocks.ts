@@ -25,18 +25,3 @@ export async function getUserStocks(
 
 	return data || [];
 }
-
-export async function replaceUserStocks(
-	supabase: SupabaseClient,
-	userId: string,
-	symbols: readonly string[],
-): Promise<void> {
-	const { error } = await supabase.rpc("replace_user_stocks", {
-		user_id: userId,
-		symbols,
-	});
-
-	if (error) {
-		throw error;
-	}
-}

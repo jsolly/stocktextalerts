@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
-} from "../../../lib/db-client";
+} from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
 
 export const POST: APIRoute = async ({ cookies, redirect }) => {
@@ -11,6 +11,7 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 	const authUser = await users.getCurrentUser();
 
 	if (!authUser) {
+		console.error("Delete account requested without authenticated user");
 		return redirect("/");
 	}
 
@@ -22,6 +23,10 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 		);
 
 		if (authError) {
+			console.error("Failed to delete user account", {
+				userId: authUser?.id,
+				error: authError,
+			});
 			return redirect("/profile?error=delete_failed");
 		}
 

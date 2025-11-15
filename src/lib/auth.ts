@@ -37,6 +37,6 @@ export function getAuthSuccessMessage(code: string | null): string {
 		case "account_deleted":
 			return "Your account has been permanently deleted.";
 		default:
-			return "";
+			throw new Error(`Unknown auth success code: ${code}`);
 	}
 }

@@ -1,15 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
-import { truncatePhoneForLogging } from "../../lib/format";
-
 export interface InboundSmsDependencies {
 	authToken: string;
 	validateRequest: (
 		authToken: string,
 		signature: string,
 		url: string,
-		params: Record<string, string>,
+		params: Record<string, string | undefined>,
 	) => boolean;
 	supabase: SupabaseClient;
 }
@@ -17,7 +15,7 @@ export interface InboundSmsDependencies {
 export interface InboundSmsRequest {
 	url: string;
 	signature: string;
-	params: Record<string, string>;
+	params: Record<string, string | undefined>;
 }
 
 export interface InboundSmsResponse {
@@ -85,10 +83,7 @@ export async function handleInboundSms(
 		countryCode = `+${parsed.countryCallingCode}`;
 		phoneNumber = parsed.nationalNumber;
 	} catch {
-		console.error(
-			"Failed to parse phone number:",
-			truncatePhoneForLogging(from),
-		);
+		console.error("Failed to parse phone number:", from);
 		return {
 			status: 400,
 			body: "Invalid phone format",
@@ -105,7 +100,7 @@ export async function handleInboundSms(
 		console.error("Inbound SMS user lookup failed", {
 			error,
 			countryCode,
-			phoneNumber: truncatePhoneForLogging(phoneNumber),
+			phoneNumber,
 		});
 		return {
 			status: 200,

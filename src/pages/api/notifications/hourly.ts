@@ -1,16 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import type { APIRoute } from "astro";
 
-import { createSupabaseAdminClient } from "../../../lib/db-client";
+import { createSupabaseAdminClient } from "../../../lib/supabase";
+import { type EmailSender, sendHourlyNotifications } from "./hourly-utils";
 import {
 	createSmsSender,
 	createTwilioClient,
 	readTwilioConfig,
-} from "../../../lib/twilio";
-import {
-	type EmailSender,
-	sendHourlyNotifications,
-} from "../../../modules/notifications/hourly";
+} from "./twilio-utils";
 
 export const POST: APIRoute = async ({ request }) => {
 	const cronSecret = request.headers.get("x-vercel-cron-secret");

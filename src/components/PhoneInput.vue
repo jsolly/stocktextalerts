@@ -24,6 +24,7 @@
 						<option value="US">+1</option>
 					</select>
 					<input type="hidden" name="phone_country_code" :value="`+${getCountryCallingCode(country)}`" />
+					<input type="hidden" name="phone_national_number" :value="lastDigits" />
 				</div>
 				<div class="flex-1 relative">
 					<input

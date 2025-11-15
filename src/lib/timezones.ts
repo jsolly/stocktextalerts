@@ -59,7 +59,7 @@ export function validateTimeFormat(
 	timeFormat: string | undefined | null,
 ): TimeFormat {
 	if (!timeFormat || typeof timeFormat !== "string") {
-		console.warn(
+		console.error(
 			"Invalid time format received (empty or non-string), using default",
 		);
 		return DEFAULT_TIME_FORMAT;
@@ -68,7 +68,7 @@ export function validateTimeFormat(
 	const normalized = timeFormat.toLowerCase().trim();
 
 	if (!VALID_TIME_FORMATS.has(normalized as TimeFormat)) {
-		console.warn(
+		console.error(
 			`Invalid time format received: "${timeFormat}", using default`,
 		);
 		return DEFAULT_TIME_FORMAT;

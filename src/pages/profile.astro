@@ -5,8 +5,7 @@ import DangerZone from "../components/profile/DangerZone.astro";
 import ProfilePreferences from "../components/profile/ProfilePreferences.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage } from "../lib/auth";
-import { createSupabaseServerClient } from "../lib/db-client";
-import { truncateEmailForLogging } from "../lib/format";
+import { createSupabaseServerClient } from "../lib/supabase";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
@@ -15,6 +14,7 @@ const users = createUserService(supabase, Astro.cookies);
 const authUser = await users.getCurrentUser();
 
 if (!authUser) {
+	console.error("Profile access attempted without authenticated user");
 	return Astro.redirect("/");
 }
 
@@ -22,7 +22,9 @@ const user = await users.getById(authUser.id);
 
 if (!user) {
 	console.error(
-		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${authUser.email ? truncateEmailForLogging(authUser.email) : "none"}, page: profile`,
+		`Auth user exists but database user record missing - ID: ${authUser.id}, email: ${
+			authUser.email ?? "none"
+		}, page: profile`,
 	);
 	return Astro.redirect("/?error=user_not_found");
 }

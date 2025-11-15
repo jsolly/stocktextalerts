@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, test, vi } from "vitest";
 
-import { handleInboundSms } from "../../src/modules/notifications/inbound-sms";
+import { handleInboundSms } from "../src/pages/api/notifications/inbound-sms-utils";
 
 describe("handleInboundSms [unit]", () => {
 	test("processes STOP command and updates user preferences", async () => {
@@ -73,6 +73,7 @@ function createSupabaseStub(options: IncomingSupabaseOptions) {
 			return {
 				select: () => ({
 					eq: (_column: string, value: string) => ({
+						// Second eq: matches phone_country_code then phone_number
 						eq: async (_secondColumn: string, secondValue: string) => {
 							const matchesCountry = options.user.phone_country_code === value;
 							const matchesNumber = options.user.phone_number === secondValue;

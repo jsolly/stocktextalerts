@@ -1,7 +1,3 @@
-/* =============
-Notification Utilities
-============= */
-
 export type DeliveryMethod = "email" | "sms";
 
 export interface DeliveryResult {
@@ -15,13 +11,4 @@ export interface NotificationLogEntry {
 	deliveryMethod: DeliveryMethod;
 	messageDelivered: boolean;
 	message?: string;
-}
-
-export function truncateSms(message: string, maxLength = 160): string {
-	if (message.length <= maxLength) {
-		return message;
-	}
-
-	const shortened = message.substring(0, maxLength - 3);
-	return `${shortened}...`;
 }

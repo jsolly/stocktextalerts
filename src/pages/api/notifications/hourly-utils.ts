@@ -1,11 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-import {
-	type DeliveryResult,
-	type NotificationLogEntry,
-	truncateSms,
-} from "../../lib/notifications";
-import type { SmsSender } from "../../lib/twilio";
+import { truncateSms } from "../../../lib/format";
+import type { DeliveryResult, NotificationLogEntry } from "./contracts";
+import type { SmsSender } from "./twilio-utils";
 
 interface UserRecord {
 	id: string;

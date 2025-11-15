@@ -109,13 +109,13 @@ This creates:
 
 ### 5. Import Stock Tickers
 
-Import popular stock tickers into the database:
+Import stock tickers into the database:
 
 ```bash
 npm run db:import-tickers
 ```
 
-This imports 50 popular stocks (AAPL, MSFT, GOOGL, etc.) that users can track. You can edit `db/import-tickers.ts` to add more stocks.
+This imports thousands of US stock tickers from `db/us-stocks.json` that users can track. The script uses PostgreSQL's COPY command for efficient bulk import.
 
 ### 6. Run Development Server
 
@@ -220,14 +220,13 @@ The cron job:
 │   │   └── Layout.astro    # Main layout with meta tags
 │   ├── lib/                # Services and utilities
 │   │   ├── format.ts       # Formatting utilities
-│   │   ├── notifications.ts # Shared notification helpers and types
+│   │   ├── notifications/  # Shared notification helpers and types
+│   │   │   ├── contracts.ts
+│   │   │   ├── hourly.ts
+│   │   │   ├── inbound-sms.ts
+│   │   │   └── instant.ts
 │   │   ├── supabase.ts     # Supabase client configuration
 │   │   └── users.ts        # User service functions
-│   ├── modules/            # Domain-specific modules
-│   │   └── notifications/
-│   │       ├── hourly.ts
-│   │       ├── inbound-sms.ts
-│   │       └── instant.ts
 │   ├── pages/              # File-based routing
 │   │   ├── dashboard.astro # Authenticated dashboard experience
 │   │   ├── api/            # API endpoints
@@ -260,7 +259,8 @@ The cron job:
 ├── db/                     # Database setup
 │   ├── schema.sql          # Complete database schema
 │   ├── apply-schema.sh     # Schema setup script
-│   └── import-tickers.ts   # Stock data import script
+│   ├── seed-stocks.sh      # Stock data import script
+│   └── us-stocks.json      # US stock ticker data
 ├── tests/                  # Vitest unit tests
 │   ├── phone-normalization.test.ts
 │   ├── pii-truncation.test.ts
@@ -364,23 +364,74 @@ The current `email.ts` implementation is a placeholder that logs to console. To 
 
 ## Adding More Stocks
 
-Edit `db/import-tickers.ts` to add more stocks to the `POPULAR_STOCKS` array:
+The stock data is imported from `db/us-stocks.json`. To update the stock list:
 
-```typescript
-const POPULAR_STOCKS = [
-  { symbol: "AAPL", name: "Apple Inc.", exchange: "NASDAQ" },
-  { symbol: "YOUR_STOCK", name: "Your Company", exchange: "NYSE" },
-  // ... add more
-];
+### JSON Structure
+
+The `db/us-stocks.json` file must follow this structure:
+
+```json
+{
+  "metadata": {
+    "source": "https://github.com/rreichel3/US-Stock-Symbols",
+    "fetched_at": "2025-11-08T15:18:17Z",
+    "exchanges": ["NASDAQ", "NYSE", "AMEX"],
+    "total_symbols": 7036
+  },
+  "data": [
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc. Common Stock",
+      "exchange": "NASDAQ"
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "exchange": "NASDAQ"
+    }
+  ]
+}
 ```
 
-Then run:
+**Required fields:**
+- `data` (array) - Array of stock objects
+- Each stock object must have:
+  - `symbol` (string, required) - Stock ticker symbol (max 10 characters)
+  - `name` (string, required) - Company name (max 255 characters)
+  - `exchange` (string, required) - Exchange name (e.g., "NASDAQ", "NYSE", "AMEX")
+
+**Optional fields:**
+- `metadata` (object) - Metadata about the data source (not imported, for reference only)
+
+See `db/us-stocks.json` for the canonical schema and example data.
+
+### Import Process
+
+1. Fetch updated stock data from [US Stock Symbols](https://github.com/rreichel3/US-Stock-Symbols) or your preferred source
+2. Update `db/us-stocks.json` with the new data (must match the JSON structure above)
+3. Run:
 
 ```bash
 npm run db:import-tickers
 ```
 
-The upsert will update existing stocks and add new ones.
+### ⚠️ Production Safety Warning
+
+**The import script truncates both the `stocks` and `user_stocks` tables, which means:**
+- All existing stock data is deleted
+- **All user stock associations are permanently deleted** - users will lose their tracked stocks
+- The script does NOT preserve existing `user_stocks` associations
+
+**Before running in production:**
+
+1. **Back up your database** - Create a full database backup before running the import
+2. **Test on development/staging first** - Always run the import on a non-production copy first
+3. **Verify the JSON structure** - Ensure your JSON matches the expected format (use `jq` to validate)
+4. **Schedule during off-peak hours** - Run during low-traffic periods to minimize user impact
+5. **Notify users in advance** - Inform users that tracked stocks will be reset
+6. **Plan for data recovery** - If needed, restore user stock associations from backups after import
+
+The import uses PostgreSQL's `TRUNCATE` command which cannot be rolled back - always test thoroughly before production use.
 
 ## License
 

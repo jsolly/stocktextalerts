@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AstroCookies } from "astro";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -78,35 +79,24 @@ function createRedirect() {
 
 afterEach(() => {
 	vi.resetAllMocks();
-	vi.resetModules();
-	vi.unmock("../../src/lib/db-client");
-	vi.unmock("../../src/lib/users");
-	vi.unmock("../../src/lib/stocks");
 });
 
 describe("user preferences API [unit]", () => {
 	test("updates notification preferences when form data is provided", async () => {
+		const { createPreferencesHandler } = await import(
+			"../src/pages/api/preferences"
+		);
+		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
 		const updateSpy = vi.fn(async () => ({}));
 		const userServiceStub = {
 			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
 			update: updateSpy,
 		};
-
-		await vi.doMock("../../src/lib/db-client", () => ({
-			createSupabaseServerClient: vi.fn(() => ({
-				from: vi.fn(),
-			})),
-		}));
-
-		await vi.doMock("../../src/lib/users", () => ({
+		const handler = createPreferencesHandler({
+			createSupabaseServerClient: vi.fn(() => supabaseStub),
 			createUserService: vi.fn(() => userServiceStub),
-		}));
-
-		await vi.doMock("../../src/lib/stocks", () => ({
 			replaceUserStocks: vi.fn(async () => {}),
-		}));
-
-		const { POST } = await import("../../src/pages/api/preferences");
+		});
 
 		const form = new URLSearchParams({
 			email_notifications_enabled: "on",
@@ -124,7 +114,7 @@ describe("user preferences API [unit]", () => {
 			body: form,
 		});
 
-		const response = await POST({
+		const response = await handler({
 			request,
 			cookies: createCookiesStub(),
 			redirect: createRedirect(),
@@ -147,26 +137,20 @@ describe("user preferences API [unit]", () => {
 
 describe("tracked stocks via preferences API [unit]", () => {
 	test("replaces tracked stocks when provided", async () => {
-		const supabaseStub = { marker: "supabase" };
+		const { createPreferencesHandler } = await import(
+			"../src/pages/api/preferences"
+		);
+		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
 		const userServiceStub = {
 			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
 			update: vi.fn(),
 		};
-
-		await vi.doMock("../../src/lib/db-client", () => ({
-			createSupabaseServerClient: vi.fn(() => supabaseStub),
-		}));
-
-		await vi.doMock("../../src/lib/users", () => ({
-			createUserService: vi.fn(() => userServiceStub),
-		}));
-
 		const replaceUserStocks = vi.fn(async () => {});
-		await vi.doMock("../../src/lib/stocks", () => ({
+		const handler = createPreferencesHandler({
+			createSupabaseServerClient: vi.fn(() => supabaseStub),
+			createUserService: vi.fn(() => userServiceStub),
 			replaceUserStocks,
-		}));
-
-		const { POST } = await import("../../src/pages/api/preferences");
+		});
 
 		const form = new URLSearchParams({
 			tracked_stocks: JSON.stringify(["aapl", "MSFT", ""]),
@@ -180,7 +164,7 @@ describe("tracked stocks via preferences API [unit]", () => {
 			body: form,
 		});
 
-		const response = await POST({
+		const response = await handler({
 			request,
 			cookies: createCookiesStub(),
 			redirect: createRedirect(),
@@ -194,6 +178,7 @@ describe("tracked stocks via preferences API [unit]", () => {
 		expect(replaceUserStocks).toHaveBeenCalledWith(supabaseStub, "user-1", [
 			"aapl",
 			"MSFT",
+			"",
 		]);
 	});
 });

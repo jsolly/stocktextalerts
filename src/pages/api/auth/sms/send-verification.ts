@@ -1,8 +1,8 @@
 import type { APIRoute } from "astro";
-import { createSupabaseServerClient } from "../../../../lib/db-client";
-import { truncateEmailForLogging } from "../../../../lib/format";
-import { sendVerification, validatePhone } from "../../../../lib/phone";
+import { createSupabaseServerClient } from "../../../../lib/supabase";
 import { createUserService } from "../../../../lib/users";
+import { parseWithSchema } from "../../form-utils";
+import { sendVerification } from "./verify-utils";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const supabase = createSupabaseServerClient();
@@ -10,41 +10,44 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
+		console.error("SMS verification send attempt without authenticated user");
 		return redirect("/?error=unauthorized&returnTo=/dashboard");
 	}
 
 	try {
 		const formData = await request.formData();
-		const rawPhone = formData.get("phone");
-		const phoneInput =
-			typeof rawPhone === "string" ? rawPhone.trim() : undefined;
+		const parsed = parseWithSchema(formData, {
+			phone_country_code: { type: "string", required: true },
+			phone_national_number: { type: "string", required: true },
+		} as const);
 
-		if (!phoneInput) {
-			throw new Error("Missing phone input");
+		if (!parsed.ok) {
+			console.error("SMS verification form rejected due to invalid fields", {
+				errors: parsed.allErrors,
+			});
+			return redirect("/dashboard?error=invalid_form");
 		}
 
-		const validation = validatePhone(phoneInput);
-		if (
-			!validation.isValid ||
-			!validation.countryCode ||
-			!validation.nationalNumber ||
-			!validation.fullPhone
-		) {
-			throw new Error(validation.error ?? "Invalid phone number");
-		}
+		const phoneCountryCode = parsed.data.phone_country_code;
+		const phoneNationalNumber = parsed.data.phone_national_number;
+
+		const fullPhone = `${phoneCountryCode}${phoneNationalNumber}`;
 
 		const dbUser = await userService.getById(user.id);
 		if (!dbUser) {
 			console.error(
-				`Auth user exists but database user record missing - ID: ${user.id}, email: ${user.email ? truncateEmailForLogging(user.email) : "none"}, endpoint: sms/send-verification`,
+				`Auth user exists but database user record missing - ID: ${user.id}, email: ${user.email}, endpoint: sms/send-verification`,
 			);
 			return redirect("/dashboard?error=user_not_found");
 		}
 		if (dbUser.sms_opted_out) {
+			console.error("SMS verification send blocked due to opt-out", {
+				userId: user.id,
+			});
 			return redirect("/dashboard?error=sms_opted_out");
 		}
 
-		const result = await sendVerification(validation.fullPhone);
+		const result = await sendVerification(fullPhone);
 		if (!result.success) {
 			console.error("SMS verification failed:", result.error);
 			return redirect(
@@ -53,8 +56,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		}
 
 		await userService.update(user.id, {
-			phone_country_code: validation.countryCode,
-			phone_number: validation.nationalNumber,
+			phone_country_code: phoneCountryCode,
+			phone_number: phoneNationalNumber,
 			phone_verified: false,
 		});
 

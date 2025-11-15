@@ -15,7 +15,7 @@
 		"fix": "npm run check:biome && npm run check:ts && npm run test:unit",
 		"outdated": "npm outdated",
 		"update": "npx npm-check-updates -u && npm install",
-		"db:import-tickers": "tsx db/import-tickers.ts"
+		"db:import-tickers": "./db/seed-stocks.sh"
 	},
 	"lint-staged": {
 		"**/*.{ts,tsx,json,css,md,astro,html}": [

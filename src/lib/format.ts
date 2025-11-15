@@ -21,30 +21,11 @@ export function formatMessage(message: MessageKey | null): string {
 	return MESSAGE_ALLOWLIST[message] ?? "";
 }
 
-export function truncateEmailForLogging(email: string): string {
-	if (!email) return "none";
-	const local = email.split("@")[0];
-	const domain = email.split("@")[1]?.split(".")[0] || "";
-	const domainPrefix = domain.slice(0, 2);
+export function truncateSms(message: string, maxLength = 160): string {
+	if (message.length <= maxLength) {
+		return message;
+	}
 
-	if (local.length <= 1) {
-		return `${local}***@***`;
-	}
-	if (local.length <= 2) {
-		return `${local}***@${domainPrefix}***`;
-	}
-	return `${local.slice(0, 2)}***@${domainPrefix}***`;
-}
-
-export function truncatePhoneForLogging(phone: string): string {
-	if (!phone) return "none";
-	const digits = phone.replace(/\D/g, "");
-	if (digits.length <= 4) {
-		return digits.slice(0, 1) + "*".repeat(digits.length - 1);
-	}
-	return (
-		digits.slice(0, 2) +
-		"*".repeat(Math.max(4, digits.length - 4)) +
-		digits.slice(-2)
-	);
+	const shortened = message.substring(0, maxLength - 3);
+	return `${shortened}...`;
 }

@@ -6,7 +6,7 @@ import SignInCard from "../components/landing/SignInCard.astro";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage, getAuthSuccessMessage } from "../lib/auth";
-import { createSupabaseServerClient } from "../lib/db-client";
+import { createSupabaseServerClient } from "../lib/supabase";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
