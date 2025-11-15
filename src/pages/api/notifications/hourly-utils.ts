@@ -84,15 +84,17 @@ export async function sendHourlyNotifications(
 			skippedCount++;
 			continue;
 		}
-		if (userStocks.length === 0) {
-			skippedCount++;
-			continue;
-		}
 
-		const stocksList = userStocks.map((stock) => stock.symbol).join(", ");
+		const stocksList =
+			userStocks.length === 0
+				? "You don't have any tracked stocks"
+				: userStocks.map((stock) => stock.symbol).join(", ");
 
 		if (user.email_notifications_enabled) {
-			const message = `Your tracked stocks: ${stocksList}`;
+			const message =
+				userStocks.length === 0
+					? stocksList
+					: `Your tracked stocks: ${stocksList}`;
 			let emailResult: DeliveryResult;
 
 			try {
@@ -121,12 +123,16 @@ export async function sendHourlyNotifications(
 				deliveryMethod: "email",
 				messageDelivered: emailResult.success,
 				message: notificationMessage,
+				error: emailResult.success ? undefined : emailResult.error,
+				errorCode: emailResult.success ? undefined : emailResult.errorCode,
 			});
 		}
 
 		if (shouldSendSms(user)) {
 			const smsMessage = truncateSms(
-				`Tracked: ${stocksList}. Reply STOP to opt out.`,
+				userStocks.length === 0
+					? `${stocksList}. Reply STOP to opt out.`
+					: `Tracked: ${stocksList}. Reply STOP to opt out.`,
 			);
 
 			const fullPhone = `${user.phone_country_code}${user.phone_number}`;
@@ -157,6 +163,8 @@ export async function sendHourlyNotifications(
 				deliveryMethod: "sms",
 				messageDelivered: smsResult.success,
 				message: notificationMessage,
+				error: smsResult.success ? undefined : smsResult.error,
+				errorCode: smsResult.success ? undefined : smsResult.errorCode,
 			});
 		}
 	}
@@ -274,6 +282,8 @@ async function recordNotification(
 		delivery_method: entry.deliveryMethod,
 		message_delivered: entry.messageDelivered,
 		message: entry.message,
+		error: entry.error,
+		error_code: entry.errorCode,
 	});
 
 	if (error) {

@@ -127,10 +127,67 @@ describe("user preferences API [unit]", () => {
 
 		expect(updateSpy).toHaveBeenCalledWith("user-1", {
 			email_notifications_enabled: true,
+			sms_notifications_enabled: false,
 			timezone: "America/New_York",
 			notification_start_hour: 9,
 			notification_end_hour: 17,
 			time_format: "24h",
+		});
+	});
+});
+
+describe("user preferences API boolean handling [unit]", () => {
+	test("turns off notification preferences when checkboxes are unchecked", async () => {
+		const { createPreferencesHandler } = await import(
+			"../src/pages/api/preferences"
+		);
+		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
+		const updateSpy = vi.fn(async () => ({}));
+		const userServiceStub = {
+			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
+			update: updateSpy,
+		};
+		const handler = createPreferencesHandler({
+			createSupabaseServerClient: vi.fn(() => supabaseStub),
+			createUserService: vi.fn(() => userServiceStub),
+			replaceUserStocks: vi.fn(async () => {}),
+		});
+
+		const form = new URLSearchParams({
+			// No email_notifications_enabled or sms_notifications_enabled fields,
+			// which simulates both checkboxes being unchecked in a standard HTML form.
+			timezone: "America/Los_Angeles",
+			notification_start_hour: "8",
+			notification_end_hour: "18",
+			time_format: "12h",
+		});
+
+		const request = new Request("http://localhost/api/preferences", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+			body: form,
+		});
+
+		const response = await handler({
+			request,
+			cookies: createCookiesStub(),
+			redirect: createRedirect(),
+		});
+
+		expect(response.status).toBe(303);
+		expect(response.headers.get("Location")).toBe(
+			"/dashboard?success=settings_updated",
+		);
+
+		expect(updateSpy).toHaveBeenCalledWith("user-1", {
+			email_notifications_enabled: false,
+			sms_notifications_enabled: false,
+			timezone: "America/Los_Angeles",
+			notification_start_hour: 8,
+			notification_end_hour: 18,
+			time_format: "12h",
 		});
 	});
 });

@@ -61,6 +61,60 @@ describe("sendHourlyNotifications [unit]", () => {
 		expect(supabaseStub.notificationLogs[0]?.delivery_method).toBe("email");
 		expect(supabaseStub.notificationLogs[1]?.delivery_method).toBe("sms");
 	});
+
+	test("sends notification when user has no tracked stocks", async () => {
+		const user = {
+			id: "user-1",
+			email: "user@example.com",
+			phone_country_code: "+1",
+			phone_number: "5555550123",
+			phone_verified: true,
+			sms_opted_out: false,
+			timezone: "America/New_York",
+			notification_start_hour: 8,
+			notification_end_hour: 17,
+			email_notifications_enabled: true,
+			sms_notifications_enabled: true,
+		};
+
+		const supabaseStub = createSupabaseStub({
+			users: [user],
+			stocksByUser: {
+				"user-1": [],
+			},
+		});
+
+		const emailRequests: EmailRequest[] = [];
+		const sendEmail: EmailSender = async (request) => {
+			emailRequests.push(request);
+			return { success: true };
+		};
+
+		const smsRequests: SmsRequest[] = [];
+		const sendSms = vi.fn(async (request: SmsRequest) => {
+			smsRequests.push(request);
+			return { success: true };
+		});
+
+		const result = await sendHourlyNotifications({
+			supabase: supabaseStub.client,
+			sendEmail,
+			sendSms,
+		});
+
+		expect(result.skipped).toBe(0);
+		expect(emailRequests).toHaveLength(1);
+		expect(emailRequests[0]?.subject).toBe("Your Hourly Stock Update");
+		expect(emailRequests[0]?.body).toBe("You don't have any tracked stocks");
+
+		expect(smsRequests).toHaveLength(1);
+		expect(smsRequests[0]?.to).toBe("+15555550123");
+		expect(smsRequests[0]?.body).toContain("You don't have any tracked stocks");
+
+		expect(supabaseStub.notificationLogs).toHaveLength(2);
+		expect(supabaseStub.notificationLogs[0]?.delivery_method).toBe("email");
+		expect(supabaseStub.notificationLogs[1]?.delivery_method).toBe("sms");
+	});
 });
 
 interface SupabaseStubOptions {

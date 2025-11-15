@@ -59,7 +59,7 @@
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import { AsYouType, getCountryCallingCode, getExampleNumber, isValidPhoneNumber } from "libphonenumber-js";
 import examples from "libphonenumber-js/examples.mobile.json";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
 type Country = "US";
 
@@ -74,44 +74,8 @@ const country = ref<Country>("US");
 const showError = ref(false);
 const touched = ref(false);
 
-const isRequired = ref(props.required ?? false);
-const isDisabled = ref(props.disabled ?? false);
-
-watch(() => props.required, (val) => {
-	isRequired.value = val ?? false;
-});
-
-watch(() => props.disabled, (val) => {
-	isDisabled.value = val ?? false;
-});
-
-let cleanup: (() => void) | null = null;
-
-onMounted(() => {
-	const form = document.querySelector('form[id="notification-preferences-form"]') as HTMLFormElement;
-	if (!form) return;
-
-	const smsCheckbox = form.querySelector('input[name="sms_notifications_enabled"]') as HTMLInputElement;
-	if (!smsCheckbox) return;
-
-	const updateProps = () => {
-		isRequired.value = smsCheckbox.checked;
-		isDisabled.value = !smsCheckbox.checked;
-	};
-
-	updateProps();
-	smsCheckbox.addEventListener('change', updateProps);
-	
-	cleanup = () => {
-		smsCheckbox.removeEventListener('change', updateProps);
-	};
-});
-
-onUnmounted(() => {
-	if (cleanup) {
-		cleanup();
-	}
-});
+const isRequired = computed(() => props.required ?? false);
+const isDisabled = computed(() => props.disabled ?? false);
 
 function formatPhone(digits: string): string {
 	return new AsYouType(country.value).input(digits);

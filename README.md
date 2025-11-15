@@ -117,6 +117,8 @@ npm run db:import-tickers
 
 This imports thousands of US stock tickers from `db/us-stocks.json` that users can track. The script uses PostgreSQL's COPY command for efficient bulk import.
 
+⚠️ **See 'Production Safety Warning' below** - This command truncates the `stocks` and `user_stocks` tables. Always back up your database and test in development first.
+
 ### 6. Run Development Server
 
 ```bash

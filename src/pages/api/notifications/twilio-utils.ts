@@ -70,7 +70,7 @@ export function createSmsSender(
 			return {
 				success: false,
 				error: errorMessage,
-				errorCode: twilioError.code,
+				errorCode: twilioError.code ? String(twilioError.code) : undefined,
 			};
 		}
 	};

@@ -1,8 +1,7 @@
 ---
 import { readFile } from "node:fs/promises";
-import NotificationPreferences from "../components/dashboard/NotificationPreferences.astro";
+import DashboardPreferencesForm from "../components/dashboard/DashboardPreferencesForm.astro";
 import SetupRequiredBanner from "../components/dashboard/SetupRequiredBanner.astro";
-import TrackedStocksPanel from "../components/dashboard/TrackedStocksPanel.vue";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
 import { formatMessage } from "../lib/format";
@@ -77,15 +76,13 @@ const errorMessage = url.searchParams.get("error");
 		<!-- Section 1: Setup Required Banner -->
 		<SetupRequiredBanner user={user} />
 
-		<!-- Section 2: Stock Selection -->
-		<TrackedStocksPanel
-			client:only="vue"
+		<!-- Section 2: Preferences form (stocks + notification settings) -->
+		<DashboardPreferencesForm
+			user={user}
+			timezones={timezones}
 			stockOptions={stockOptions}
-			initialSymbols={userStocks.map(stock => stock.symbol)}
+			initialSymbols={userStocks.map((stock) => stock.symbol)}
 		/>
-
-		<!-- Section 3: Notification Preferences -->
-		<NotificationPreferences user={user} timezones={timezones} />
 		</div>
 	</div>
 </Layout>

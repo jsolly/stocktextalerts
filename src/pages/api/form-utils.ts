@@ -1,100 +1,6 @@
 import { validateTimezone } from "../../lib/timezones";
 import type { Hour } from "../../lib/users";
 
-type StrictFormDataResult<TKeys extends readonly string[]> = {
-	[K in TKeys[number]]: string | null;
-};
-
-type StrictFormDataError =
-	| {
-			reason: "unexpected_key";
-			key: string;
-	  }
-	| {
-			reason: "duplicate_key";
-			key: string;
-	  }
-	| {
-			reason: "non_string_value";
-			key: string;
-			valueType: string;
-	  };
-
-type StrictFormDataOutcome<TKeys extends readonly string[]> =
-	| {
-			ok: true;
-			data: StrictFormDataResult<TKeys>;
-	  }
-	| {
-			ok: false;
-			error: StrictFormDataError;
-			allErrors: StrictFormDataError[];
-	  };
-
-function strictFormData<TKeys extends readonly string[]>(
-	formData: FormData,
-	keys: TKeys,
-): StrictFormDataOutcome<TKeys> {
-	const allowed = new Set<string>(keys);
-	const seen = new Set<string>();
-	const result = Object.create(null) as StrictFormDataResult<TKeys>;
-	const errors: StrictFormDataError[] = [];
-
-	for (const key of keys) {
-		result[key as TKeys[number]] = null;
-	}
-
-	for (const [key, value] of formData.entries()) {
-		if (!allowed.has(key)) {
-			console.error("strictFormData rejected unexpected key", { key });
-			errors.push({
-				reason: "unexpected_key",
-				key,
-			});
-			continue;
-		}
-
-		if (seen.has(key)) {
-			console.error("strictFormData rejected duplicate key", { key });
-			errors.push({
-				reason: "duplicate_key",
-				key,
-			});
-			continue;
-		}
-
-		if (typeof value !== "string") {
-			const valueType = typeof value;
-			console.error("strictFormData rejected non-string value", {
-				key,
-				valueType,
-			});
-			errors.push({
-				reason: "non_string_value",
-				key,
-				valueType,
-			});
-			continue;
-		}
-
-		result[key as TKeys[number]] = value;
-		seen.add(key);
-	}
-
-	if (errors.length > 0) {
-		return {
-			ok: false,
-			error: errors[0],
-			allErrors: errors,
-		};
-	}
-
-	return {
-		ok: true,
-		data: result,
-	};
-}
-
 /* =============
 Schema parsing
 ============= */
@@ -222,13 +128,53 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 	const defaultTruthyValues = ["on", "true", "1"];
 	const defaultFalsyValues = ["off", "false", "0"];
 	const keys = Object.keys(schema) as readonly string[];
-	const base = strictFormData(formData, keys);
+	const schemaKeySet = new Set(keys);
 
-	if (!base.ok) {
+	const rawData: Record<string, string | null> = {};
+	const seen = new Set<string>();
+	const validationErrors: FormIssue[] = [];
+
+	for (const key of keys) {
+		rawData[key] = null;
+	}
+
+	for (const [key, value] of formData.entries()) {
+		if (!schemaKeySet.has(key)) {
+			continue;
+		}
+
+		if (seen.has(key)) {
+			console.error("parseWithSchema rejected duplicate key", { key });
+			validationErrors.push({
+				reason: "duplicate_key",
+				key,
+			});
+			continue;
+		}
+
+		if (typeof value !== "string") {
+			const valueType = typeof value;
+			console.error("parseWithSchema rejected non-string value", {
+				key,
+				valueType,
+			});
+			validationErrors.push({
+				reason: "non_string_value",
+				key,
+				valueType,
+			});
+			continue;
+		}
+
+		rawData[key] = value;
+		seen.add(key);
+	}
+
+	if (validationErrors.length > 0) {
 		return {
 			ok: false,
-			error: base.error,
-			allErrors: base.allErrors,
+			error: validationErrors[0],
+			allErrors: validationErrors,
 		};
 	}
 
@@ -237,10 +183,18 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 
 	for (const key of keys) {
 		const spec = schema[key] as FieldSpec;
-		const raw = base.data[key];
+		const raw = rawData[key];
 
 		if (raw === null) {
-			if (spec.required) {
+			if (spec.type === "boolean") {
+				// HTML checkboxes submit no value when unchecked, which we treat as `false`
+				// for optional boolean fields. Required booleans still enforce presence.
+				if (spec.required) {
+					errors.push({ reason: "missing_field", key });
+				} else {
+					output[key] = false;
+				}
+			} else if (spec.required) {
 				errors.push({ reason: "missing_field", key });
 			} else {
 				output[key] = undefined;
@@ -258,8 +212,12 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					spec.falsyValues?.map((value) => value.trim().toLowerCase()) ??
 					defaultFalsyValues;
 
-				if (normalized === "" && spec.required) {
-					errors.push({ reason: "missing_field", key });
+				if (normalized === "") {
+					if (spec.required) {
+						errors.push({ reason: "missing_field", key });
+					} else {
+						output[key] = undefined;
+					}
 					break;
 				}
 
@@ -364,7 +322,7 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					break;
 				}
 				const result = validateTimezone(trimmed);
-				if (!result.valid || (spec.required && !result.value)) {
+				if (!result.valid) {
 					errors.push({
 						reason: "invalid_timezone",
 						key,

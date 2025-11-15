@@ -148,6 +148,8 @@ CREATE TABLE IF NOT EXISTS notification_log (
   delivery_method VARCHAR(10) NOT NULL CHECK (delivery_method IN ('email', 'sms')),
   message_delivered BOOLEAN DEFAULT true NOT NULL,
   message TEXT,
+  error TEXT,
+  error_code VARCHAR(50),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );

@@ -19,6 +19,10 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Invalid email or password";
 		case "delete_failed":
 			return "Failed to delete account. Please try again.";
+		case "delete_db_failed":
+			return "We couldn't remove your account data. Please try again.";
+		case "delete_partial":
+			return "Your account data was deleted, but we couldn't fully remove your sign-in. Please sign out and try again.";
 		case "user_not_found":
 			return "We couldn't find an account for that email.";
 		default:

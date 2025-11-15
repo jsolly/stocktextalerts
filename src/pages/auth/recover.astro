@@ -96,6 +96,24 @@ import Layout from "../../layouts/Layout.astro";
 
     if (token && type === 'recovery') {
       (async () => {
+        // Disable form and controls before verification
+        const passwordInput = document.getElementById('password') as HTMLInputElement;
+        const confirmInput = document.getElementById('confirm') as HTMLInputElement;
+        const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement;
+        
+        if (form) {
+          form.classList.add('busy');
+        }
+        if (passwordInput) {
+          passwordInput.disabled = true;
+        }
+        if (confirmInput) {
+          confirmInput.disabled = true;
+        }
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+
         const { error } = await supabase.auth.verifyOtp({
           token_hash: token,
           type: 'recovery'
@@ -104,9 +122,23 @@ import Layout from "../../layouts/Layout.astro";
         if (error) {
           console.error('Token verification failed:', error);
           showMessage('Invalid or expired reset link.', 'error', true);
-          // Hide the form since the token is invalid
+          // Hide the form since the token is invalid (form remains disabled)
           if (form) {
             form.style.display = 'none';
+          }
+        } else {
+          // Re-enable form and controls on success
+          if (form) {
+            form.classList.remove('busy');
+          }
+          if (passwordInput) {
+            passwordInput.disabled = false;
+          }
+          if (confirmInput) {
+            confirmInput.disabled = false;
+          }
+          if (submitButton) {
+            submitButton.disabled = false;
           }
         }
       })();

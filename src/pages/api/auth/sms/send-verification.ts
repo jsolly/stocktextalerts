@@ -50,12 +50,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		const result = await sendVerification(fullPhone);
 		if (!result.success) {
 			console.error("SMS verification failed:", result.error);
-			return redirect(
-				`/dashboard?error=${encodeURIComponent("verification_failed")}`,
-			);
+			return redirect("/dashboard?error=verification_failed");
 		}
 
 		await userService.update(user.id, {
+			sms_notifications_enabled: true,
 			phone_country_code: phoneCountryCode,
 			phone_number: phoneNationalNumber,
 			phone_verified: false,

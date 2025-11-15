@@ -35,7 +35,6 @@
 			type="hidden"
 			name="tracked_stocks"
 			:value="serializedSymbols"
-			form="notification-preferences-form"
 		/>
 	</div>
 </template>

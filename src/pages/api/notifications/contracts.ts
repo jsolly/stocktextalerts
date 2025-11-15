@@ -2,7 +2,7 @@ export type DeliveryMethod = "email" | "sms";
 
 export type DeliveryResult =
 	| { success: true; messageSid?: string }
-	| { success: false; error: string; errorCode?: string | number };
+	| { success: false; error: string; errorCode?: string };
 
 export interface NotificationLogEntry {
 	userId: string;
@@ -10,4 +10,6 @@ export interface NotificationLogEntry {
 	deliveryMethod: DeliveryMethod;
 	messageDelivered: boolean;
 	message?: string;
+	error?: string;
+	errorCode?: string;
 }
