@@ -80,7 +80,11 @@ export async function sendHourlyNotifications(
 		}
 
 		const userStocks = await loadUserStocks(supabase, user.id);
-		if (!userStocks) {
+		if (userStocks === null) {
+			skippedCount++;
+			continue;
+		}
+		if (userStocks.length === 0) {
 			skippedCount++;
 			continue;
 		}
@@ -89,7 +93,7 @@ export async function sendHourlyNotifications(
 
 		if (user.email_notifications_enabled) {
 			const message = `Your tracked stocks: ${stocksList}`;
-			let emailResult: DeliveryResult = { success: false };
+			let emailResult: DeliveryResult;
 
 			try {
 				emailResult = await sendEmail({
@@ -109,7 +113,7 @@ export async function sendHourlyNotifications(
 
 			const notificationMessage = emailResult.success
 				? message
-				: (emailResult.error ?? "Email delivery failed");
+				: emailResult.error;
 
 			await recordNotification(supabase, {
 				userId: user.id,
@@ -126,7 +130,7 @@ export async function sendHourlyNotifications(
 			);
 
 			const fullPhone = `${user.phone_country_code}${user.phone_number}`;
-			let smsResult: DeliveryResult = { success: false };
+			let smsResult: DeliveryResult;
 
 			try {
 				smsResult = await sendSms({
@@ -145,7 +149,7 @@ export async function sendHourlyNotifications(
 
 			const notificationMessage = smsResult.success
 				? smsMessage
-				: (smsResult.error ?? "SMS delivery failed");
+				: smsResult.error;
 
 			await recordNotification(supabase, {
 				userId: user.id,
@@ -211,8 +215,16 @@ async function loadUserStocks(
 		.select("symbol")
 		.eq("user_id", userId);
 
-	if (error || !stocks || stocks.length === 0) {
+	if (error) {
+		console.error("Failed to load user stocks", {
+			userId,
+			error,
+		});
 		return null;
+	}
+
+	if (!stocks || stocks.length === 0) {
+		return [];
 	}
 
 	return stocks;

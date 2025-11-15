@@ -359,8 +359,12 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					errors.push({ reason: "missing_field", key });
 					break;
 				}
+				if (!spec.required && trimmed === "") {
+					output[key] = null;
+					break;
+				}
 				const result = validateTimezone(trimmed);
-				if (!result.valid || !result.value) {
+				if (!result.valid || (spec.required && !result.value)) {
 					errors.push({
 						reason: "invalid_timezone",
 						key,

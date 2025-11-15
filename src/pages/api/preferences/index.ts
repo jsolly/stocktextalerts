@@ -71,7 +71,16 @@ export function createPreferencesHandler(
 		await userService.update(user.id, preferenceUpdates);
 
 		if (Array.isArray(trackedSymbols)) {
-			await dependencies.replaceUserStocks(supabase, user.id, trackedSymbols);
+			try {
+				await dependencies.replaceUserStocks(supabase, user.id, trackedSymbols);
+			} catch (error) {
+				console.error("Failed to update tracked stocks", {
+					userId: user.id,
+					symbols: trackedSymbols,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return redirect("/dashboard?error=failed_to_update_stocks");
+			}
 		}
 
 		return redirect("/dashboard?success=settings_updated");

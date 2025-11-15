@@ -27,22 +27,23 @@
 					<input type="hidden" name="phone_national_number" :value="lastDigits" />
 				</div>
 				<div class="flex-1 relative">
-					<input
-						type="tel"
-						id="phone"
-						v-model="phoneNumber"
-						@input="handlePhoneInput"
-						@focus="handleFocus"
-						@blur="handleBlur"
-						:aria-describedby="showError ? 'phone-error' : undefined"
-						:aria-invalid="showError ? 'true' : undefined"
-						class="w-full rounded-r-lg py-2 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
-						:placeholder="computedPlaceholder"
-						name="phone"
-						required
-						inputmode="tel"
-						autocomplete="tel-national"
-					/>
+				<input
+					type="tel"
+					id="phone"
+					v-model="phoneNumber"
+					@input="handlePhoneInput"
+					@focus="handleFocus"
+					@blur="handleBlur"
+					:aria-describedby="showError ? 'phone-error' : undefined"
+					:aria-invalid="showError ? 'true' : undefined"
+					class="w-full rounded-r-lg py-2 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
+					:placeholder="computedPlaceholder"
+					name="phone"
+					:required="isRequired"
+					:disabled="isDisabled"
+					inputmode="tel"
+					autocomplete="tel-national"
+				/>
 					<div v-if="phoneNumber" class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
 						<CheckCircleIcon v-if="isValid" class="h-5 w-5 text-green-500" aria-hidden="true" />
 						<ExclamationCircleIcon v-else class="h-5 w-5 text-red-500" aria-hidden="true" />
@@ -58,18 +59,59 @@
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import { AsYouType, getCountryCallingCode, getExampleNumber, isValidPhoneNumber } from "libphonenumber-js";
 import examples from "libphonenumber-js/examples.mobile.json";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 type Country = "US";
 
 const props = defineProps<{
 	formSubmitted?: boolean;
+	required?: boolean;
+	disabled?: boolean;
 }>();
 
 const phoneNumber = ref("");
 const country = ref<Country>("US");
 const showError = ref(false);
 const touched = ref(false);
+
+const isRequired = ref(props.required ?? false);
+const isDisabled = ref(props.disabled ?? false);
+
+watch(() => props.required, (val) => {
+	isRequired.value = val ?? false;
+});
+
+watch(() => props.disabled, (val) => {
+	isDisabled.value = val ?? false;
+});
+
+let cleanup: (() => void) | null = null;
+
+onMounted(() => {
+	const form = document.querySelector('form[id="notification-preferences-form"]') as HTMLFormElement;
+	if (!form) return;
+
+	const smsCheckbox = form.querySelector('input[name="sms_notifications_enabled"]') as HTMLInputElement;
+	if (!smsCheckbox) return;
+
+	const updateProps = () => {
+		isRequired.value = smsCheckbox.checked;
+		isDisabled.value = !smsCheckbox.checked;
+	};
+
+	updateProps();
+	smsCheckbox.addEventListener('change', updateProps);
+	
+	cleanup = () => {
+		smsCheckbox.removeEventListener('change', updateProps);
+	};
+});
+
+onUnmounted(() => {
+	if (cleanup) {
+		cleanup();
+	}
+});
 
 function formatPhone(digits: string): string {
 	return new AsYouType(country.value).input(digits);

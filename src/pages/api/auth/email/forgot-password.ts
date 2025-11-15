@@ -31,7 +31,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		if (error) {
 			console.error("Password reset request failed:", error);
 
-			if (error.status === 429) {
+			if (error.status === 429 || error.code === "rate_limit_exceeded") {
 				const seconds = error.message?.match(/(\d+)\s+seconds?/)?.[1];
 				if (seconds) {
 					return redirect(`/auth/forgot?error=rate_limit&seconds=${seconds}`);

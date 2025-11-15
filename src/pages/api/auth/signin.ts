@@ -27,8 +27,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	});
 
 	if (error) {
-		const normalizedMessage = error.message.toLowerCase().replace(/_/g, " ");
-		if (normalizedMessage.includes("email not confirmed")) {
+		if (error.code === "email_not_confirmed") {
 			console.error("Sign-in blocked due to unconfirmed email", {
 				email,
 			});

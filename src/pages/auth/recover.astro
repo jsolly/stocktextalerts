@@ -141,7 +141,7 @@ import Layout from "../../layouts/Layout.astro";
       console.error('Password update failed:', error);
       
       let userMessage = 'Failed to update password. Please try again.';
-      if (error.message?.includes('weak password') || error.message?.includes('password')) {
+      if (error.code === 'weak_password') {
         userMessage = 'Password does not meet security requirements. Please choose a stronger password.';
       }
       

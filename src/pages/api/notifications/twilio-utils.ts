@@ -46,21 +46,31 @@ export function createSmsSender(
 		const from = request.from ?? defaultFromNumber;
 
 		try {
-			await client.messages.create({
+			const message = await client.messages.create({
 				body: request.body,
 				from,
 				to: request.to,
 			});
 
-			return { success: true };
+			return {
+				success: true,
+				messageSid: message.sid,
+			};
 		} catch (error) {
 			console.error("Twilio SMS send error:", error);
 
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to send SMS";
+
+			const twilioError = error as {
+				code?: string | number;
+				moreInfo?: string;
+			};
+
 			return {
 				success: false,
 				error: errorMessage,
+				errorCode: twilioError.code,
 			};
 		}
 	};

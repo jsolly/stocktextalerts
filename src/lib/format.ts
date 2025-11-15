@@ -7,6 +7,7 @@ const MESSAGE_ALLOWLIST: Record<string, string> = {
 	verification_failed: "Failed to send verification code",
 	failed_to_add_stock: "Failed to add stock",
 	failed_to_remove_stock: "Failed to remove stock",
+	failed_to_update_stocks: "Failed to update tracked stocks. Please try again.",
 	server_error: "An error occurred. Please try again",
 	phone_not_set: "Phone number not set",
 	no_updates: "No updates to save",
