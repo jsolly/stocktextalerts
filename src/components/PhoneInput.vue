@@ -51,6 +51,7 @@
 				</div>
 			</div>
 		</div>
+		<input type="hidden" name="phone_is_valid" :value="isValid ? 'true' : 'false'" ref="validField" />
 		<p v-if="showError" id="phone-error" role="alert" class="mt-1 text-sm text-red-600">Please enter a valid phone number</p>
 	</div>
 </template>
@@ -59,7 +60,7 @@
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import { AsYouType, getCountryCallingCode, getExampleNumber, isValidPhoneNumber } from "libphonenumber-js";
 import examples from "libphonenumber-js/examples.mobile.json";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 type Country = "US";
 
@@ -67,21 +68,30 @@ const props = defineProps<{
 	formSubmitted?: boolean;
 	required?: boolean;
 	disabled?: boolean;
+	/**
+	 * Server-provided national number digits (no country code),
+	 * e.g. "5555550123". Used to rehydrate the phone field after
+	 * redirects so users don't have to re-enter their number.
+	 */
+	initialNationalNumber?: string | null;
 }>();
 
 const phoneNumber = ref("");
 const country = ref<Country>("US");
 const showError = ref(false);
 const touched = ref(false);
+const actualDisabled = ref(props.disabled ?? false);
 
 const isRequired = computed(() => props.required ?? false);
-const isDisabled = computed(() => props.disabled ?? false);
+const isDisabled = computed(() => actualDisabled.value);
 
 function formatPhone(digits: string): string {
 	return new AsYouType(country.value).input(digits);
 }
 
 const lastDigits = ref("");
+const validField = ref<HTMLInputElement | null>(null);
+let fieldsetObserver: MutationObserver | null = null;
 
 watch(country, () => {
 	if (phoneNumber.value) {
@@ -135,6 +145,17 @@ function handleBlur() {
 }
 
 watch(
+	() => isValid.value,
+	(val) => {
+		if (validField.value) {
+			validField.value.value = val ? "true" : "false";
+			// notify parent listeners (Astro form script) that validity changed
+			validField.value.dispatchEvent(new Event("input", { bubbles: true }));
+		}
+	},
+);
+
+watch(
 	() => props.formSubmitted,
 	(submitted) => {
 		if (submitted) {
@@ -142,5 +163,51 @@ watch(
 		}
 	},
 );
+
+watch(
+	() => props.disabled,
+	(disabled) => {
+		actualDisabled.value = disabled ?? false;
+	},
+);
+
+onMounted(() => {
+	if (props.initialNationalNumber && !phoneNumber.value) {
+		const digits = props.initialNationalNumber.replace(/\D/g, "");
+		if (digits) {
+			lastDigits.value = digits;
+			phoneNumber.value = formatPhone(digits);
+		}
+	}
+
+	const fieldset = document.getElementById(
+		"phone-verification-fieldset",
+	) as HTMLFieldSetElement | null;
+
+	if (fieldset) {
+		actualDisabled.value = fieldset.disabled;
+
+		fieldsetObserver = new MutationObserver(() => {
+			actualDisabled.value = fieldset.disabled;
+		});
+
+		fieldsetObserver.observe(fieldset, {
+			attributes: true,
+			attributeFilter: ["disabled"],
+		});
+	}
+	// initialize hidden validity field and notify listeners
+	if (validField.value) {
+		validField.value.value = isValid.value ? "true" : "false";
+		validField.value.dispatchEvent(new Event("input", { bubbles: true }));
+	}
+});
+
+onUnmounted(() => {
+	if (fieldsetObserver) {
+		fieldsetObserver.disconnect();
+		fieldsetObserver = null;
+	}
+});
 </script>
 

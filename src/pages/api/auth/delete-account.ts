@@ -52,7 +52,7 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 						error: authError,
 					},
 				);
-				return redirect("/profile?error=delete_partial");
+				return redirect("/profile?error=delete_orphaned_auth_failed");
 			}
 
 			clearAuthCookies();
@@ -98,6 +98,7 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 			userId: authUser.id,
 			error: err,
 		});
+		clearAuthCookies();
 		return redirect("/profile?error=delete_failed");
 	}
 };

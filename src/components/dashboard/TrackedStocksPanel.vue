@@ -29,18 +29,11 @@
 				</div>
 			</div>
 		</div>
-
-		<input
-			ref="hiddenInputRef"
-			type="hidden"
-			name="tracked_stocks"
-			:value="serializedSymbols"
-		/>
 	</div>
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 import StockInput, { type StockOption } from "./StockInput.vue";
 
@@ -52,11 +45,6 @@ interface Props {
 const props = defineProps<Props>();
 
 const trackedSymbols = ref([...props.initialSymbols]);
-const hiddenInputRef = ref<HTMLInputElement | null>(null);
-
-const serializedSymbols = computed(() =>
-	JSON.stringify(trackedSymbols.value),
-);
 
 const handleSelect = (symbol: string) => {
 	if (!symbol) {
@@ -76,17 +64,28 @@ const removeSymbol = (symbol: string) => {
 	);
 };
 
+const updateExternalInput = () => {
+	const input = document.querySelector(
+		'input[name="tracked_stocks"]',
+	) as HTMLInputElement | null;
+	if (!input) {
+		return;
+	}
+
+	const serializedValue = JSON.stringify(trackedSymbols.value);
+	input.value = serializedValue;
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+};
+
+onMounted(() => {
+	updateExternalInput();
+});
+
 watch(
 	trackedSymbols,
-	async () => {
-		await nextTick();
-		const input = hiddenInputRef.value;
-		if (!input) {
-			return;
-		}
-
-		input.dispatchEvent(new Event("input", { bubbles: true }));
-		input.dispatchEvent(new Event("change", { bubbles: true }));
+	() => {
+		updateExternalInput();
 	},
 	{ deep: true },
 );

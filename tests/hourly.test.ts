@@ -46,9 +46,14 @@ describe("sendHourlyNotifications [unit]", () => {
 			supabase: supabaseStub.client,
 			sendEmail,
 			sendSms,
+			getCurrentTime: () => new Date("2024-01-01T17:00:00Z"),
 		});
 
 		expect(result.skipped).toBe(0);
+		expect(result.emailsSent).toBe(1);
+		expect(result.emailsFailed).toBe(0);
+		expect(result.smsSent).toBe(1);
+		expect(result.smsFailed).toBe(0);
 		expect(emailRequests).toHaveLength(1);
 		expect(emailRequests[0]?.subject).toBe("Your Hourly Stock Update");
 		expect(emailRequests[0]?.body).toContain("AAPL, MSFT");
@@ -100,9 +105,14 @@ describe("sendHourlyNotifications [unit]", () => {
 			supabase: supabaseStub.client,
 			sendEmail,
 			sendSms,
+			getCurrentTime: () => new Date("2024-01-01T17:00:00Z"),
 		});
 
 		expect(result.skipped).toBe(0);
+		expect(result.emailsSent).toBe(1);
+		expect(result.emailsFailed).toBe(0);
+		expect(result.smsSent).toBe(1);
+		expect(result.smsFailed).toBe(0);
 		expect(emailRequests).toHaveLength(1);
 		expect(emailRequests[0]?.subject).toBe("Your Hourly Stock Update");
 		expect(emailRequests[0]?.body).toBe("You don't have any tracked stocks");

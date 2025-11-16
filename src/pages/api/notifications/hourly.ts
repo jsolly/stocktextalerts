@@ -52,12 +52,18 @@ export const POST: APIRoute = async ({ request }) => {
 			supabase,
 			sendEmail,
 			sendSms,
+			getCurrentTime: () => new Date(),
 		});
 
 		return new Response(
 			JSON.stringify({
 				success: true,
 				skipped: result.skipped,
+				logFailures: result.logFailures,
+				emailsSent: result.emailsSent,
+				emailsFailed: result.emailsFailed,
+				smsSent: result.smsSent,
+				smsFailed: result.smsFailed,
 			}),
 			{
 				status: 200,

@@ -103,6 +103,7 @@ import Layout from "../../layouts/Layout.astro";
         
         if (form) {
           form.classList.add('busy');
+          form.setAttribute('aria-busy', 'true');
         }
         if (passwordInput) {
           passwordInput.disabled = true;
@@ -125,11 +126,13 @@ import Layout from "../../layouts/Layout.astro";
           // Hide the form since the token is invalid (form remains disabled)
           if (form) {
             form.style.display = 'none';
+            form.removeAttribute('aria-busy');
           }
         } else {
           // Re-enable form and controls on success
           if (form) {
             form.classList.remove('busy');
+            form.removeAttribute('aria-busy');
           }
           if (passwordInput) {
             passwordInput.disabled = false;
@@ -153,11 +156,6 @@ import Layout from "../../layouts/Layout.astro";
 
     if (passwordInput.value !== confirmInput.value) {
       showMessage('Passwords do not match', 'error');
-      return;
-    }
-
-    if (passwordInput.value.length < 8) {
-      showMessage('Password must be at least 8 characters long', 'error');
       return;
     }
 

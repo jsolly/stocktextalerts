@@ -138,6 +138,39 @@ END;
 $$;
 
 /* =============
+User Preferences and Stocks Functions
+============= */
+
+CREATE OR REPLACE FUNCTION public.update_user_preferences_and_stocks(
+  user_id uuid,
+  timezone text,
+  notification_start_hour integer,
+  notification_end_hour integer,
+  time_format varchar(3),
+  email_notifications_enabled boolean,
+  sms_notifications_enabled boolean,
+  symbols text[]
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  UPDATE users
+  SET
+    timezone = COALESCE(update_user_preferences_and_stocks.timezone, users.timezone),
+    notification_start_hour = COALESCE(update_user_preferences_and_stocks.notification_start_hour, users.notification_start_hour),
+    notification_end_hour = COALESCE(update_user_preferences_and_stocks.notification_end_hour, users.notification_end_hour),
+    time_format = COALESCE(update_user_preferences_and_stocks.time_format, users.time_format),
+    email_notifications_enabled = COALESCE(update_user_preferences_and_stocks.email_notifications_enabled, users.email_notifications_enabled),
+    sms_notifications_enabled = COALESCE(update_user_preferences_and_stocks.sms_notifications_enabled, users.sms_notifications_enabled)
+  WHERE id = update_user_preferences_and_stocks.user_id;
+
+  PERFORM replace_user_stocks(update_user_preferences_and_stocks.user_id, symbols);
+END;
+$$;
+
+/* =============
 Notification Log
 ============= */
 

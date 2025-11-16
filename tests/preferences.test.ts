@@ -95,7 +95,7 @@ describe("user preferences API [unit]", () => {
 		const handler = createPreferencesHandler({
 			createSupabaseServerClient: vi.fn(() => supabaseStub),
 			createUserService: vi.fn(() => userServiceStub),
-			replaceUserStocks: vi.fn(async () => {}),
+			updateUserPreferencesAndStocks: vi.fn(async () => {}),
 		});
 
 		const form = new URLSearchParams({
@@ -150,7 +150,7 @@ describe("user preferences API boolean handling [unit]", () => {
 		const handler = createPreferencesHandler({
 			createSupabaseServerClient: vi.fn(() => supabaseStub),
 			createUserService: vi.fn(() => userServiceStub),
-			replaceUserStocks: vi.fn(async () => {}),
+			updateUserPreferencesAndStocks: vi.fn(async () => {}),
 		});
 
 		const form = new URLSearchParams({
@@ -200,13 +200,18 @@ describe("tracked stocks via preferences API [unit]", () => {
 		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
 		const userServiceStub = {
 			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
+			getById: vi.fn(async () => ({
+				id: "user-1",
+				phone_country_code: "+1",
+				phone_number: "5555550123",
+			})),
 			update: vi.fn(),
 		};
-		const replaceUserStocks = vi.fn(async () => {});
+		const updateUserPreferencesAndStocks = vi.fn(async () => {});
 		const handler = createPreferencesHandler({
 			createSupabaseServerClient: vi.fn(() => supabaseStub),
 			createUserService: vi.fn(() => userServiceStub),
-			replaceUserStocks,
+			updateUserPreferencesAndStocks,
 		});
 
 		const form = new URLSearchParams({
@@ -232,10 +237,69 @@ describe("tracked stocks via preferences API [unit]", () => {
 			"/dashboard?success=settings_updated",
 		);
 
-		expect(replaceUserStocks).toHaveBeenCalledWith(supabaseStub, "user-1", [
-			"aapl",
-			"MSFT",
-			"",
-		]);
+		expect(updateUserPreferencesAndStocks).toHaveBeenCalledWith(
+			supabaseStub,
+			"user-1",
+			{
+				email_notifications_enabled: false,
+				sms_notifications_enabled: false,
+			},
+			["aapl", "MSFT", ""],
+		);
+	});
+});
+
+describe("user preferences API SMS + phone guard [unit]", () => {
+	test("rejects enabling SMS when phone number is not set", async () => {
+		const { createPreferencesHandler } = await import(
+			"../src/pages/api/preferences"
+		);
+		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
+		const userServiceStub = {
+			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
+			getById: vi.fn(async () => ({
+				id: "user-1",
+				phone_country_code: null,
+				phone_number: null,
+			})),
+			update: vi.fn(),
+		};
+
+		const updateUserPreferencesAndStocks = vi.fn(async () => {});
+
+		const handler = createPreferencesHandler({
+			createSupabaseServerClient: vi.fn(() => supabaseStub),
+			createUserService: vi.fn(() => userServiceStub),
+			updateUserPreferencesAndStocks,
+		});
+
+		const form = new URLSearchParams({
+			sms_notifications_enabled: "on",
+			timezone: "America/New_York",
+			notification_start_hour: "9",
+			notification_end_hour: "17",
+			time_format: "24h",
+		});
+
+		const request = new Request("http://localhost/api/preferences", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+			body: form,
+		});
+
+		const response = await handler({
+			request,
+			cookies: createCookiesStub(),
+			redirect: createRedirect(),
+		});
+
+		expect(response.status).toBe(303);
+		expect(response.headers.get("Location")).toBe(
+			"/dashboard?error=phone_not_set",
+		);
+		expect(userServiceStub.update).not.toHaveBeenCalled();
+		expect(updateUserPreferencesAndStocks).not.toHaveBeenCalled();
 	});
 });

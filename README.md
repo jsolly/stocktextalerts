@@ -61,7 +61,7 @@ npm install
 
 ### 3. Environment Variables
 
-Create a `.env.local` file in the root directory:
+Create a `.env.local` file in the root directory (you can copy from `env.example` and fill in secrets). This file is gitignored and **must not** be committed.
 
 ```env
 # Site Configuration
@@ -72,6 +72,7 @@ PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 DATABASE_URL=postgresql://postgres:password@host:5432/database
+DEFAULT_PASSWORD=your-strong-local-seed-password
 
 # Twilio Configuration
 TWILIO_ACCOUNT_SID=your-twilio-account-sid
@@ -90,7 +91,9 @@ CRON_SECRET=your-random-secret-string
 - Twilio credentials: Twilio Console → Account Dashboard
 - `CRON_SECRET`: Generate a random string (e.g., `openssl rand -hex 32`)
 
-**Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side.
+For local development, `DEFAULT_PASSWORD` is used only by `db/seed-users.sh` to create test users via the Supabase Admin API. Use a strong throwaway password and never reuse production credentials here.
+
+**Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. The `.env.local` file (and all `.env*` files) are already excluded from version control via `.gitignore`; keep secrets only in environment files or your deployment platform, not in committed code.
 
 ### 4. Database Setup
 

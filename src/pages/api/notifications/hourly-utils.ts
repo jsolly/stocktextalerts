@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { truncateSms } from "../../../lib/format";
-import type { DeliveryResult, NotificationLogEntry } from "./contracts";
+import type {
+	DeliveryMethod,
+	DeliveryResult,
+	NotificationLogEntry,
+} from "./contracts";
 import type { SmsSender } from "./twilio-utils";
 
 interface UserRecord {
@@ -33,16 +37,63 @@ export interface SendHourlyDependencies {
 	supabase: SupabaseClient;
 	sendEmail: EmailSender;
 	sendSms: SmsSender;
+	getCurrentTime?: () => Date;
 }
 
 export interface SendHourlyResult {
 	skipped: number;
+	logFailures: number;
+	emailsSent: number;
+	emailsFailed: number;
+	smsSent: number;
+	smsFailed: number;
+}
+
+async function sendAndRecord(
+	supabase: SupabaseClient,
+	user: UserRecord,
+	deliveryMethod: DeliveryMethod,
+	message: string,
+	sendFn: () => Promise<DeliveryResult>,
+): Promise<{ deliverySuccess: boolean; logRecorded: boolean }> {
+	let result: DeliveryResult;
+
+	try {
+		result = await sendFn();
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.error(`Failed to send hourly ${deliveryMethod} notification`, {
+			userId: user.id,
+			error,
+		});
+		result = { success: false, error: errorMessage };
+	}
+
+	const notificationMessage = result.success ? message : result.error;
+
+	const logEntry: NotificationLogEntry = {
+		userId: user.id,
+		type: "hourly_update",
+		deliveryMethod,
+		messageDelivered: result.success,
+		message: notificationMessage,
+		error: result.success ? undefined : result.error,
+		errorCode: result.success ? undefined : result.errorCode,
+	};
+
+	const logRecorded = await recordNotification(supabase, logEntry);
+	return { deliverySuccess: result.success, logRecorded };
 }
 
 export async function sendHourlyNotifications(
 	deps: SendHourlyDependencies,
 ): Promise<SendHourlyResult> {
-	const { supabase, sendEmail, sendSms } = deps;
+	const {
+		supabase,
+		sendEmail,
+		sendSms,
+		getCurrentTime = () => new Date(),
+	} = deps;
 
 	const { data: users, error: usersError } = await supabase
 		.from("users")
@@ -72,9 +123,14 @@ export async function sendHourlyNotifications(
 	}
 
 	let skippedCount = 0;
+	let logFailureCount = 0;
+	let emailsSent = 0;
+	let emailsFailed = 0;
+	let smsSent = 0;
+	let smsFailed = 0;
 
 	for (const user of users ?? []) {
-		if (!shouldNotifyUser(user)) {
+		if (!shouldNotifyUser(user, getCurrentTime)) {
 			skippedCount++;
 			continue;
 		}
@@ -95,37 +151,29 @@ export async function sendHourlyNotifications(
 				userStocks.length === 0
 					? stocksList
 					: `Your tracked stocks: ${stocksList}`;
-			let emailResult: DeliveryResult;
 
-			try {
-				emailResult = await sendEmail({
-					to: user.email,
-					subject: "Your Hourly Stock Update",
-					body: message,
-				});
-			} catch (error) {
-				const errorMessage =
-					error instanceof Error ? error.message : String(error);
-				console.error("Failed to send hourly email notification", {
-					userId: user.id,
-					error,
-				});
-				emailResult = { success: false, error: errorMessage };
+			const { deliverySuccess, logRecorded } = await sendAndRecord(
+				supabase,
+				user,
+				"email",
+				message,
+				() =>
+					sendEmail({
+						to: user.email,
+						subject: "Your Hourly Stock Update",
+						body: message,
+					}),
+			);
+
+			if (deliverySuccess) {
+				emailsSent++;
+			} else {
+				emailsFailed++;
 			}
 
-			const notificationMessage = emailResult.success
-				? message
-				: emailResult.error;
-
-			await recordNotification(supabase, {
-				userId: user.id,
-				type: "hourly_update",
-				deliveryMethod: "email",
-				messageDelivered: emailResult.success,
-				message: notificationMessage,
-				error: emailResult.success ? undefined : emailResult.error,
-				errorCode: emailResult.success ? undefined : emailResult.errorCode,
-			});
+			if (!logRecorded) {
+				logFailureCount++;
+			}
 		}
 
 		if (shouldSendSms(user)) {
@@ -136,54 +184,50 @@ export async function sendHourlyNotifications(
 			);
 
 			const fullPhone = `${user.phone_country_code}${user.phone_number}`;
-			let smsResult: DeliveryResult;
 
-			try {
-				smsResult = await sendSms({
-					to: fullPhone,
-					body: smsMessage,
-				});
-			} catch (error) {
-				const errorMessage =
-					error instanceof Error ? error.message : String(error);
-				console.error("Failed to send hourly SMS notification", {
-					userId: user.id,
-					error,
-				});
-				smsResult = { success: false, error: errorMessage };
+			const { deliverySuccess, logRecorded } = await sendAndRecord(
+				supabase,
+				user,
+				"sms",
+				smsMessage,
+				() =>
+					sendSms({
+						to: fullPhone,
+						body: smsMessage,
+					}),
+			);
+
+			if (deliverySuccess) {
+				smsSent++;
+			} else {
+				smsFailed++;
 			}
 
-			const notificationMessage = smsResult.success
-				? smsMessage
-				: smsResult.error;
-
-			await recordNotification(supabase, {
-				userId: user.id,
-				type: "hourly_update",
-				deliveryMethod: "sms",
-				messageDelivered: smsResult.success,
-				message: notificationMessage,
-				error: smsResult.success ? undefined : smsResult.error,
-				errorCode: smsResult.success ? undefined : smsResult.errorCode,
-			});
+			if (!logRecorded) {
+				logFailureCount++;
+			}
 		}
 	}
 
-	return { skipped: skippedCount };
+	return {
+		skipped: skippedCount,
+		logFailures: logFailureCount,
+		emailsSent,
+		emailsFailed,
+		smsSent,
+		smsFailed,
+	};
 }
 
-function shouldNotifyUser(user: UserRecord): boolean {
-	// In unit tests, always allow notifications to avoid time-based flakiness.
-	// Vite/Vitest defines import.meta.env.MODE as "test".
-	if (import.meta.env.MODE === "test") {
-		return true;
-	}
-
+function shouldNotifyUser(
+	user: UserRecord,
+	getCurrentTime: () => Date,
+): boolean {
 	if (!user.timezone) {
 		return false;
 	}
 
-	const currentHour = getCurrentHourInTimezone(user.timezone);
+	const currentHour = getCurrentHourInTimezone(user.timezone, getCurrentTime);
 
 	if (currentHour === null) {
 		console.error("Unable to determine current hour for user timezone", {
@@ -238,14 +282,17 @@ async function loadUserStocks(
 	return stocks;
 }
 
-function getCurrentHourInTimezone(timezone: string): number | null {
+function getCurrentHourInTimezone(
+	timezone: string,
+	getCurrentTime: () => Date,
+): number | null {
 	try {
 		const formatter = new Intl.DateTimeFormat("en-US", {
 			hour: "numeric",
 			hourCycle: "h23",
 			timeZone: timezone,
 		});
-		const parts = formatter.formatToParts(new Date());
+		const parts = formatter.formatToParts(getCurrentTime());
 		const hourPart = parts.find((part) => part.type === "hour");
 
 		if (!hourPart) {
@@ -275,7 +322,7 @@ function isHourWithinWindow(hour: number, start: number, end: number): boolean {
 async function recordNotification(
 	supabase: SupabaseClient,
 	entry: NotificationLogEntry,
-): Promise<void> {
+): Promise<boolean> {
 	const { error } = await supabase.from("notification_log").insert({
 		user_id: entry.userId,
 		type: entry.type,
@@ -288,5 +335,8 @@ async function recordNotification(
 
 	if (error) {
 		console.error("Failed to record notification:", error);
+		return false;
 	}
+
+	return true;
 }

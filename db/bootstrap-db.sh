@@ -19,7 +19,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,6 +40,14 @@ echo ""
 echo -e "${YELLOW}Step 2: Seeding stocks data...${NC}"
 if ! "${SCRIPT_DIR}/seed-stocks.sh"; then
   echo -e "${RED}❌ Stock seeding failed${NC}" >&2
+  exit 1
+fi
+echo ""
+
+# Step 3: Seed test users
+echo -e "${YELLOW}Step 3: Seeding test users...${NC}"
+if ! "${SCRIPT_DIR}/seed-users.sh"; then
+  echo -e "${RED}❌ User seeding failed${NC}" >&2
   exit 1
 fi
 echo ""

@@ -49,6 +49,7 @@ const stockOptions = allStocks.map((stock) => ({
 const url = new URL(Astro.request.url);
 const successMessage = url.searchParams.get("success");
 const errorMessage = url.searchParams.get("error");
+const isEditingPhone = url.searchParams.get("change_phone") === "1";
 ---
 
 <Layout title="Dashboard" description="Review and manage your stock notifications">
@@ -82,6 +83,7 @@ const errorMessage = url.searchParams.get("error");
 			timezones={timezones}
 			stockOptions={stockOptions}
 			initialSymbols={userStocks.map((stock) => stock.symbol)}
+			isEditingPhone={isEditingPhone}
 		/>
 		</div>
 	</div>
