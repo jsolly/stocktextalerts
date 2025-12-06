@@ -1,12 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-
-function createRedirect() {
-	return (location: string) =>
-		new Response(null, {
-			status: 303,
-			headers: { Location: location },
-		});
-}
+import { createRedirect } from "../../../../test-utils";
 
 afterEach(() => {
 	vi.resetAllMocks();

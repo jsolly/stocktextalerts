@@ -25,7 +25,7 @@ if (error) {
 }
 ---
 
-<Layout title="Register">
+<Layout title="Register" description="Create a new account">
   <div class="min-h-screen bg-gray-50">
     <Navigation />
     
@@ -107,11 +107,13 @@ if (error) {
 
 <script>
 	document.addEventListener('DOMContentLoaded', () => {
-		const form = document.getElementById('register-form') as HTMLFormElement;
-		const timezoneInput = document.getElementById('timezone') as HTMLInputElement;
-		const timeFormatInput = document.getElementById('time_format') as HTMLInputElement;
+		const form = document.getElementById('register-form');
+		const timezoneInput = document.getElementById('timezone');
+		const timeFormatInput = document.getElementById('time_format');
 		
-		if (!form || !timezoneInput || !timeFormatInput) {
+		if (!(form instanceof HTMLFormElement) 
+			|| !(timezoneInput instanceof HTMLInputElement) 
+			|| !(timeFormatInput instanceof HTMLInputElement)) {
 			console.error('Registration form elements not found');
 			return;
 		}
@@ -120,7 +122,7 @@ if (error) {
 
 		function detectAndSetTimezone() {
 			// Detect user's timezone and time format
-			if (Intl && Intl.DateTimeFormat) {
+			if (Intl && Intl.DateTimeFormat && timezoneInput instanceof HTMLInputElement && timeFormatInput instanceof HTMLInputElement) {
 				try {
 					// Detect timezone
 					const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -147,7 +149,7 @@ if (error) {
 		form.addEventListener('submit', () => {
 			// If values are empty, try to detect again
 			// Server-side validation will handle missing values
-			if (!timezoneInput.value || !timeFormatInput.value) {
+			if (timezoneInput instanceof HTMLInputElement && timeFormatInput instanceof HTMLInputElement && (!timezoneInput.value || !timeFormatInput.value)) {
 				detectAndSetTimezone();
 			}
 		});

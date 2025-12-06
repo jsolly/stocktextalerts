@@ -5,10 +5,9 @@ Can be imported or run standalone.
 """
 
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
-import pytz
 from supabase import create_client, Client
 
 from notification_utils import (
@@ -82,7 +81,7 @@ def process_email_notifications(
             continue
         
         stocks = load_user_stocks(supabase, user.id)
-        if stocks is None:
+        if not stocks:
             skipped += 1
             continue
         
@@ -147,7 +146,7 @@ if __name__ == "__main__":
     
     try:
         supabase = create_supabase_client()
-        current_time = datetime.now(pytz.UTC)
+        current_time = datetime.now(timezone.utc)
         
         print(f"Current time (UTC): {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         

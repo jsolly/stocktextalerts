@@ -25,8 +25,6 @@ from utils import get_env_var, load_env_file
 
 def create_supabase_client() -> Client:
     """Create Supabase admin client."""
-    load_env_file()
-    
     supabase_url = get_env_var("PUBLIC_SUPABASE_URL")
     supabase_service_role_key = get_env_var("SUPABASE_SERVICE_ROLE_KEY")
     
@@ -35,8 +33,6 @@ def create_supabase_client() -> Client:
 
 def create_twilio_client() -> TwilioClient:
     """Create Twilio client."""
-    load_env_file()
-    
     account_sid = get_env_var("TWILIO_ACCOUNT_SID")
     auth_token = get_env_var("TWILIO_AUTH_TOKEN")
     
@@ -114,7 +110,7 @@ def process_sms_notifications(
             continue
         
         stocks = load_user_stocks(supabase, user.id)
-        if stocks is None:
+        if not stocks:
             skipped += 1
             continue
         
@@ -164,6 +160,7 @@ def process_sms_notifications(
 
 def run_sms_notifications(current_time: datetime, dry_run: bool = False) -> dict:
     """Wrapper function that prints header and processes SMS notifications."""
+    load_env_file()
     print(f"{'=' * 60}\nProcessing SMS Notifications\n{'=' * 60}\n")
     result = process_sms_notifications(
         create_supabase_client(),
@@ -179,6 +176,7 @@ def run_sms_notifications(current_time: datetime, dry_run: bool = False) -> dict
 if __name__ == "__main__":
     print(f"{'=' * 60}\nSMS Notifications Script\n{'=' * 60}\n")
     
+    load_env_file()
     dry_run = "--dry-run" in sys.argv
     
     try:
@@ -210,4 +208,3 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         sys.exit(1)
-

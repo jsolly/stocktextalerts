@@ -12,7 +12,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const parsed = parseWithSchema(formData, {
 		email: { type: "string", required: true },
 		password: { type: "string", required: true },
-		timezone: { type: "string", required: true },
+		timezone: { type: "timezone", required: true },
 		time_format: {
 			type: "enum",
 			required: true,

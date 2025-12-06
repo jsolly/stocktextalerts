@@ -1,34 +1,5 @@
-import type { AstroCookies } from "astro";
 import { afterEach, describe, expect, test, vi } from "vitest";
-
-function createCookiesStub() {
-	const values = new Map<string, string>();
-
-	return {
-		stub: {
-			get(key: string) {
-				const stored = values.get(key);
-				if (!stored) return undefined;
-				return { value: stored };
-			},
-			has(key: string) {
-				return values.has(key);
-			},
-			set(key: string, value: string) {
-				values.set(key, value);
-			},
-		} as unknown as AstroCookies,
-		values,
-	} as { stub: AstroCookies; values: Map<string, string> };
-}
-
-function createRedirect() {
-	return (location: string) =>
-		new Response(null, {
-			status: 303,
-			headers: { Location: location },
-		});
-}
+import { createRedirect, createTestCookiesStub } from "../../../test-utils";
 
 afterEach(() => {
 	vi.resetAllMocks();
@@ -66,7 +37,7 @@ describe("signin API [unit]", () => {
 			body: form,
 		});
 
-		const cookiesStub = createCookiesStub();
+		const cookiesStub = createTestCookiesStub();
 
 		const response = await POST({
 			request,

@@ -1,45 +1,5 @@
-import type { AstroCookies } from "astro";
 import { afterEach, describe, expect, test, vi } from "vitest";
-
-interface CookieDeleteCall {
-	key: string;
-	options: { path: string };
-}
-
-function createCookiesStub() {
-	const values = new Map<string, string>();
-	const deleteCalls: CookieDeleteCall[] = [];
-
-	return {
-		stub: {
-			get(key: string) {
-				const stored = values.get(key);
-				if (!stored) return undefined;
-				return { value: stored };
-			},
-			has(key: string) {
-				return values.has(key);
-			},
-			set(key: string, value: string) {
-				values.set(key, value);
-			},
-			delete(key: string, options: { path: string }) {
-				values.delete(key);
-				deleteCalls.push({ key, options });
-			},
-		} as unknown as AstroCookies,
-		values,
-		deleteCalls,
-	};
-}
-
-function createRedirect() {
-	return (location: string) =>
-		new Response(null, {
-			status: 303,
-			headers: { Location: location },
-		});
-}
+import { createRedirect, createTestCookiesStub } from "../../../test-utils";
 
 afterEach(() => {
 	vi.resetAllMocks();
@@ -80,7 +40,7 @@ describe("delete-account API [unit]", () => {
 			"../../../../src/pages/api/auth/delete-account"
 		);
 
-		const cookiesStub = createCookiesStub();
+		const cookiesStub = createTestCookiesStub();
 		cookiesStub.values.set("sb-access-token", "old-access-token");
 		cookiesStub.values.set("sb-refresh-token", "old-refresh-token");
 

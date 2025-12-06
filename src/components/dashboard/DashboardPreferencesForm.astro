@@ -106,6 +106,7 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 
 									{(!user.phone_country_code || !user.phone_number || isEditingPhone) && (
 										<>
+											<!-- PhoneInput sets a hidden phone_is_valid input used by updateSendButtonState -->
 											<PhoneInput
 												client:only="vue"
 												required={user.sms_notifications_enabled}

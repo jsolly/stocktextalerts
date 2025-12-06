@@ -6,8 +6,8 @@ Contains common logic for user fetching, timezone checks, and stock loading.
 
 from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
-import pytz
 from supabase import Client
 
 
@@ -54,7 +54,7 @@ def fetch_eligible_users(supabase: Client, email_enabled: bool, sms_enabled: boo
     return [UserRecord(user) for user in response.data]
 
 
-def load_user_stocks(supabase: Client, user_id: str) -> Optional[list[str]]:
+def load_user_stocks(supabase: Client, user_id: str) -> list[str]:
     """Load stock symbols for a user."""
     response = supabase.table("user_stocks").select("symbol").eq("user_id", user_id).execute()
     
@@ -67,7 +67,7 @@ def load_user_stocks(supabase: Client, user_id: str) -> Optional[list[str]]:
 def get_current_hour_in_timezone(timezone: str, current_time: datetime) -> Optional[int]:
     """Get current hour in user's timezone."""
     try:
-        tz = pytz.timezone(timezone)
+        tz = ZoneInfo(timezone)
         local_time = current_time.astimezone(tz)
         return local_time.hour
     except Exception as e:

@@ -4,9 +4,8 @@ Shared utility functions for notification scripts.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
-import pytz
 from dotenv import load_dotenv
 
 
@@ -27,8 +26,6 @@ def load_env_file() -> None:
 
 
 def get_current_time_utc() -> datetime:
-    """Get current time in UTC and print it. Returns the datetime object."""
-    current_time = datetime.now(pytz.UTC)
-    print(f"Current time (UTC): {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-    return current_time
+    """Get current time in UTC. Returns the datetime object."""
+    return datetime.now(timezone.utc)
 
