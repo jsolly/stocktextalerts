@@ -1,5 +1,5 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AstroCookies } from "astro";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { APIContext, AstroCookies } from "astro";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 function createCookiesStub(): AstroCookies {
@@ -84,12 +84,13 @@ afterEach(() => {
 describe("user preferences API [unit]", () => {
 	test("updates notification preferences when form data is provided", async () => {
 		const { createPreferencesHandler } = await import(
-			"../src/pages/api/preferences"
+			"../../../../src/pages/api/preferences"
 		);
 		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
 		const updateSpy = vi.fn(async () => ({}));
 		const userServiceStub = {
-			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
+			getCurrentUser: vi.fn(async () => ({ id: "user-1" }) as unknown as User),
+			getById: vi.fn(async () => null),
 			update: updateSpy,
 		};
 		const handler = createPreferencesHandler({
@@ -118,7 +119,7 @@ describe("user preferences API [unit]", () => {
 			request,
 			cookies: createCookiesStub(),
 			redirect: createRedirect(),
-		});
+		} as unknown as APIContext);
 
 		expect(response.status).toBe(303);
 		expect(response.headers.get("Location")).toBe(
@@ -139,12 +140,13 @@ describe("user preferences API [unit]", () => {
 describe("user preferences API boolean handling [unit]", () => {
 	test("turns off notification preferences when checkboxes are unchecked", async () => {
 		const { createPreferencesHandler } = await import(
-			"../src/pages/api/preferences"
+			"../../../../src/pages/api/preferences"
 		);
 		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
 		const updateSpy = vi.fn(async () => ({}));
 		const userServiceStub = {
-			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
+			getCurrentUser: vi.fn(async () => ({ id: "user-1" }) as unknown as User),
+			getById: vi.fn(async () => null),
 			update: updateSpy,
 		};
 		const handler = createPreferencesHandler({
@@ -174,7 +176,7 @@ describe("user preferences API boolean handling [unit]", () => {
 			request,
 			cookies: createCookiesStub(),
 			redirect: createRedirect(),
-		});
+		} as unknown as APIContext);
 
 		expect(response.status).toBe(303);
 		expect(response.headers.get("Location")).toBe(
@@ -195,11 +197,11 @@ describe("user preferences API boolean handling [unit]", () => {
 describe("tracked stocks via preferences API [unit]", () => {
 	test("replaces tracked stocks when provided", async () => {
 		const { createPreferencesHandler } = await import(
-			"../src/pages/api/preferences"
+			"../../../../src/pages/api/preferences"
 		);
 		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
 		const userServiceStub = {
-			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
+			getCurrentUser: vi.fn(async () => ({ id: "user-1" }) as unknown as User),
 			getById: vi.fn(async () => ({
 				id: "user-1",
 				phone_country_code: "+1",
@@ -230,7 +232,7 @@ describe("tracked stocks via preferences API [unit]", () => {
 			request,
 			cookies: createCookiesStub(),
 			redirect: createRedirect(),
-		});
+		} as unknown as APIContext);
 
 		expect(response.status).toBe(303);
 		expect(response.headers.get("Location")).toBe(
@@ -252,11 +254,11 @@ describe("tracked stocks via preferences API [unit]", () => {
 describe("user preferences API SMS + phone guard [unit]", () => {
 	test("rejects enabling SMS when phone number is not set", async () => {
 		const { createPreferencesHandler } = await import(
-			"../src/pages/api/preferences"
+			"../../../../src/pages/api/preferences"
 		);
 		const supabaseStub = { marker: "supabase" } as unknown as SupabaseClient;
 		const userServiceStub = {
-			getCurrentUser: vi.fn(async () => ({ id: "user-1" })),
+			getCurrentUser: vi.fn(async () => ({ id: "user-1" }) as unknown as User),
 			getById: vi.fn(async () => ({
 				id: "user-1",
 				phone_country_code: null,
@@ -293,7 +295,7 @@ describe("user preferences API SMS + phone guard [unit]", () => {
 			request,
 			cookies: createCookiesStub(),
 			redirect: createRedirect(),
-		});
+		} as unknown as APIContext);
 
 		expect(response.status).toBe(303);
 		expect(response.headers.get("Location")).toBe(

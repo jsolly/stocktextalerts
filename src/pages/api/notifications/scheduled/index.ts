@@ -1,13 +1,16 @@
 import { timingSafeEqual } from "node:crypto";
 import type { APIRoute } from "astro";
 
-import { createSupabaseAdminClient } from "../../../lib/supabase";
-import { type EmailSender, sendHourlyNotifications } from "./hourly-utils";
+import { createSupabaseAdminClient } from "../../../../lib/supabase";
 import {
 	createSmsSender,
 	createTwilioClient,
 	readTwilioConfig,
-} from "./twilio-utils";
+} from "../twilio-utils";
+import {
+	type EmailSender,
+	sendScheduledNotifications,
+} from "./scheduled-utils";
 
 export const POST: APIRoute = async ({ request }) => {
 	const cronSecret = request.headers.get("x-vercel-cron-secret");
@@ -48,7 +51,7 @@ export const POST: APIRoute = async ({ request }) => {
 		const sendSms = createSmsSender(twilioClient, twilioConfig.phoneNumber);
 		const sendEmail = createEmailSender();
 
-		const result = await sendHourlyNotifications({
+		const result = await sendScheduledNotifications({
 			supabase,
 			sendEmail,
 			sendSms,

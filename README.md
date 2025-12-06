@@ -1,11 +1,11 @@
 # Stock Notification Dashboard 📈📱
 
-A stock notification application that sends SMS and email updates about tracked stocks on an hourly basis. Built with Astro, deployed on Vercel, with Supabase authentication and PostgreSQL database.
+A stock notification application that sends scheduled SMS and email updates about tracked stocks. Built with Astro, deployed on Vercel, with Supabase authentication and PostgreSQL database.
 
 ## Features
 
 - 📊 **Stock Tracking** - Search and track your favorite stocks (AAPL, MSFT, GOOGL, etc.)
-- 📧 **Email Notifications** - Receive hourly email updates about your tracked stocks
+- 📧 **Email Notifications** - Receive scheduled email updates about your tracked stocks
 - 📱 **SMS Notifications** - Optional SMS messages via Twilio
 - 📞 **Phone Verification** - Secure phone verification with rate limiting (3 attempts/hour)
 - 🌍 **Timezone Support** - All US timezones with browser auto-detection
@@ -138,7 +138,7 @@ Visit <http://localhost:4321> to see the application.
 2. **Set Settings** - Configure timezone and notification window
 3. **Add Stocks** - Search and add stocks to track
 4. **Enable SMS** (optional) - Add phone number and verify via SMS code
-5. **Receive Notifications** - Get hourly updates during your configured time window
+5. **Receive Notifications** - Get scheduled updates during your configured time window
 
 ### API Endpoints
 
@@ -154,7 +154,7 @@ Visit <http://localhost:4321> to see the application.
 
 **Notifications & Preferences:**
 - `POST /api/preferences` - Update notification preferences and tracked stocks
-- `POST /api/notifications/hourly` - Cron endpoint (protected by CRON_SECRET)
+- `POST /api/notifications/scheduled` - Cron endpoint (protected by CRON_SECRET)
 - `POST /api/notifications/inbound-sms` - Twilio webhook for STOP/START/HELP keywords
 
 ## Deployment to Vercel
@@ -188,9 +188,9 @@ After deployment, configure the Twilio webhook for incoming SMS:
 
 ### 4. Verify Cron Job
 
-The `vercel.json` file configures an hourly cron job that runs at minute 0 of every hour.
+The `vercel.json` file configures a scheduled cron job that runs at minute 0 of every hour.
 
-Vercel will automatically call `/api/notifications/hourly` with the `x-vercel-cron-secret` header.
+Vercel will automatically call `/api/notifications/scheduled` with the `x-vercel-cron-secret` header.
 
 The cron job:
 1. Queries users who need notifications based on their timezone and time window
@@ -227,31 +227,31 @@ The cron job:
 │   │   ├── format.ts       # Formatting utilities
 │   │   ├── notifications/  # Shared notification helpers and types
 │   │   │   ├── contracts.ts
-│   │   │   ├── hourly.ts
-│   │   │   ├── inbound-sms.ts
-│   │   │   └── instant.ts
+│   │   │   ├── scheduled/
+│   │   │   ├── instant/
+│   │   │   └── inbound-sms.ts
 │   │   ├── supabase.ts     # Supabase client configuration
 │   │   └── users.ts        # User service functions
 │   ├── pages/              # File-based routing
 │   │   ├── dashboard.astro # Authenticated dashboard experience
 │   │   ├── api/            # API endpoints
 │   │   │   ├── auth/       # Authentication endpoints
+│   │   │   │   ├── delete-account.ts
+│   │   │   │   ├── signin.ts
+│   │   │   │   ├── signout.ts
+│   │   │   │   ├── email/
+│   │   │   │   │   ├── forgot-password.ts
+│   │   │   │   │   ├── register.ts
+│   │   │   │   │   └── resend-verification.ts
+│   │   │   │   └── sms/
+│   │   │   │       ├── send-verification.ts
+│   │   │   │       └── verify-code.ts
 │   │   │   ├── notifications/
-│   │   │   │   ├── hourly.ts       # Cron job endpoint
-│   │   │   │   ├── inbound-sms.ts  # Twilio webhook (STOP/START)
-│   │   │   │   └── instant.ts      # Placeholder for immediate notifications
-│   │   │   └── user/
-│   │   │       └── preferences.ts  # Update prefs and manage tracked stocks
-│   │   │       ├── delete-account.ts
-│   │   │       ├── signin.ts
-│   │   │       ├── signout.ts
-│   │   │       ├── email/
-│   │   │       │   ├── forgot-password.ts
-│   │   │       │   ├── register.ts
-│   │   │       │   └── resend-verification.ts
-│   │   │       └── sms/
-│   │   │           ├── send-verification.ts
-│   │   │           └── verify-code.ts
+│   │   │   │   ├── scheduled/      # Cron job endpoint and utilities
+│   │   │   │   ├── instant/        # Placeholder for immediate notifications
+│   │   │   │   └── inbound-sms.ts  # Twilio webhook (STOP/START)
+│   │   │   └── preferences/
+│   │   │       └── index.ts        # Update prefs and manage tracked stocks
 │   │   ├── auth/
 │   │   │   ├── forgot.astro
 │   │   │   ├── recover.astro
@@ -332,7 +332,7 @@ All commands are run from the root of the project:
 
 1. Verify `CRON_SECRET` is set in Vercel environment variables
 2. Check Vercel cron logs in dashboard (Deployments → Functions → Cron)
-3. Ensure timezone calculations are correct in `hourly.ts`
+3. Ensure timezone calculations are correct in `scheduled/scheduled-utils.ts`
 4. Test the endpoint manually with the correct header
 
 ### Database Connection Issues

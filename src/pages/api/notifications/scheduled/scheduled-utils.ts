@@ -1,11 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { truncateSms } from "../../../lib/format";
+import { truncateSms } from "../../../../lib/format";
 import type {
 	DeliveryMethod,
 	DeliveryResult,
 	NotificationLogEntry,
-} from "./contracts";
-import type { SmsSender } from "./twilio-utils";
+} from "../contracts";
+import type { SmsSender } from "../twilio-utils";
 
 interface UserRecord {
 	id: string;
@@ -33,14 +33,14 @@ export interface EmailRequest {
 
 export type EmailSender = (request: EmailRequest) => Promise<DeliveryResult>;
 
-export interface SendHourlyDependencies {
+export interface SendScheduledDependencies {
 	supabase: SupabaseClient;
 	sendEmail: EmailSender;
 	sendSms: SmsSender;
 	getCurrentTime?: () => Date;
 }
 
-export interface SendHourlyResult {
+export interface SendScheduledResult {
 	skipped: number;
 	logFailures: number;
 	emailsSent: number;
@@ -62,7 +62,7 @@ async function sendAndRecord(
 		result = await sendFn();
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		console.error(`Failed to send hourly ${deliveryMethod} notification`, {
+		console.error(`Failed to send scheduled ${deliveryMethod} notification`, {
 			userId: user.id,
 			error,
 		});
@@ -73,7 +73,7 @@ async function sendAndRecord(
 
 	const logEntry: NotificationLogEntry = {
 		userId: user.id,
-		type: "hourly_update",
+		type: "scheduled_update",
 		deliveryMethod,
 		messageDelivered: result.success,
 		message: notificationMessage,
@@ -85,9 +85,9 @@ async function sendAndRecord(
 	return { deliverySuccess: result.success, logRecorded };
 }
 
-export async function sendHourlyNotifications(
-	deps: SendHourlyDependencies,
-): Promise<SendHourlyResult> {
+export async function sendScheduledNotifications(
+	deps: SendScheduledDependencies,
+): Promise<SendScheduledResult> {
 	const {
 		supabase,
 		sendEmail,
@@ -117,8 +117,10 @@ export async function sendHourlyNotifications(
 		);
 
 	if (usersError) {
-		const error = new Error("Failed to fetch users for hourly notifications");
-		error.name = "HourlyNotificationUserFetchError";
+		const error = new Error(
+			"Failed to fetch users for scheduled notifications",
+		);
+		error.name = "ScheduledNotificationUserFetchError";
 		throw Object.assign(error, { cause: usersError });
 	}
 
@@ -147,10 +149,7 @@ export async function sendHourlyNotifications(
 				: userStocks.map((stock) => stock.symbol).join(", ");
 
 		if (user.email_notifications_enabled) {
-			const message =
-				userStocks.length === 0
-					? stocksList
-					: `Your tracked stocks: ${stocksList}`;
+			const message = formatEmailMessage(userStocks, stocksList);
 
 			const { deliverySuccess, logRecorded } = await sendAndRecord(
 				supabase,
@@ -160,7 +159,7 @@ export async function sendHourlyNotifications(
 				() =>
 					sendEmail({
 						to: user.email,
-						subject: "Your Hourly Stock Update",
+						subject: "Your Stock Update",
 						body: message,
 					}),
 			);
@@ -280,6 +279,16 @@ async function loadUserStocks(
 	}
 
 	return stocks;
+}
+
+function formatEmailMessage(
+	userStocks: UserStockRow[],
+	stocksList: string,
+): string {
+	if (userStocks.length === 0) {
+		return stocksList;
+	}
+	return `Your tracked stocks: ${stocksList}`;
 }
 
 function getCurrentHourInTimezone(

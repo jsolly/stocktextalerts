@@ -43,63 +43,63 @@ if (error) {
       </div>
 
       <div class="max-w-md mx-auto space-y-8">
-      <div>
-        <h1 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Register</h1>
-        <p class="mt-2 text-center text-sm text-gray-600">
-          Already have an account? <a href="/" class="font-medium text-blue-600 hover:text-blue-500">Sign in</a>
-        </p>
-      </div>
+        <div>
+          <h1 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Register</h1>
+          <p class="mt-2 text-center text-sm text-gray-600">
+            Already have an account? <a href="/" class="font-medium text-blue-600 hover:text-blue-500">Sign in</a>
+          </p>
+        </div>
 
-      {message && (
-        <div class="rounded-md bg-red-50 p-4" role="alert">
-          <div class="flex">
-            <div class="ml-0">
-              <h3 class="text-sm font-medium text-red-800">{message}</h3>
+        {message && (
+          <div class="rounded-md bg-red-50 p-4" role="alert">
+            <div class="flex">
+              <div class="ml-0">
+                <h3 class="text-sm font-medium text-red-800">{message}</h3>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <form class="mt-8 space-y-6" action="/api/auth/email/register" method="post" id="register-form">
-        <div class="rounded-md shadow-sm -space-y-px">
-          <div>
-            <label for="email" class="sr-only">Email</label>
-            <input 
-              type="email" 
-              name="email" 
-              id="email" 
-              required 
-              autocomplete="email"
-              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
-              placeholder="Email address"
-            />
+        <form class="mt-8 space-y-6" action="/api/auth/email/register" method="post" id="register-form">
+          <div class="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label for="email" class="sr-only">Email</label>
+              <input 
+                type="email" 
+                name="email" 
+                id="email" 
+                required 
+                autocomplete="email"
+                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <label for="password" class="sr-only">Password</label>
+              <input 
+                type="password" 
+                name="password" 
+                id="password" 
+                required 
+                autocomplete="new-password"
+                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
+                placeholder="Password"
+              />
+            </div>
           </div>
+          
+          <!-- Hidden timezone and time format fields -->
+          <input type="hidden" name="timezone" id="timezone" value="" />
+          <input type="hidden" name="time_format" id="time_format" value="" />
           <div>
-            <label for="password" class="sr-only">Password</label>
-            <input 
-              type="password" 
-              name="password" 
-              id="password" 
-              required 
-              autocomplete="new-password"
-              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
-              placeholder="Password"
-            />
+            <button 
+              type="submit" 
+              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
+            >
+              Register
+            </button>
           </div>
-        </div>
-        
-        <!-- Hidden timezone and time format fields -->
-        <input type="hidden" name="timezone" id="timezone" value="" />
-        <input type="hidden" name="time_format" id="time_format" value="" />
-        <div>
-          <button 
-            type="submit" 
-            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
-          >
-            Register
-          </button>
-        </div>
-      </form>
+        </form>
       </div>
     </div>
   </div>
@@ -119,25 +119,25 @@ if (error) {
 		// Detect timezone and time format
 
 		function detectAndSetTimezone() {
-		// Detect user's timezone and time format
-		if (Intl && Intl.DateTimeFormat) {
-			try {
-				// Detect timezone
-				const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-				timezoneInput.value = detectedTimezone;
+			// Detect user's timezone and time format
+			if (Intl && Intl.DateTimeFormat) {
+				try {
+					// Detect timezone
+					const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+					timezoneInput.value = detectedTimezone;
 
-			// Detect time format preference
-			const formatter = new Intl.DateTimeFormat(navigator.language, {
-				hour: 'numeric'
-			});
-			const hour12 = formatter.resolvedOptions().hour12;
-			timeFormatInput.value = hour12 === undefined ? '12h' : (hour12 ? '12h' : '24h');
-			} catch (error) {
-				console.error('Timezone detection failed:', error);
+					// Detect time format preference
+					const formatter = new Intl.DateTimeFormat(navigator.language, {
+						hour: 'numeric'
+					});
+					const hour12 = formatter.resolvedOptions().hour12;
+					timeFormatInput.value = hour12 === undefined ? '12h' : (hour12 ? '12h' : '24h');
+				} catch (error) {
+					console.error('Timezone detection failed:', error);
+				}
+			} else {
+				console.error('Intl or DateTimeFormat not available');
 			}
-		} else {
-			console.error('Intl or DateTimeFormat not available');
-		}
 		}
 
 		// Initial detection

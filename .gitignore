@@ -20,5 +20,6 @@ logs/
 # macOS-specific files
 .DS_Store
 
-# jetbrains setting folder
-.idea/
+#Python
+__pycache__/
+*.pyc

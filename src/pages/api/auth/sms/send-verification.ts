@@ -64,18 +64,18 @@ export function createSendVerificationHandler(
 				return redirect("/dashboard?error=sms_opted_out");
 			}
 
-			const result = await dependencies.sendVerification(fullPhone);
-			if (!result.success) {
-				console.error("SMS verification failed:", result.error);
-				return redirect("/dashboard?error=verification_failed");
-			}
-
 			await userService.update(user.id, {
 				sms_notifications_enabled: true,
 				phone_country_code: phoneCountryCode,
 				phone_number: phoneNationalNumber,
 				phone_verified: false,
 			});
+
+			const result = await dependencies.sendVerification(fullPhone);
+			if (!result.success) {
+				console.error("SMS verification failed:", result.error);
+				return redirect("/dashboard?error=verification_failed");
+			}
 
 			return redirect("/dashboard?success=verification_sent");
 		} catch (error) {

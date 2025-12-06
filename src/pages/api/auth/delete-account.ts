@@ -80,7 +80,7 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 
 		if (dbError) {
 			console.error(
-				"Failed to delete user row after auth deletion; will be cleaned up by background job",
+				"CRITICAL: Failed to delete user row after auth deletion; orphaned record requires manual cleanup",
 				{
 					userId: authUser.id,
 					error: dbError,
@@ -98,7 +98,6 @@ export const POST: APIRoute = async ({ cookies, redirect }) => {
 			userId: authUser.id,
 			error: err,
 		});
-		clearAuthCookies();
 		return redirect("/profile?error=delete_failed");
 	}
 };

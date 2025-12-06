@@ -275,6 +275,13 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 							</option>
 						))}
 					</select>
+					<div
+						id="hour-validation-error"
+						class="hidden mt-2 text-sm text-red-600"
+						role="alert"
+					>
+						End hour must be greater than or equal to start hour.
+					</div>
 				</div>
 			</div>
 
@@ -412,6 +419,81 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 		form.addEventListener("input", () => {
 			checkForChanges();
 		});
+
+		// Validate start/end hour relationship
+		const startHourSelect = form.querySelector(
+			'select[name="notification_start_hour"]',
+		) as HTMLSelectElement;
+		const endHourSelect = form.querySelector(
+			'select[name="notification_end_hour"]',
+		) as HTMLSelectElement;
+		const hourValidationError = document.getElementById(
+			"hour-validation-error",
+		) as HTMLElement;
+
+		function updateEndHourOptions() {
+			if (!startHourSelect || !endHourSelect) return;
+
+			const startHour = Number.parseInt(startHourSelect.value, 10);
+			const currentEndHour = Number.parseInt(endHourSelect.value, 10);
+
+			// Disable invalid options in end hour select
+			Array.from(endHourSelect.options).forEach((option) => {
+				const hour = Number.parseInt(option.value, 10);
+				option.disabled = hour < startHour;
+			});
+
+			// If current end hour is invalid, adjust it
+			if (currentEndHour < startHour) {
+				endHourSelect.value = String(startHour);
+				checkForChanges();
+			}
+
+			validateHourRelationship();
+		}
+
+		function validateHourRelationship() {
+			if (!startHourSelect || !endHourSelect || !hourValidationError) return;
+
+			const startHour = Number.parseInt(startHourSelect.value, 10);
+			const endHour = Number.parseInt(endHourSelect.value, 10);
+			const isValid = endHour >= startHour;
+
+			if (isValid) {
+				hourValidationError.classList.add("hidden");
+				endHourSelect.classList.remove("border-red-500");
+				endHourSelect.classList.add("border-slate-300");
+			} else {
+				hourValidationError.classList.remove("hidden");
+				endHourSelect.classList.remove("border-slate-300");
+				endHourSelect.classList.add("border-red-500");
+			}
+
+			return isValid;
+		}
+
+		if (startHourSelect && endHourSelect) {
+			startHourSelect.addEventListener("change", () => {
+				updateEndHourOptions();
+				checkForChanges();
+			});
+
+			endHourSelect.addEventListener("change", () => {
+				validateHourRelationship();
+				checkForChanges();
+			});
+
+			// Initial validation and option update
+			updateEndHourOptions();
+
+			// Prevent form submission if hours are invalid
+			form.addEventListener("submit", (e) => {
+				if (!validateHourRelationship()) {
+					e.preventDefault();
+					endHourSelect.focus();
+				}
+			});
+		}
 
 		checkForChanges();
 	});

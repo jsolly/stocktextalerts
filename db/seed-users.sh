@@ -127,58 +127,45 @@ while read -r user_json; do
 
   existing_user_id="$(echo "${existing_user_response}" | jq -r '.users[0].id // empty' 2>/dev/null || echo "")"
 
+  user_id=""
   if [ -n "${existing_user_id}" ]; then
-    echo -e "${YELLOW}Found existing auth user for ${email}, deleting...${NC}"
-
-    delete_response=""
-    delete_curl_exit=0
-    delete_response="$(
-      curl --fail-with-body -sS -X DELETE \
+    echo -e "${YELLOW}Auth user already exists for ${email}, skipping creation.${NC}"
+    user_id="${existing_user_id}"
+  else
+    echo -e "${YELLOW}Creating confirmed auth user for ${email} via Admin API...${NC}"
+    create_response=""
+    create_curl_exit=0
+    create_response="$(
+      curl --fail-with-body -sS -X POST \
         -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
         -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-        "${SUPABASE_AUTH_URL}/admin/users/${existing_user_id}"
-    )" || delete_curl_exit=$?
+        -H "Content-Type: application/json" \
+        -d "$(jq -n --arg email "${email}" --arg password "${DEFAULT_PASSWORD}" '{"email":$email,"password":$password,"email_confirm":true}')" \
+        "${SUPABASE_AUTH_URL}/admin/users"
+    )" || create_curl_exit=$?
 
-    if [ "${delete_curl_exit}" -ne 0 ]; then
-      echo -e "${RED}Error deleting existing auth user for ${email}.${NC}" >&2
-      echo "${delete_response}" >&2
+    if [ "${create_curl_exit}" -ne 0 ]; then
+      echo -e "${RED}Failed to create auth user for ${email}. HTTP error from Supabase Admin API.${NC}" >&2
+      echo "${create_response}" >&2
       exit 1
     fi
 
-    echo -e "${YELLOW}Deleting existing profile row for ${email}...${NC}"
-    psql "${DATABASE_URL}" --set ON_ERROR_STOP=on -v email="${email}" -c "DELETE FROM users WHERE email = :'email';"
-  fi
-
-  echo -e "${YELLOW}Creating confirmed auth user for ${email} via Admin API...${NC}"
-  create_response=""
-  create_curl_exit=0
-  create_response="$(
-    curl --fail-with-body -sS -X POST \
-      -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-      -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-      -H "Content-Type: application/json" \
-      -d "$(jq -n --arg email "${email}" --arg password "${DEFAULT_PASSWORD}" '{"email":$email,"password":$password,"email_confirm":true}')" \
-      "${SUPABASE_AUTH_URL}/admin/users"
-  )" || create_curl_exit=$?
-
-  if [ "${create_curl_exit}" -ne 0 ]; then
-    echo -e "${RED}Failed to create auth user for ${email}. HTTP error from Supabase Admin API.${NC}" >&2
-    echo "${create_response}" >&2
-    exit 1
-  fi
-
-  new_user_id="$(echo "${create_response}" | jq -r '.id // .user.id // empty' 2>/dev/null || echo "")"
-  if [ -z "${new_user_id}" ]; then
-    echo -e "${RED}Failed to create auth user for ${email}. Response:${NC} ${create_response}"
-    exit 1
+    user_id="$(echo "${create_response}" | jq -r '.id // .user.id // empty' 2>/dev/null || echo "")"
+    if [ -z "${user_id}" ]; then
+      echo -e "${RED}Failed to create auth user for ${email}. Response:${NC} ${create_response}"
+      exit 1
+    fi
   fi
 
   echo -e "${YELLOW}Upserting profile row for ${email}...${NC}"
-  escaped_tz_sql="$(printf '%s' "${timezone}" | sed "s/'/''/g")"
-  escaped_tf_sql="$(printf '%s' "${time_format}" | sed "s/'/''/g")"
-  psql "${DATABASE_URL}" --set ON_ERROR_STOP=on -v email="${email}" -c "
+  psql "${DATABASE_URL}" --set ON_ERROR_STOP=on \
+    -v user_id="${user_id}" \
+    -v email="${email}" \
+    -v tz="${timezone}" \
+    -v tf="${time_format}" \
+    -c "
     INSERT INTO users (id, email, timezone, time_format)
-    VALUES ('${new_user_id}', :'email', '${escaped_tz_sql}', '${escaped_tf_sql}')
+    VALUES (:'user_id', :'email', :'tz', :'tf')
     ON CONFLICT (id) DO UPDATE SET
       email = EXCLUDED.email,
       timezone = EXCLUDED.timezone,

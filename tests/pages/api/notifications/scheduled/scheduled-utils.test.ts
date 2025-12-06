@@ -1,13 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, test, vi } from "vitest";
-import type { EmailRequest } from "../src/pages/api/notifications/hourly-utils";
+import type { DeliveryResult } from "../../../../../src/pages/api/notifications/contracts";
+import type { EmailRequest } from "../../../../../src/pages/api/notifications/scheduled/scheduled-utils";
 import {
 	type EmailSender,
-	sendHourlyNotifications,
-} from "../src/pages/api/notifications/hourly-utils";
-import type { SmsRequest } from "../src/pages/api/notifications/twilio-utils";
+	sendScheduledNotifications,
+} from "../../../../../src/pages/api/notifications/scheduled/scheduled-utils";
+import type { SmsRequest } from "../../../../../src/pages/api/notifications/twilio-utils";
 
-describe("sendHourlyNotifications [unit]", () => {
+describe("sendScheduledNotifications [unit]", () => {
 	test("delivers notifications via email and sms and logs results", async () => {
 		const user = {
 			id: "user-1",
@@ -37,12 +38,14 @@ describe("sendHourlyNotifications [unit]", () => {
 		};
 
 		const smsRequests: SmsRequest[] = [];
-		const sendSms = vi.fn(async (request: SmsRequest) => {
-			smsRequests.push(request);
-			return { success: true };
-		});
+		const sendSms = vi.fn(
+			async (request: SmsRequest): Promise<DeliveryResult> => {
+				smsRequests.push(request);
+				return { success: true as const };
+			},
+		);
 
-		const result = await sendHourlyNotifications({
+		const result = await sendScheduledNotifications({
 			supabase: supabaseStub.client,
 			sendEmail,
 			sendSms,
@@ -55,7 +58,7 @@ describe("sendHourlyNotifications [unit]", () => {
 		expect(result.smsSent).toBe(1);
 		expect(result.smsFailed).toBe(0);
 		expect(emailRequests).toHaveLength(1);
-		expect(emailRequests[0]?.subject).toBe("Your Hourly Stock Update");
+		expect(emailRequests[0]?.subject).toBe("Your Stock Update");
 		expect(emailRequests[0]?.body).toContain("AAPL, MSFT");
 
 		expect(smsRequests).toHaveLength(1);
@@ -96,12 +99,14 @@ describe("sendHourlyNotifications [unit]", () => {
 		};
 
 		const smsRequests: SmsRequest[] = [];
-		const sendSms = vi.fn(async (request: SmsRequest) => {
-			smsRequests.push(request);
-			return { success: true };
-		});
+		const sendSms = vi.fn(
+			async (request: SmsRequest): Promise<DeliveryResult> => {
+				smsRequests.push(request);
+				return { success: true as const };
+			},
+		);
 
-		const result = await sendHourlyNotifications({
+		const result = await sendScheduledNotifications({
 			supabase: supabaseStub.client,
 			sendEmail,
 			sendSms,
@@ -114,7 +119,7 @@ describe("sendHourlyNotifications [unit]", () => {
 		expect(result.smsSent).toBe(1);
 		expect(result.smsFailed).toBe(0);
 		expect(emailRequests).toHaveLength(1);
-		expect(emailRequests[0]?.subject).toBe("Your Hourly Stock Update");
+		expect(emailRequests[0]?.subject).toBe("Your Stock Update");
 		expect(emailRequests[0]?.body).toBe("You don't have any tracked stocks");
 
 		expect(smsRequests).toHaveLength(1);
