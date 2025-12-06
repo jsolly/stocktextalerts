@@ -5,10 +5,8 @@ Can be imported or run standalone.
 """
 
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
-
-import pytz
 from supabase import create_client, Client
 from twilio.rest import Client as TwilioClient
 
@@ -47,7 +45,7 @@ def truncate_sms(message: str, max_length: int = 160) -> str:
 
 def format_sms_message(stocks: list[str]) -> str:
     """Build SMS message from stock list."""
-    if len(stocks) == 0:
+    if not stocks:
         return "You don't have any tracked stocks. Reply STOP to opt out."
     
     stocks_list = ", ".join(stocks)
@@ -121,7 +119,7 @@ def process_sms_notifications(
             sms_sent += 1
             continue
         
-        success, message_sid, error, error_code = send_sms(
+        success, _message_sid, error, error_code = send_sms(
             twilio_client,
             twilio_phone_number,
             phone,
@@ -183,7 +181,7 @@ if __name__ == "__main__":
         twilio_client = create_twilio_client()
         twilio_phone_number = get_env_var("TWILIO_PHONE_NUMBER")
         
-        current_time = datetime.now(pytz.UTC)
+        current_time = datetime.now(timezone.utc)
         
         print(f"Current time (UTC): {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         

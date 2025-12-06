@@ -31,7 +31,7 @@ def create_supabase_client() -> Client:
 
 def format_email_message(stocks: list[str]) -> str:
     """Build email message from stock list."""
-    if len(stocks) == 0:
+    if not stocks:
         return "You don't have any tracked stocks"
     
     stocks_list = ", ".join(stocks)
