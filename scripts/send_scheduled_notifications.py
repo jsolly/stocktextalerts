@@ -18,44 +18,58 @@ if __name__ == "__main__":
     current_time = get_current_time_utc()
     
     print(f"{'=' * 60}\nScheduled Stock Notifications Script\n{'=' * 60}\n")
-    enabled_types = []
-    if SEND_EMAIL:
-        enabled_types.append("EMAIL")
-    if SEND_SMS:
-        enabled_types.append("SMS")
+    
+    notification_configs = [
+        {
+            "type": "EMAIL",
+            "enabled": SEND_EMAIL,
+            "runner": run_email_notifications,
+            "sent_key": "emails_sent",
+            "failed_key": "emails_failed",
+            "label": "Emails",
+        },
+        {
+            "type": "SMS",
+            "enabled": SEND_SMS,
+            "runner": run_sms_notifications,
+            "sent_key": "sms_sent",
+            "failed_key": "sms_failed",
+            "label": "SMS",
+        },
+    ]
+    
+    enabled_types = [config["type"] for config in notification_configs if config["enabled"]]
     print(f"Notification types: {', '.join(enabled_types) if enabled_types else 'NONE'}\n")
     
-    email_result = {
-        "emails_sent": 0,
-        "emails_failed": 0,
+    default_result = {
         "skipped": 0,
         "log_failures": 0,
     }
-    sms_result = {
-        "sms_sent": 0,
-        "sms_failed": 0,
-        "skipped": 0,
-        "log_failures": 0,
-    }
+    results = {}
     
     try:
-        if SEND_EMAIL:
-            email_result = run_email_notifications(current_time, DRY_RUN)
+        for config in notification_configs:
+            if config["enabled"]:
+                result = config["runner"](current_time, DRY_RUN)
+                results[config["type"]] = result
+            else:
+                result = default_result.copy()
+                result[config["sent_key"]] = 0
+                result[config["failed_key"]] = 0
+                results[config["type"]] = result
         
-        if SEND_SMS:
-            sms_result = run_sms_notifications(current_time, DRY_RUN)
-        
-        # Summary
         summary_lines = [f"{'=' * 60}\nSummary\n{'=' * 60}"]
         
-        if SEND_EMAIL:
-            summary_lines.append(f"Emails sent: {email_result['emails_sent']}\nEmails failed: {email_result['emails_failed']}")
+        for config in notification_configs:
+            if config["enabled"]:
+                result = results[config["type"]]
+                summary_lines.append(
+                    f"{config['label']} sent: {result[config['sent_key']]}\n"
+                    f"{config['label']} failed: {result[config['failed_key']]}"
+                )
         
-        if SEND_SMS:
-            summary_lines.append(f"SMS sent: {sms_result['sms_sent']}\nSMS failed: {sms_result['sms_failed']}")
-        
-        total_skipped = email_result["skipped"] + sms_result["skipped"]
-        total_log_failures = email_result["log_failures"] + sms_result["log_failures"]
+        total_skipped = sum(results[ntype]["skipped"] for ntype in results)
+        total_log_failures = sum(results[ntype]["log_failures"] for ntype in results)
         
         summary_lines.append(f"Total skipped: {total_skipped}\nTotal log failures: {total_log_failures}\n\nDone!")
         print("\n".join(summary_lines))

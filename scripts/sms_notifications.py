@@ -13,7 +13,6 @@ from supabase import create_client, Client
 from twilio.rest import Client as TwilioClient
 
 from notification_utils import (
-    UserRecord,
     fetch_eligible_users,
     load_user_stocks,
     should_notify_user,
