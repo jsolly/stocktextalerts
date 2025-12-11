@@ -57,7 +57,7 @@ psql "${DATABASE_URL}" --set ON_ERROR_STOP=on -c "TRUNCATE TABLE user_stocks, st
 
 echo -e "${YELLOW}Importing tickers via COPY...${NC}"
 psql "${DATABASE_URL}" --set ON_ERROR_STOP=on <<EOF
-\\copy stocks(symbol, name, exchange) FROM '${TMP_CSV}' WITH (FORMAT csv)
+\\copy stocks(symbol, name, exchange) FROM "${TMP_CSV}" WITH (FORMAT csv)
 EOF
 
 echo -e "${GREEN}✅ Imported ${TOTAL_TICKERS} tickers into the database.${NC}"

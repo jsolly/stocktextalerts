@@ -1,9 +1,9 @@
 import type { APIRoute } from "astro";
 import twilio from "twilio";
 
-import { createSupabaseAdminClient } from "../../../lib/supabase";
-import { type FormSchema, parseWithSchema } from "../form-utils";
-import { handleInboundSms } from "./inbound-sms-utils";
+import { createSupabaseAdminClient } from "../../../../lib/supabase";
+import { type FormSchema, parseWithSchema } from "../../form-utils";
+import { handleInboundSms } from "./inbound-utils";
 import { readTwilioConfig } from "./twilio-utils";
 
 const MEDIA_SLOT_COUNT = 10;

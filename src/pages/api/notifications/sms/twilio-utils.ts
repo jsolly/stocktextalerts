@@ -4,7 +4,7 @@ Twilio SMS
 
 import twilio from "twilio";
 
-import type { DeliveryResult } from "./contracts";
+import type { DeliveryResult } from "../shared";
 
 export interface TwilioConfig {
 	accountSid: string;

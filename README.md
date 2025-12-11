@@ -226,7 +226,6 @@ The cron job:
 │   ├── lib/                # Services and utilities
 │   │   ├── format.ts       # Formatting utilities
 │   │   ├── notifications/  # Shared notification helpers and types
-│   │   │   ├── contracts.ts
 │   │   │   ├── scheduled/
 │   │   │   ├── instant/
 │   │   │   └── inbound-sms.ts
@@ -247,9 +246,11 @@ The cron job:
 │   │   │   │       ├── send-verification.ts
 │   │   │   │       └── verify-code.ts
 │   │   │   ├── notifications/
-│   │   │   │   ├── scheduled/      # Cron job endpoint and utilities
-│   │   │   │   ├── instant/        # Placeholder for immediate notifications
-│   │   │   │   └── inbound-sms.ts  # Twilio webhook (STOP/START)
+│   │   │   │   ├── shared.ts       # Shared logic
+│   │   │   │   ├── sms/            # SMS logic
+│   │   │   │   ├── email/          # Email logic
+│   │   │   │   ├── scheduled/      # Cron job endpoint
+│   │   │   │   └── instant/        # Instant notifications endpoint
 │   │   │   └── preferences/
 │   │   │       └── index.ts        # Update prefs and manage tracked stocks
 │   │   ├── auth/
@@ -332,7 +333,7 @@ All commands are run from the root of the project:
 
 1. Verify `CRON_SECRET` is set in Vercel environment variables
 2. Check Vercel cron logs in dashboard (Deployments → Functions → Cron)
-3. Ensure timezone calculations are correct in `scheduled/scheduled-utils.ts`
+3. Ensure timezone calculations are correct in `notifications/shared.ts`
 4. Test the endpoint manually with the correct header
 
 ### Database Connection Issues

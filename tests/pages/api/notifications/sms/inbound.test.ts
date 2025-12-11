@@ -13,17 +13,20 @@ describe("inbound SMS route [unit]", () => {
 			body: "<Response><Message>You have been unsubscribed</Message></Response>",
 		}));
 
-		vi.doMock("../../../../src/lib/supabase", () => ({
+		vi.doMock("../../../../../src/lib/supabase", () => ({
 			createSupabaseAdminClient: () => ({ marker: "admin" }),
 		}));
 
-		vi.doMock("../../../../src/pages/api/notifications/twilio-utils", () => ({
-			readTwilioConfig: () => ({
-				accountSid: "AC123",
-				authToken: "test-auth-token",
-				phoneNumber: "+12223334444",
+		vi.doMock(
+			"../../../../../src/pages/api/notifications/sms/twilio-utils",
+			() => ({
+				readTwilioConfig: () => ({
+					accountSid: "AC123",
+					authToken: "test-auth-token",
+					phoneNumber: "+12223334444",
+				}),
 			}),
-		}));
+		);
 
 		vi.doMock("twilio", () => ({
 			default: {
@@ -32,14 +35,14 @@ describe("inbound SMS route [unit]", () => {
 		}));
 
 		vi.doMock(
-			"../../../../src/pages/api/notifications/inbound-sms-utils",
+			"../../../../../src/pages/api/notifications/sms/inbound-utils",
 			() => ({
 				handleInboundSms: handleInboundSmsSpy,
 			}),
 		);
 
 		const { POST } = await import(
-			"../../../../src/pages/api/notifications/inbound-sms"
+			"../../../../../src/pages/api/notifications/sms/inbound"
 		);
 
 		const formData = new FormData();
@@ -50,7 +53,7 @@ describe("inbound SMS route [unit]", () => {
 		formData.append("Body", "stop");
 
 		const request = new Request(
-			"http://localhost/api/notifications/inbound-sms",
+			"http://localhost/api/notifications/sms/inbound",
 			{
 				method: "POST",
 				headers: { "x-twilio-signature": "valid-signature" },
@@ -68,7 +71,7 @@ describe("inbound SMS route [unit]", () => {
 
 		expect(handleInboundSmsSpy).toHaveBeenCalledWith(
 			{
-				url: "http://localhost/api/notifications/inbound-sms",
+				url: "http://localhost/api/notifications/sms/inbound",
 				signature: "valid-signature",
 				params: expect.objectContaining({
 					MessageSid: "SM123",

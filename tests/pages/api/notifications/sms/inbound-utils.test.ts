@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, test, vi } from "vitest";
 
-import { handleInboundSms } from "../../../../src/pages/api/notifications/inbound-sms-utils";
+import { handleInboundSms } from "../../../../../src/pages/api/notifications/sms/inbound-utils";
 
 describe("handleInboundSms [unit]", () => {
 	test("processes STOP command and updates user preferences", async () => {

@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import {
 	createSmsSender,
 	type TwilioClient,
-} from "../../../../src/pages/api/notifications/twilio-utils";
+} from "../../../../../src/pages/api/notifications/sms/twilio-utils";
 
 describe("createSmsSender [unit]", () => {
 	test("calls messages.create and returns success with messageSid", async () => {
