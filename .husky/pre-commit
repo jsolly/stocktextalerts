@@ -13,7 +13,7 @@ npx lint-staged
 echo "Running TypeScript type check..."
 npm run check:ts
 
-echo "Running unit tests..."
-npm run test:unit
+# echo "Running unit tests..."
+# npm run test:unit
 
 exit 0

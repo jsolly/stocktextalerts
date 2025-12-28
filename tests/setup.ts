@@ -1,7 +1,6 @@
-import { execSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
-import { afterAll, beforeAll } from "vitest";
+import { beforeAll } from "vitest";
 
 // Load environment variables from .env.local if it exists
 config({ path: ".env.local" });
@@ -23,7 +22,20 @@ export const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
 
 export async function resetDatabase() {
 	try {
-		execSync("npm run db:reset", { stdio: "inherit" });
+		// Clean up public schema tables
+		// Deleting from users cascades to user_stocks and notification_log
+		const { error } = await adminClient
+			.from("users")
+			.delete()
+			.neq("id", "00000000-0000-0000-0000-000000000000");
+
+		if (error) {
+			console.error("Failed to clean users table:", error);
+			throw error;
+		}
+
+		// Note: We are not cleaning auth.users here as it's slower and tests use unique emails.
+		// If necessary, we could implement auth cleanup.
 	} catch (error) {
 		console.error("Database reset failed:", error);
 		throw error;
@@ -31,9 +43,5 @@ export async function resetDatabase() {
 }
 
 beforeAll(async () => {
-	await resetDatabase();
-});
-
-afterAll(async () => {
 	await resetDatabase();
 });

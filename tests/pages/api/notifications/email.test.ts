@@ -21,7 +21,7 @@ describe("Scheduled Notifications Integration", () => {
 		});
 
 		// 2. Execute Scheduled Job
-		const cronSecret = process.env.CRON_SECRET || "test-secret";
+		const cronSecret = process.env.CRON_SECRET;
 		// Ensure environment matches (mocking request header is enough if app checks env)
 
 		const request = new Request(

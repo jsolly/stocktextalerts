@@ -14,7 +14,7 @@
 		"test:integration": "vitest --no-watch --run",
 		"check:ts": "tsc --noEmit",
 		"check:biome": "biome check --write --no-errors-on-unmatched",
-		"fix": "npm run check:biome && npm run check:ts && npm run test:unit",
+		"fix": "npm run check:biome && npm run check:ts && npm run test:integration",
 		"db:start": "supabase start",
 		"db:stop": "supabase stop",
 		"db:reset": "supabase db reset",

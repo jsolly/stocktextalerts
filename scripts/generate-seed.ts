@@ -1,18 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Stock } from '../src/lib/stocks';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 
 const STOCKS_FILE = path.join(__dirname, 'us-stocks.json');
 const SEED_FILE = path.join(projectRoot, 'supabase', 'seed.sql');
-
-interface Stock {
-  symbol: string;
-  name: string;
-  exchange: string;
-}
 
 function escapeSql(str: string): string {
   if (typeof str !== 'string') return str;
@@ -41,7 +36,12 @@ async function main() {
   console.log('Generating supabase/seed.sql...');
 
   // 1. Read Data
-  const stocksData = JSON.parse(fs.readFileSync(STOCKS_FILE, 'utf-8'));
+  let stocksData;
+  try {
+    stocksData = JSON.parse(fs.readFileSync(STOCKS_FILE, 'utf-8'));
+  } catch (error) {
+    throw new Error(`Failed to read ${STOCKS_FILE}: ${error instanceof Error ? error.message : error}`);
+  }
 
   const stocks = stocksData.data || [];
 

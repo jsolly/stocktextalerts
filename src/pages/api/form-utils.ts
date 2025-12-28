@@ -240,8 +240,12 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 			}
 			case "string": {
 				const trimmed = spec.trim ? raw.trim() : raw;
-				if (spec.required && trimmed === "") {
+				if (trimmed === "" && spec.required) {
 					errors.push({ reason: "missing_field", key });
+					break;
+				}
+				if (trimmed === "" && !spec.required) {
+					output[key] = undefined;
 					break;
 				}
 				output[key] = trimmed;
@@ -304,11 +308,20 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 				break;
 			}
 			case "enum": {
-				if (!spec.values.includes(raw)) {
+				const trimmed = raw.trim();
+				if (trimmed === "") {
+					if (spec.required) {
+						errors.push({ reason: "missing_field", key });
+					} else {
+						output[key] = undefined;
+					}
+					break;
+				}
+				if (!spec.values.includes(trimmed)) {
 					errors.push({ reason: "invalid_enum", key, values: spec.values });
 					break;
 				}
-				output[key] = raw;
+				output[key] = trimmed;
 				break;
 			}
 			case "timezone": {

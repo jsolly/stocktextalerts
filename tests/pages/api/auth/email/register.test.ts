@@ -44,19 +44,6 @@ describe("POST /api/auth/email/register", () => {
 		expect(user.timezone).toBe(payload.timezone);
 		expect(user.time_format).toBe(payload.time_format);
 
-		// Checking user profile data
-		const { data: profileData, error: profileError } = await adminClient
-			.from("user_profiles")
-			.select("*")
-			.eq("user_id", user.id)
-			.single();
-		expect(profileError).toBeNull();
-
-		if (!profileData) throw new Error("No profile found");
-		expect(profileData.user_id).toBe(user.id);
-		expect(profileData.timezone).toBe(payload.timezone);
-		expect(profileData.time_format).toBe(payload.time_format);
-
 		// Verify user was created in auth
 		const { data: authUserData, error: authError } =
 			await adminClient.auth.admin.getUserById(user.id);

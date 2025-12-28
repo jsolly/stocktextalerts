@@ -104,23 +104,25 @@ export const POST: APIRoute = async ({ request }) => {
 			}
 		};
 
-		let skipped = 0;
-		let logFailures = 0;
-		let emailsSent = 0;
-		let emailsFailed = 0;
-		let smsSent = 0;
-		let smsFailed = 0;
-
 		const processUser = async (user: UserRecord) => {
+			const stats = {
+				skipped: 0,
+				logFailures: 0,
+				emailsSent: 0,
+				emailsFailed: 0,
+				smsSent: 0,
+				smsFailed: 0,
+			};
+
 			if (!shouldNotifyUser(user, getCurrentTime)) {
-				skipped++;
-				return;
+				stats.skipped++;
+				return stats;
 			}
 
 			const userStocks = await loadUserStocks(supabase, user.id);
 			if (userStocks === null) {
-				skipped++;
-				return;
+				stats.skipped++;
+				return stats;
 			}
 
 			const stocksList =
@@ -138,8 +140,8 @@ export const POST: APIRoute = async ({ request }) => {
 					sendEmail,
 				);
 
-				if (result.success) emailsSent++;
-				else emailsFailed++;
+				if (result.success) stats.emailsSent++;
+				else stats.emailsFailed++;
 
 				const logged = await recordNotification(supabase, {
 					userId: user.id,
@@ -150,14 +152,14 @@ export const POST: APIRoute = async ({ request }) => {
 					error: result.success ? undefined : result.error,
 					errorCode: result.success ? undefined : result.errorCode,
 				});
-				if (!logged) logFailures++;
+				if (!logged) stats.logFailures++;
 			}
 
 			// Process SMS
 			if (shouldSendSms(user)) {
 				const smsSender = getSmsSender();
 				if (!smsSender) {
-					smsFailed++;
+					stats.smsFailed++;
 					const logged = await recordNotification(supabase, {
 						userId: user.id,
 						type: "scheduled_update",
@@ -166,8 +168,8 @@ export const POST: APIRoute = async ({ request }) => {
 						message: "SMS service unavailable",
 						error: "Twilio client not initialized",
 					});
-					if (!logged) logFailures++;
-					return;
+					if (!logged) stats.logFailures++;
+					return stats;
 				}
 
 				const smsMessage = truncateSms(
@@ -178,8 +180,8 @@ export const POST: APIRoute = async ({ request }) => {
 
 				const result = await sendUserSms(user, smsMessage, smsSender);
 
-				if (result.success) smsSent++;
-				else smsFailed++;
+				if (result.success) stats.smsSent++;
+				else stats.smsFailed++;
 
 				const logged = await recordNotification(supabase, {
 					userId: user.id,
@@ -190,27 +192,36 @@ export const POST: APIRoute = async ({ request }) => {
 					error: result.success ? undefined : result.error,
 					errorCode: result.success ? undefined : result.errorCode,
 				});
-				if (!logged) logFailures++;
+				if (!logged) stats.logFailures++;
 			}
+			return stats;
 		};
 
-		await Promise.all((users ?? []).map(processUser));
+		const results = await Promise.all((users ?? []).map(processUser));
 
-		return new Response(
-			JSON.stringify({
-				success: true,
-				skipped,
-				logFailures,
-				emailsSent,
-				emailsFailed,
-				smsSent,
-				smsFailed,
+		const totals = results.reduce(
+			(acc, curr) => ({
+				skipped: acc.skipped + curr.skipped,
+				logFailures: acc.logFailures + curr.logFailures,
+				emailsSent: acc.emailsSent + curr.emailsSent,
+				emailsFailed: acc.emailsFailed + curr.emailsFailed,
+				smsSent: acc.smsSent + curr.smsSent,
+				smsFailed: acc.smsFailed + curr.smsFailed,
 			}),
 			{
-				status: 200,
-				headers: { "Content-Type": "application/json" },
+				skipped: 0,
+				logFailures: 0,
+				emailsSent: 0,
+				emailsFailed: 0,
+				smsSent: 0,
+				smsFailed: 0,
 			},
 		);
+
+		return new Response(JSON.stringify({ success: true, ...totals }), {
+			status: 200,
+			headers: { "Content-Type": "application/json" },
+		});
 	} catch (error) {
 		console.error("Cron job error:", error);
 		return new Response("Internal server error", { status: 500 });
