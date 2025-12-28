@@ -264,3 +264,6 @@ CREATE TRIGGER update_notification_log_updated_at
   BEFORE UPDATE ON notification_log
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+
+

@@ -32,7 +32,7 @@ if (!user) {
 	return Astro.redirect("/?error=user_not_found");
 }
 
-const stocksFileUrl = new URL("../../db/us-stocks.json", import.meta.url);
+const stocksFileUrl = new URL("../../scripts/us-stocks.json", import.meta.url);
 const stocksFileContents = await readFile(stocksFileUrl, "utf-8");
 const { data: allStocks } = JSON.parse(stocksFileContents) as { data: Stock[] };
 

@@ -72,7 +72,6 @@ PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 DATABASE_URL=postgresql://postgres:password@host:5432/database
-DEFAULT_PASSWORD=your-strong-local-seed-password
 
 # Twilio Configuration
 TWILIO_ACCOUNT_SID=your-twilio-account-sid
@@ -82,6 +81,10 @@ TWILIO_VERIFY_SERVICE_SID=your-verify-service-sid
 
 # Vercel Cron Configuration
 CRON_SECRET=your-random-secret-string
+
+# Resend Configuration
+RESEND_API_KEY=re_123456789
+EMAIL_FROM=notifications@updates.example.com
 ```
 
 **Where to find these:**
@@ -90,45 +93,42 @@ CRON_SECRET=your-random-secret-string
 - `DATABASE_URL`: Supabase Dashboard → Project Settings → Database → Connection String → Transaction mode (pooler)
 - Twilio credentials: Twilio Console → Account Dashboard
 - `CRON_SECRET`: Generate a random string (e.g., `openssl rand -hex 32`)
-
-For local development, `DEFAULT_PASSWORD` is used only by `db/seed-users.sh` to create test users via the Supabase Admin API. Use a strong throwaway password and never reuse production credentials here.
+- Resend credentials: Resend Dashboard → API Keys
 
 **Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. The `.env.local` file (and all `.env*` files) are already excluded from version control via `.gitignore`; keep secrets only in environment files or your deployment platform, not in committed code.
 
-### 4. Database Setup
+### 4. Start Local Development
 
-Run the database setup script to create all required tables:
-
-```bash
-./db/apply-schema.sh
-```
-
-This creates:
-- **users** table - Extended with phone, timezone, notification preferences
-- **stocks** table - Symbol, name, exchange
-- **user_stocks** junction table - Many-to-many relationship
-- **notification_log** table - Audit trail for all notifications
-- All RLS policies, triggers, and functions
-
-### 5. Import Stock Tickers
-
-Import stock tickers into the database:
+Start the local Supabase instance and the Astro development server:
 
 ```bash
-npm run db:import-tickers
-```
+# Start Supabase (requires Docker)
+npx supabase start
 
-This imports thousands of US stock tickers from `db/us-stocks.json` that users can track. The script uses PostgreSQL's COPY command for efficient bulk import.
-
-⚠️ **See 'Production Safety Warning' below** - This command truncates the `stocks` and `user_stocks` tables. Always back up your database and test in development first.
-
-### 6. Run Development Server
-
-```bash
+# Start Astro dev server
 npm run dev
 ```
 
+`supabase start` will automatically:
+1. Spin up local Supabase services (Postgres, Auth, etc.)
+2. Apply database migrations from `supabase/migrations`
+3. Seed the database with stock data from `supabase/seed.sql`
+
 Visit <http://localhost:4321> to see the application.
+
+### 5. (Optional) Update Stock Tickers
+
+The database is pre-seeded with stock data. If you need to update the list of available stocks:
+
+1. Update `scripts/us-stocks.json`
+2. Generate a new seed file:
+   ```bash
+   npm run db:generate-seed
+   ```
+3. Reset the database to apply changes:
+   ```bash
+   npx supabase db reset
+   ```
 
 ## Usage
 
@@ -207,11 +207,11 @@ The cron job:
 ├── src/
 │   ├── components/
 │   │   ├── dashboard/      # Dashboard components for managing preferences
-│   │   │   ├── NotificationPreferences.astro
+│   │   │   ├── DashboardPreferencesForm.astro
 │   │   │   ├── PhoneInput.vue      # Phone input with validation
 │   │   │   ├── SetupRequiredBanner.astro
 │   │   │   ├── StockInput.vue      # Fuzzy search stock selector
-│   │   │   └── TrackedStocks.astro
+│   │   │   └── TrackedStocksPanel.vue
 │   │   ├── landing/        # Landing page components
 │   │   │   ├── CTA.astro
 │   │   │   ├── Features.astro
@@ -225,32 +225,18 @@ The cron job:
 │   │   └── Layout.astro    # Main layout with meta tags
 │   ├── lib/                # Services and utilities
 │   │   ├── format.ts       # Formatting utilities
-│   │   ├── notifications/  # Shared notification helpers and types
-│   │   │   ├── scheduled/
-│   │   │   ├── instant/
-│   │   │   └── inbound-sms.ts
 │   │   ├── supabase.ts     # Supabase client configuration
 │   │   └── users.ts        # User service functions
 │   ├── pages/              # File-based routing
 │   │   ├── dashboard.astro # Authenticated dashboard experience
 │   │   ├── api/            # API endpoints
 │   │   │   ├── auth/       # Authentication endpoints
-│   │   │   │   ├── delete-account.ts
-│   │   │   │   ├── signin.ts
-│   │   │   │   ├── signout.ts
-│   │   │   │   ├── email/
-│   │   │   │   │   ├── forgot-password.ts
-│   │   │   │   │   ├── register.ts
-│   │   │   │   │   └── resend-verification.ts
-│   │   │   │   └── sms/
-│   │   │   │       ├── send-verification.ts
-│   │   │   │       └── verify-code.ts
 │   │   │   ├── notifications/
 │   │   │   │   ├── shared.ts       # Shared logic
 │   │   │   │   ├── sms/            # SMS logic
 │   │   │   │   ├── email/          # Email logic
-│   │   │   │   ├── scheduled/      # Cron job endpoint
-│   │   │   │   └── instant/        # Instant notifications endpoint
+│   │   │   │   ├── scheduled.ts    # Cron job endpoint
+│   │   │   │   └── instant.ts      # Instant notifications endpoint
 │   │   │   └── preferences/
 │   │   │       └── index.ts        # Update prefs and manage tracked stocks
 │   │   ├── auth/
@@ -262,16 +248,14 @@ The cron job:
 │   │   └── profile.astro   # User profile page
 │   ├── global.css
 │   └── env.d.ts
-├── db/                     # Database setup
-│   ├── schema.sql          # Complete database schema
-│   ├── apply-schema.sh     # Schema setup script
-│   ├── seed-stocks.sh      # Stock data import script
+├── supabase/               # Supabase configuration
+│   ├── migrations/         # Database migrations
+│   ├── seed.sql            # Initial data (generated)
+│   └── config.toml         # Local config
+├── scripts/                # Utility scripts
+│   ├── generate-seed.ts    # Script to generate seed.sql
 │   └── us-stocks.json      # US stock ticker data
 ├── tests/                  # Vitest unit tests
-│   ├── phone-normalization.test.ts
-│   ├── pii-truncation.test.ts
-│   ├── sanity.test.ts
-│   └── timezone-validation.test.ts
 ├── astro.config.ts         # Astro + Vercel + Vue config
 ├── vercel.json             # Cron job configuration
 ├── biome.jsonc             # Linter/formatter config
@@ -279,84 +263,6 @@ The cron job:
 ├── env.example             # Environment variables template
 └── package.json
 ```
-
-## Database Schema
-
-### users
-- Core fields: `id`, `email`, `created_at`, `updated_at`
-- Phone: `phone_country_code`, `phone_number`, `full_phone`, `phone_verified`, `sms_opted_out`
-- Notification preferences: `timezone`, `notification_start_hour`, `notification_end_hour`, `email_notifications_enabled`, `sms_notifications_enabled`
-
-### stocks
-- `symbol` (PRIMARY KEY) - Stock ticker symbol
-- `name` - Company name
-- `exchange` - NYSE or NASDAQ
-
-### user_stocks
-- `user_id` - References users
-- `symbol` - References stocks
-- `created_at` - When stock was added
-- Primary key on (user_id, symbol)
-
-### notification_log
-- Audit trail of all notification attempts
-- Tracks delivery status, method, and message content
-
-## Commands
-
-All commands are run from the root of the project:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`            | Installs dependencies                            |
-| `npm run dev`            | Starts local dev server at `localhost:4321`      |
-| `npm run build`          | Build your production site to `./dist/`          |
-| `npm run preview`        | Preview your build locally, before deploying     |
-| `npm run db:import-tickers` | Import stock tickers into database            |
-| `npm run test:unit`      | Run unit tests with Vitest                       |
-| `npm run check:ts`       | Run TypeScript type checking                     |
-| `npm run check:biome`    | Run Biome linter and formatter (auto-fix)        |
-| `npm run fix`            | Run linter + type checking (fixes what it can)   |
-| `npm run outdated`       | Check for outdated packages                      |
-| `npm run update`         | Update all packages to latest versions           |
-
-## Troubleshooting
-
-### Phone Verification Not Working
-
-1. Check Twilio credentials in `.env.local`
-2. Verify your Twilio phone number is active
-3. Check Twilio Verify service is created and active
-4. Check Twilio logs in the Console for delivery issues
-
-### Cron Jobs Not Running
-
-1. Verify `CRON_SECRET` is set in Vercel environment variables
-2. Check Vercel cron logs in dashboard (Deployments → Functions → Cron)
-3. Ensure timezone calculations are correct in `notifications/shared.ts`
-4. Test the endpoint manually with the correct header
-
-### Database Connection Issues
-
-1. Verify `DATABASE_URL` and Supabase credentials
-2. Check RLS policies are properly configured
-3. Ensure service role key has admin access
-4. Try running `./db/apply-schema.sh` again
-
-### Email Notifications Not Sending
-
-The current `email.ts` implementation is a placeholder that logs to console. To enable actual email sending, integrate with:
-- [Resend](https://resend.com) - Recommended, developer-friendly API
-- [SendGrid](https://sendgrid.com) - Popular enterprise option
-- [AWS SES](https://aws.amazon.com/ses/) - Cost-effective for high volume
-
-### SMS Not Being Delivered
-
-1. Check Twilio phone number is SMS-enabled
-2. Verify recipient phone number format
-3. Check SMS length doesn't exceed 160 characters
-4. Review Twilio error logs in Console
-5. Ensure you're not hitting Twilio rate limits
 
 ## Security Features
 
@@ -370,11 +276,11 @@ The current `email.ts` implementation is a placeholder that logs to console. To 
 
 ## Adding More Stocks
 
-The stock data is imported from `db/us-stocks.json`. To update the stock list:
+The stock data is imported from `scripts/us-stocks.json`. To update the stock list:
 
 ### JSON Structure
 
-The `db/us-stocks.json` file must follow this structure:
+The `scripts/us-stocks.json` file must follow this structure:
 
 ```json
 {
@@ -409,35 +315,32 @@ The `db/us-stocks.json` file must follow this structure:
 **Optional fields:**
 - `metadata` (object) - Metadata about the data source (not imported, for reference only)
 
-See `db/us-stocks.json` for the canonical schema and example data.
+See `scripts/us-stocks.json` for the canonical schema and example data.
 
-### Import Process
+### Update Process
 
 1. Fetch updated stock data from [US Stock Symbols](https://github.com/rreichel3/US-Stock-Symbols) or your preferred source
-2. Update `db/us-stocks.json` with the new data (must match the JSON structure above)
-3. Run:
+2. Update `scripts/us-stocks.json` with the new data (must match the JSON structure above)
+3. Regenerate the seed file:
 
 ```bash
-npm run db:import-tickers
+npm run db:generate-seed
 ```
 
-### ⚠️ Production Safety Warning
+4. Reset the local database to apply the new seed data:
 
-**The import script truncates both the `stocks` and `user_stocks` tables, which means:**
-- All existing stock data is deleted
-- **All user stock associations are permanently deleted** - users will lose their tracked stocks
-- The script does NOT preserve existing `user_stocks` associations
+```bash
+npm run db:reset
+```
 
-**Before running in production:**
+### ⚠️ Data Reset Warning
 
-1. **Back up your database** - Create a full database backup before running the import
-2. **Test on development/staging first** - Always run the import on a non-production copy first
-3. **Verify the JSON structure** - Ensure your JSON matches the expected format (use `jq` to validate)
-4. **Schedule during off-peak hours** - Run during low-traffic periods to minimize user impact
-5. **Notify users in advance** - Inform users that tracked stocks will be reset
-6. **Plan for data recovery** - If needed, restore user stock associations from backups after import
+**Resetting the database (`npm run db:reset`) will:**
+- Delete all existing data (users, preferences, tracked stocks)
+- Re-apply the schema
+- Re-seed the database with the updated stock list
 
-The import uses PostgreSQL's `TRUNCATE` command which cannot be rolled back - always test thoroughly before production use.
+This is safe for local development but **do not run this against a production database**. For production updates, you should create a migration that inserts/updates the stocks table.
 
 ## License
 

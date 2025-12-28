@@ -3,9 +3,9 @@ import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../../lib/supabase";
-import { parseWithSchema } from "../../form-utils";
+import { parseWithSchema, redirect } from "../../form-utils";
 
-export const POST: APIRoute = async ({ request, redirect }) => {
+export const POST: APIRoute = async ({ request }) => {
 	const supabase = createSupabaseServerClient();
 
 	const formData = await request.formData();

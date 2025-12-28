@@ -12,6 +12,8 @@ interface RequiredEnvVars {
 	TWILIO_PHONE_NUMBER: string;
 	TWILIO_VERIFY_SERVICE_SID: string;
 	CRON_SECRET: string;
+	RESEND_API_KEY: string;
+	EMAIL_FROM: string;
 }
 
 const REQUIRED_ENV_VARS: (keyof RequiredEnvVars)[] = [
@@ -24,6 +26,8 @@ const REQUIRED_ENV_VARS: (keyof RequiredEnvVars)[] = [
 	"TWILIO_PHONE_NUMBER",
 	"TWILIO_VERIFY_SERVICE_SID",
 	"CRON_SECRET",
+	"RESEND_API_KEY",
+	"EMAIL_FROM",
 ];
 
 export function validateEnv(): void {

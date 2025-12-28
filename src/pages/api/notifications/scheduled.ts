@@ -19,7 +19,7 @@ import {
 } from "./sms/twilio-utils";
 
 export const POST: APIRoute = async ({ request }) => {
-	const cronSecret = request.headers.get("x-vercel-cron-secret");
+	const authHeader = request.headers.get("authorization");
 	const envCronSecret = import.meta.env.CRON_SECRET;
 
 	if (!envCronSecret) {
@@ -27,10 +27,11 @@ export const POST: APIRoute = async ({ request }) => {
 		return new Response("Server misconfigured", { status: 500 });
 	}
 
-	if (!cronSecret) {
+	if (!authHeader || !authHeader.startsWith("Bearer ")) {
 		return new Response("Unauthorized", { status: 401 });
 	}
 
+	const cronSecret = authHeader.split("Bearer ")[1];
 	let authorized = false;
 
 	if (cronSecret.length === envCronSecret.length) {
@@ -52,9 +53,6 @@ export const POST: APIRoute = async ({ request }) => {
 	const supabase = createSupabaseAdminClient();
 
 	try {
-		const twilioConfig = readTwilioConfig();
-		const twilioClient = createTwilioClient(twilioConfig);
-		const sendSms = createSmsSender(twilioClient, twilioConfig.phoneNumber);
 		const sendEmail = createEmailSender();
 
 		const currentTime = new Date();
@@ -84,6 +82,27 @@ export const POST: APIRoute = async ({ request }) => {
 		if (usersError) {
 			throw new Error("Failed to fetch users");
 		}
+
+		let twilioConfig: ReturnType<typeof readTwilioConfig> | null = null;
+		let sendSms: ReturnType<typeof createSmsSender> | null = null;
+
+		const getSmsSender = (): ReturnType<typeof createSmsSender> | null => {
+			if (sendSms) {
+				return sendSms;
+			}
+
+			try {
+				if (!twilioConfig) {
+					twilioConfig = readTwilioConfig();
+				}
+				const twilioClient = createTwilioClient(twilioConfig);
+				sendSms = createSmsSender(twilioClient, twilioConfig.phoneNumber);
+				return sendSms;
+			} catch (error) {
+				console.error("Failed to initialize Twilio client:", error);
+				return null;
+			}
+		};
 
 		let skipped = 0;
 		let logFailures = 0;
@@ -136,13 +155,28 @@ export const POST: APIRoute = async ({ request }) => {
 
 			// Process SMS
 			if (shouldSendSms(user)) {
+				const smsSender = getSmsSender();
+				if (!smsSender) {
+					smsFailed++;
+					const logged = await recordNotification(supabase, {
+						userId: user.id,
+						type: "scheduled_update",
+						deliveryMethod: "sms",
+						messageDelivered: false,
+						message: "SMS service unavailable",
+						error: "Twilio client not initialized",
+					});
+					if (!logged) logFailures++;
+					return;
+				}
+
 				const smsMessage = truncateSms(
 					userStocks.length === 0
 						? `${stocksList}. Reply STOP to opt out.`
 						: `Tracked: ${stocksList}. Reply STOP to opt out.`,
 				);
 
-				const result = await sendUserSms(user, smsMessage, sendSms);
+				const result = await sendUserSms(user, smsMessage, smsSender);
 
 				if (result.success) smsSent++;
 				else smsFailed++;
