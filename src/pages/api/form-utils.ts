@@ -447,6 +447,7 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 				break;
 			}
 			default: {
+				console.error(`Unexpected field type for key "${key}":`, spec);
 				output[key] = raw;
 				break;
 			}

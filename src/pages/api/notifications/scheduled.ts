@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from "../../../lib/supabase";
 import { sendUserEmail, shouldSendEmail } from "./email";
 import { createEmailSender, formatEmailMessage } from "./email/utils";
 import {
+	type DeliveryMethod,
 	loadUserStocks,
 	recordNotification,
 	shouldNotifyUser,
@@ -113,88 +114,118 @@ export const POST: APIRoute = async ({ request }) => {
 				smsSent: 0,
 				smsFailed: 0,
 			};
+			let attemptedDeliveryMethod: DeliveryMethod | null = null;
 
-			if (!shouldNotifyUser(user, getCurrentTime)) {
-				stats.skipped++;
-				return stats;
-			}
+			try {
+				if (!shouldNotifyUser(user, getCurrentTime)) {
+					stats.skipped++;
+					return stats;
+				}
 
-			const userStocks = await loadUserStocks(supabase, user.id);
-			if (userStocks === null) {
-				stats.skipped++;
-				return stats;
-			}
+				const userStocks = await loadUserStocks(supabase, user.id);
+				if (userStocks === null) {
+					stats.skipped++;
+					return stats;
+				}
 
-			const stocksList =
-				userStocks.length === 0
-					? "You don't have any tracked stocks"
-					: userStocks.map((stock) => stock.symbol).join(", ");
+				const stocksList =
+					userStocks.length === 0
+						? "You don't have any tracked stocks"
+						: userStocks.map((stock) => stock.symbol).join(", ");
 
-			// Process Email
-			if (shouldSendEmail(user)) {
-				const message = formatEmailMessage(userStocks, stocksList);
-				const result = await sendUserEmail(
-					user,
-					"Your Stock Update",
-					message,
-					sendEmail,
-				);
+				// Process Email
+				if (shouldSendEmail(user)) {
+					attemptedDeliveryMethod = "email";
+					const message = formatEmailMessage(userStocks, stocksList);
+					const result = await sendUserEmail(
+						user,
+						"Your Stock Update",
+						message,
+						sendEmail,
+					);
 
-				if (result.success) stats.emailsSent++;
-				else stats.emailsFailed++;
+					if (result.success) stats.emailsSent++;
+					else stats.emailsFailed++;
 
-				const logged = await recordNotification(supabase, {
-					userId: user.id,
-					type: "scheduled_update",
-					deliveryMethod: "email",
-					messageDelivered: result.success,
-					message: result.success ? message : result.error,
-					error: result.success ? undefined : result.error,
-					errorCode: result.success ? undefined : result.errorCode,
-				});
-				if (!logged) stats.logFailures++;
-			}
+					const logged = await recordNotification(supabase, {
+						userId: user.id,
+						type: "scheduled_update",
+						deliveryMethod: "email",
+						messageDelivered: result.success,
+						message: result.success ? message : result.error,
+						error: result.success ? undefined : result.error,
+						errorCode: result.success ? undefined : result.errorCode,
+					});
+					if (!logged) stats.logFailures++;
+				}
 
-			// Process SMS
-			if (shouldSendSms(user)) {
-				const smsSender = getSmsSender();
-				if (!smsSender) {
-					stats.smsFailed++;
+				// Process SMS
+				if (shouldSendSms(user)) {
+					attemptedDeliveryMethod = "sms";
+					const smsSender = getSmsSender();
+					if (!smsSender) {
+						stats.smsFailed++;
+						const logged = await recordNotification(supabase, {
+							userId: user.id,
+							type: "scheduled_update",
+							deliveryMethod: "sms",
+							messageDelivered: false,
+							message: "SMS service unavailable",
+							error: "Twilio client not initialized",
+						});
+						if (!logged) stats.logFailures++;
+						return stats;
+					}
+
+					const smsMessage = truncateSms(
+						userStocks.length === 0
+							? `${stocksList}. Reply STOP to opt out.`
+							: `Tracked: ${stocksList}. Reply STOP to opt out.`,
+					);
+
+					const result = await sendUserSms(user, smsMessage, smsSender);
+
+					if (result.success) stats.smsSent++;
+					else stats.smsFailed++;
+
 					const logged = await recordNotification(supabase, {
 						userId: user.id,
 						type: "scheduled_update",
 						deliveryMethod: "sms",
-						messageDelivered: false,
-						message: "SMS service unavailable",
-						error: "Twilio client not initialized",
+						messageDelivered: result.success,
+						message: result.success ? smsMessage : result.error,
+						error: result.success ? undefined : result.error,
+						errorCode: result.success ? undefined : result.errorCode,
 					});
 					if (!logged) stats.logFailures++;
-					return stats;
+				}
+				return stats;
+			} catch (error) {
+				stats.skipped++;
+				console.error(`Error processing user ${user.id}:`, error);
+
+				try {
+					const deliveryMethod: DeliveryMethod =
+						attemptedDeliveryMethod ??
+						(user.email_notifications_enabled ? "email" : "sms");
+					await recordNotification(supabase, {
+						userId: user.id,
+						type: "scheduled_update",
+						deliveryMethod,
+						messageDelivered: false,
+						message: error instanceof Error ? error.message : String(error),
+						error: error instanceof Error ? error.message : String(error),
+					});
+				} catch (logError) {
+					console.error(
+						`Failed to record notification for user ${user.id}:`,
+						logError,
+					);
+					stats.logFailures++;
 				}
 
-				const smsMessage = truncateSms(
-					userStocks.length === 0
-						? `${stocksList}. Reply STOP to opt out.`
-						: `Tracked: ${stocksList}. Reply STOP to opt out.`,
-				);
-
-				const result = await sendUserSms(user, smsMessage, smsSender);
-
-				if (result.success) stats.smsSent++;
-				else stats.smsFailed++;
-
-				const logged = await recordNotification(supabase, {
-					userId: user.id,
-					type: "scheduled_update",
-					deliveryMethod: "sms",
-					messageDelivered: result.success,
-					message: result.success ? smsMessage : result.error,
-					error: result.success ? undefined : result.error,
-					errorCode: result.success ? undefined : result.errorCode,
-				});
-				if (!logged) stats.logFailures++;
+				return stats;
 			}
-			return stats;
 		};
 
 		const results = await Promise.all((users ?? []).map(processUser));

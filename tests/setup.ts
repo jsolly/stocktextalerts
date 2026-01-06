@@ -20,6 +20,8 @@ export const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
 	},
 });
 
+const PRESERVED_USER_ID = "00000000-0000-0000-0000-000000000000";
+
 export async function resetDatabase() {
 	try {
 		// Clean up public schema tables
@@ -27,15 +29,52 @@ export async function resetDatabase() {
 		const { error } = await adminClient
 			.from("users")
 			.delete()
-			.neq("id", "00000000-0000-0000-0000-000000000000");
+			.neq("id", PRESERVED_USER_ID);
 
 		if (error) {
 			console.error("Failed to clean users table:", error);
 			throw error;
 		}
 
-		// Note: We are not cleaning auth.users here as it's slower and tests use unique emails.
-		// If necessary, we could implement auth cleanup.
+		// Clean up auth.users to prevent accumulation across test runs
+		// This ensures test isolation and prevents database bloat
+		let hasMore = true;
+		while (hasMore) {
+			const { data: authUsers, error: listError } =
+				await adminClient.auth.admin.listUsers({ page: 1, perPage: 50 });
+
+			if (listError) {
+				console.warn("Failed to list auth users for cleanup:", listError);
+				// Don't throw - continue with test execution
+				break;
+			}
+
+			const users = authUsers?.users || [];
+			if (users.length === 0) {
+				hasMore = false;
+				break;
+			}
+
+			for (const user of users) {
+				// Preserve the special test user if it exists
+				if (user.id === PRESERVED_USER_ID) {
+					continue;
+				}
+
+				const { error: deleteError } = await adminClient.auth.admin.deleteUser(
+					user.id,
+				);
+
+				if (deleteError) {
+					console.warn(`Failed to delete auth user ${user.id}:`, deleteError);
+					// Continue with other users even if one fails
+				}
+			}
+
+			if (users.length < 50) {
+				hasMore = false;
+			}
+		}
 	} catch (error) {
 		console.error("Database reset failed:", error);
 		throw error;
