@@ -3,7 +3,7 @@ import type { APIRoute } from "astro";
 
 import { truncateSms } from "../../../lib/format";
 import { createSupabaseAdminClient } from "../../../lib/supabase";
-import { sendUserEmail, shouldSendEmail } from "./email";
+import { sendUserEmail } from "./email";
 import { createEmailSender, formatEmailMessage } from "./email/utils";
 import {
 	type DeliveryMethod,
@@ -142,7 +142,7 @@ export const POST: APIRoute = async ({ request }) => {
 						: userStocks.map((stock) => stock.symbol).join(", ");
 
 				// Process Email
-				if (shouldSendEmail(user)) {
+				if (user.email_notifications_enabled) {
 					attemptedDeliveryMethod = "email";
 					const message = formatEmailMessage(userStocks, stocksList);
 					const result = await sendUserEmail(

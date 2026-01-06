@@ -9,7 +9,7 @@
 		"build": "astro build",
 		"preview": "astro preview",
 		"prepare": "if [ -z \"$CI\" ]; then husky; fi",
-		"test": "vitest",
+		"test": "vitest --no-watch",
 		"test:unit": "vitest --no-watch -t 'unit'",
 		"test:integration": "vitest --no-watch",
 		"check:ts": "tsc --noEmit",

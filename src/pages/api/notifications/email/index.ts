@@ -22,7 +22,3 @@ export async function sendUserEmail(
 		return { success: false, error: errorMessage };
 	}
 }
-
-export function shouldSendEmail(user: UserRecord): boolean {
-	return user.email_notifications_enabled;
-}

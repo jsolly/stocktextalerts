@@ -52,11 +52,13 @@ export function shouldNotifyUser(
 		return false;
 	}
 
-	return isHourWithinWindow(
+	const withinWindow: boolean = isHourWithinWindow(
 		currentHour,
 		user.notification_start_hour,
 		user.notification_end_hour,
 	);
+
+	return withinWindow;
 }
 
 export function getCurrentHourInTimezone(
