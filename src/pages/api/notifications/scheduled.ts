@@ -186,9 +186,7 @@ export const POST: APIRoute = async ({ request }) => {
 					}
 
 					const smsMessage = truncateSms(
-						userStocks.length === 0
-							? `${stocksList}. Reply STOP to opt out.`
-							: `Tracked: ${stocksList}. Reply STOP to opt out.`,
+						`${userStocks.length > 0 ? "Tracked: " : ""}${stocksList}. Reply STOP to opt out.`,
 					);
 
 					const result = await sendUserSms(user, smsMessage, smsSender);

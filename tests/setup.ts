@@ -41,10 +41,20 @@ export async function resetDatabase() {
 			PRESERVED_USER_ID,
 		]);
 
-		// Clean up auth.users to prevent accumulation across test runs
-		await client.query("DELETE FROM auth.users WHERE id != $1", [
-			PRESERVED_USER_ID,
-		]);
+		// Clean up auth.users via Admin API to ensure proper cleanup of sessions/metadata
+		const { rows: authUsers } = await client.query(
+			"SELECT id FROM auth.users WHERE id != $1",
+			[PRESERVED_USER_ID],
+		);
+
+		await Promise.all(
+			authUsers.map(async (user) => {
+				const { error } = await adminClient.auth.admin.deleteUser(user.id);
+				if (error) {
+					console.warn(`Failed to cleanup user ${user.id}:`, error.message);
+				}
+			}),
+		);
 	} catch (error) {
 		console.error("Database reset failed:", error);
 		throw error;
