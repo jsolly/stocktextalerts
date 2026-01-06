@@ -17,10 +17,6 @@ logs/
 # macOS-specific files
 .DS_Store
 
-#Python
-__pycache__/
-*.pyc
-
 # Build
 .npm-cache/
 node_modules/

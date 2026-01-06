@@ -81,15 +81,22 @@ export const POST: APIRoute = async ({ request }) => {
 			);
 
 		if (usersError) {
-			throw new Error("Failed to fetch users");
+			const errorMsg =
+				usersError instanceof Error
+					? usersError.message
+					: JSON.stringify(usersError);
+			throw new Error(`Failed to fetch users: ${errorMsg}`);
 		}
 
 		let twilioConfig: ReturnType<typeof readTwilioConfig> | null = null;
 		let sendSms: ReturnType<typeof createSmsSender> | null = null;
 
-		const getSmsSender = (): ReturnType<typeof createSmsSender> | null => {
+		const getSmsSender = (): {
+			sender: ReturnType<typeof createSmsSender> | null;
+			error?: string;
+		} => {
 			if (sendSms) {
-				return sendSms;
+				return { sender: sendSms };
 			}
 
 			try {
@@ -98,10 +105,11 @@ export const POST: APIRoute = async ({ request }) => {
 				}
 				const twilioClient = createTwilioClient(twilioConfig);
 				sendSms = createSmsSender(twilioClient, twilioConfig.phoneNumber);
-				return sendSms;
+				return { sender: sendSms };
 			} catch (error) {
-				console.error("Failed to initialize Twilio client:", error);
-				return null;
+				const errorMsg = error instanceof Error ? error.message : String(error);
+				console.error("Failed to initialize Twilio client:", errorMsg);
+				return { sender: null, error: errorMsg };
 			}
 		};
 
@@ -162,7 +170,7 @@ export const POST: APIRoute = async ({ request }) => {
 				// Process SMS
 				if (shouldSendSms(user)) {
 					attemptedDeliveryMethod = "sms";
-					const smsSender = getSmsSender();
+					const { sender: smsSender, error: smsError } = getSmsSender();
 					if (!smsSender) {
 						stats.smsFailed++;
 						const logged = await recordNotification(supabase, {
@@ -170,8 +178,8 @@ export const POST: APIRoute = async ({ request }) => {
 							type: "scheduled_update",
 							deliveryMethod: "sms",
 							messageDelivered: false,
-							message: "SMS service unavailable",
-							error: "Twilio client not initialized",
+							message: smsError || "SMS service unavailable",
+							error: smsError || "Twilio client not initialized",
 						});
 						if (!logged) stats.logFailures++;
 						return stats;
