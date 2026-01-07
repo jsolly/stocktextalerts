@@ -118,6 +118,16 @@ npm run dev
 
 Visit <http://localhost:4321> to see the application.
 
+**Email Testing (Mail Pit):**
+
+When running Supabase locally, all emails (verification emails, password resets, etc.) are intercepted by Mail Pit instead of being sent. You can view these emails at <http://localhost:54324/>.
+
+This is useful for:
+- Testing email verification flows
+- Viewing password reset links
+- Inspecting email content and formatting
+- Testing without sending real emails
+
 ### 5. (Optional) Update Stock Tickers
 
 The database is pre-seeded with stock data. If you need to update the list of available stocks:
@@ -148,7 +158,7 @@ The database is pre-seeded with stock data. If you need to update the list of av
 - `POST /api/auth/email/register` - User registration
 - `POST /api/auth/email/forgot-password` - Request password reset
 - `POST /api/auth/email/resend-verification` - Resend verification email
-- `POST /api/auth/signin` - User login
+- `POST /api/auth/signin` - User sign in
 - `POST /api/auth/signout` - User logout
 - `POST /api/auth/delete-account` - Delete user account
 - `POST /api/auth/sms/send-verification` - Send SMS verification code
