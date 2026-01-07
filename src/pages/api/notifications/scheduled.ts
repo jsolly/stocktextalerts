@@ -91,10 +91,12 @@ export const POST: APIRoute = async ({ request }) => {
 		let twilioConfig: ReturnType<typeof readTwilioConfig> | null = null;
 		let sendSms: ReturnType<typeof createSmsSender> | null = null;
 
-		const getSmsSender = (): {
+		interface SmsSenderResult {
 			sender: ReturnType<typeof createSmsSender> | null;
 			error?: string;
-		} => {
+		}
+
+		const getSmsSender = (): SmsSenderResult => {
 			if (sendSms) {
 				return { sender: sendSms };
 			}
@@ -160,7 +162,7 @@ export const POST: APIRoute = async ({ request }) => {
 						type: "scheduled_update",
 						deliveryMethod: "email",
 						messageDelivered: result.success,
-						message: result.success ? message : result.error,
+						message: message,
 						error: result.success ? undefined : result.error,
 						errorCode: result.success ? undefined : result.errorCode,
 					});
@@ -178,7 +180,7 @@ export const POST: APIRoute = async ({ request }) => {
 							type: "scheduled_update",
 							deliveryMethod: "sms",
 							messageDelivered: false,
-							message: smsError || "SMS service unavailable",
+							message: "SMS service unavailable",
 							error: smsError || "Twilio client not initialized",
 						});
 						if (!logged) stats.logFailures++;
@@ -199,7 +201,7 @@ export const POST: APIRoute = async ({ request }) => {
 						type: "scheduled_update",
 						deliveryMethod: "sms",
 						messageDelivered: result.success,
-						message: result.success ? smsMessage : result.error,
+						message: smsMessage,
 						error: result.success ? undefined : result.error,
 						errorCode: result.success ? undefined : result.errorCode,
 					});
@@ -219,7 +221,7 @@ export const POST: APIRoute = async ({ request }) => {
 						type: "scheduled_update",
 						deliveryMethod,
 						messageDelivered: false,
-						message: error instanceof Error ? error.message : String(error),
+						message: "Error processing notification",
 						error: error instanceof Error ? error.message : String(error),
 					});
 				} catch (logError) {
