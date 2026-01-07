@@ -171,6 +171,13 @@ In your Vercel project settings (Settings → Environment Variables), add all va
 - `TWILIO_PHONE_NUMBER`
 - `TWILIO_VERIFY_SERVICE_SID`
 - `CRON_SECRET`
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
+
+**Important for Astro SSR:**
+- For each environment variable, ensure it's available for **Production**, **Preview**, and **Development** environments (or at least the ones you're using)
+- **Enable "Available during Build"** for all variables - this is required for Astro's `import.meta.env` to work in serverless functions
+- You can find this option when adding/editing each variable in the Vercel dashboard
 
 **Note:** You don't need `DATABASE_URL` in Vercel - it's only for running the local schema setup script.
 
