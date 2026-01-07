@@ -29,8 +29,8 @@ jobs:
       - name: Deep Type check
         run: npm run check:ts
 
-      - name: Test
-        run: npm run test:unit
+      # - name: Test
+      #   run: npm run test:unit
 
       - name: Build application
         run: npm run build

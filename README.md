@@ -1,177 +1,347 @@
-# App Quickstart ⚡️
+# Stock Notification Dashboard 📈📱
 
-A serverless web application template built with AstroJS, deployed on Vercel, with Supabase authentication and PostgreSQL database.
+A stock notification application that sends scheduled SMS and email updates about tracked stocks. Built with Astro, deployed on Vercel, with Supabase authentication and PostgreSQL database.
 
-## Dependencies
+## Features
 
-- [Astro](https://astro.build/) - Web framework with server-side rendering
-- [Vercel](https://vercel.com/) - Serverless deployment platform
-- [Supabase](https://supabase.com/) - Authentication and PostgreSQL database
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [Biome](https://biomejs.dev/) - Fast linter and formatter
-- [Vitest](https://vitest.dev/) - Unit testing framework
-- [Husky](https://typicode.github.io/husky/) - Git hooks
-- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- 📊 **Stock Tracking** - Search and track your favorite stocks (AAPL, MSFT, GOOGL, etc.)
+- 📧 **Email Notifications** - Receive scheduled email updates about your tracked stocks
+- 📱 **SMS Notifications** - Optional SMS messages via Twilio
+- 📞 **Phone Verification** - Secure phone verification with rate limiting (3 attempts/hour)
+- 🌍 **Timezone Support** - All US timezones with browser auto-detection
+- ⏰ **Notification Windows** - Configure start/end hours for delivery
+- 🔕 **SMS Opt-out** - Users can reply STOP to opt out of SMS
+
+## Tech Stack
+
+- **Framework**: Astro 5 with SSR
+- **UI**: Vue 3 components with Tailwind CSS
+- **Database**: Supabase (PostgreSQL)
+- **SMS**: Twilio Verify API + Messaging API
+- **Hosting**: Vercel with Cron Jobs
+- **Phone Validation**: libphonenumber-js
+- **Search**: Fuse.js for fuzzy stock search
+- **Linting**: Biome (no ESLint or Prettier)
+- **Testing**: Vitest
+
+## Prerequisites
+
+- Node.js 18+
+- Supabase account
+- Twilio account with Verify API enabled
+- Vercel account (for deployment and cron jobs)
 
 ## Development Setup
 
 ### 1. Clone and Install
 
-Clone the repository and install dependencies:
-
 ```bash
-git clone https://github.com/your-username/serverless-app-quickstart.git
-cd serverless-app-quickstart
+git clone git@github.com:jsolly/stocktextalerts.git
+cd stocktextalerts
 npm install
 ```
 
-### 2. Create Supabase and Vercel Projects
+### 2. Create Accounts
 
 **Supabase:**
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Choose a project name, database password, and region
 3. Wait for the project to finish provisioning
 
+**Twilio:**
+1. Go to [twilio.com](https://www.twilio.com) and create an account
+2. Purchase a phone number (or use trial number)
+3. Create a Verify Service in Console → Verify → Services
+4. Note your Account SID, Auth Token, Phone Number, and Verify Service SID
+
 **Vercel:**
 1. Push your code to GitHub (if you haven't already)
 2. Go to [vercel.com](https://vercel.com) and import your repository
-3. Vercel will automatically detect the Astro framework
-4. Don't deploy yet - we'll add environment variables first
+3. Don't deploy yet - we'll add environment variables first
 
 ### 3. Environment Variables
 
-**For local development**, create a `.env.local` file in the root directory with the following variables:
+Create a `.env.local` file in the root directory (you can copy from `env.example` and fill in secrets). This file is gitignored and **must not** be committed.
 
 ```env
-PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-DATABASE_URL=postgresql://postgres.your-project:your-password@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+# Site Configuration
 SITE_URL=http://localhost:4321
+
+# Supabase Configuration
+PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DATABASE_URL=postgresql://postgres:password@host:5432/database
+
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=your-twilio-account-sid
+TWILIO_AUTH_TOKEN=your-twilio-auth-token
+TWILIO_PHONE_NUMBER=+1234567890
+TWILIO_VERIFY_SERVICE_SID=your-verify-service-sid
+
+# Vercel Cron Configuration
+CRON_SECRET=your-random-secret-string
+
+# Resend Configuration
+RESEND_API_KEY=re_123456789
+EMAIL_FROM=notifications@updates.example.com
 ```
 
 **Where to find these:**
-- `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY`: Supabase Dashboard → Project Settings → API (the PUBLIC_ prefix makes them available in the browser)
+- `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY`: Supabase Dashboard → Project Settings → API
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase Dashboard → Project Settings → API (under "Service role")
 - `DATABASE_URL`: Supabase Dashboard → Project Settings → Database → Connection String → Transaction mode (pooler)
-- `SITE_URL`: Must be a full URL including the protocol scheme. Use `http://localhost:4321` for local development or `https://yourdomain.com` for production.
-**Note:** `DATABASE_URL` is only needed for running the database setup script. The application itself uses the Supabase URL and auth keys.
+- Twilio credentials: Twilio Console → Account Dashboard
+- `CRON_SECRET`: Generate a random string (e.g., `openssl rand -hex 32`)
+- Resend credentials: Resend Dashboard → API Keys
 
-**Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. It's only used in server-side API endpoints.
+**Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. The `.env.local` file (and all `.env*` files) are already excluded from version control via `.gitignore`; keep secrets only in environment files or your deployment platform, not in committed code.
 
-**For production deployment**, you'll add these same environment variables to Vercel in step 5 (except `DATABASE_URL`, which is only needed locally for the setup script).
+### 4. Start Local Development
 
-### 4. Database Setup
-
-Run the database setup script to create the users table with triggers and RLS policies:
+Start the local Supabase instance and the Astro development server:
 
 ```bash
-./db/apply-schema.sh
+# Start Supabase (requires Docker)
+npx supabase start
+
+# Start Astro dev server
+npm run dev
 ```
 
-This creates:
-- `users` table with email and bio fields
-- Row Level Security (RLS) policies
-- Automatic profile creation trigger on user signup
-- Automatic profile deletion trigger on user deletion
+`supabase start` will automatically:
+1. Spin up local Supabase services (Postgres, Auth, etc.)
+2. Apply database migrations from `supabase/migrations`
+3. Seed the database with stock data from `supabase/seed.sql`
 
-### 5. Deploy to Vercel
+Visit <http://localhost:4321> to see the application.
 
-Add environment variables to your Vercel project and deploy:
+### 5. (Optional) Update Stock Tickers
 
-1. In your Vercel project settings (Settings → Environment Variables), add these:
-   - `PUBLIC_SUPABASE_URL` - Same value as in your `.env.local`
-   - `PUBLIC_SUPABASE_ANON_KEY` - Same value as in your `.env.local`
-   - `SUPABASE_SERVICE_ROLE_KEY` - Same value as in your `.env.local`
-   - `SITE_URL` - Your production URL (e.g., `https://yourdomain.com`)
-2. Trigger a deployment (push to your main branch or click "Redeploy" in Vercel)
-3. Vercel will automatically build and deploy your application
+The database is pre-seeded with stock data. If you need to update the list of available stocks:
 
-## 🚀 Project Structure
+1. Update `scripts/us-stocks.json`
+2. Generate a new seed file:
+   ```bash
+   npm run db:generate-seed
+   ```
+3. Reset the database to apply changes:
+   ```bash
+   npx supabase db reset
+   ```
+
+## Usage
+
+### User Flow
+
+1. **Register** - Create an account with email
+2. **Set Settings** - Configure timezone and notification window
+3. **Add Stocks** - Search and add stocks to track
+4. **Enable SMS** (optional) - Add phone number and verify via SMS code
+5. **Receive Notifications** - Get scheduled updates during your configured time window
+
+### API Endpoints
+
+**Authentication:**
+- `POST /api/auth/email/register` - User registration
+- `POST /api/auth/email/forgot-password` - Request password reset
+- `POST /api/auth/email/resend-verification` - Resend verification email
+- `POST /api/auth/signin` - User login
+- `POST /api/auth/signout` - User logout
+- `POST /api/auth/delete-account` - Delete user account
+- `POST /api/auth/sms/send-verification` - Send SMS verification code
+- `POST /api/auth/sms/verify-code` - Verify SMS code
+
+**Notifications & Preferences:**
+- `POST /api/preferences` - Update notification preferences and tracked stocks
+- `POST /api/notifications/scheduled` - Cron endpoint (protected by CRON_SECRET)
+- `POST /api/notifications/inbound-sms` - Twilio webhook for STOP/START/HELP keywords
+
+## Deployment to Vercel
+
+### 1. Add Environment Variables
+
+In your Vercel project settings (Settings → Environment Variables), add all variables from your `.env.local` file:
+- `SITE_URL` - Your production URL (e.g., `https://yourdomain.com`)
+- `PUBLIC_SUPABASE_URL`
+- `PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_PHONE_NUMBER`
+- `TWILIO_VERIFY_SERVICE_SID`
+- `CRON_SECRET`
+
+**Note:** You don't need `DATABASE_URL` in Vercel - it's only for running the local schema setup script.
+
+### 2. Deploy
+
+Push to your main branch or click "Redeploy" in Vercel. The application will automatically build and deploy.
+
+### 3. Configure Twilio Webhook
+
+After deployment, configure the Twilio webhook for incoming SMS:
+1. Go to Twilio Console → Phone Numbers → Manage → Active numbers
+2. Select your phone number
+3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/notifications/inbound-sms`
+4. Save changes
+
+### 4. Verify Cron Job
+
+The `vercel.json` file configures a scheduled cron job that runs at minute 0 of every hour.
+
+Vercel will automatically call `/api/notifications/scheduled` with the `x-vercel-cron-secret` header.
+
+The cron job:
+1. Queries users who need notifications based on their timezone and time window
+2. Fetches their tracked stocks
+3. Sends via email and/or SMS based on settings
+4. Logs all notification attempts to `notification_log` table
+
+## Project Structure
 
 ```text
 /
 ├── public/
 │   └── favicons/           # Favicon files
 ├── src/
-│   ├── components/         # Reusable Astro components
-│   │   ├── Navigation.astro
-│   │   ├── Hero.astro
-│   │   ├── Features.astro
-│   │   └── CTA.astro
+│   ├── components/
+│   │   ├── dashboard/      # Dashboard components for managing preferences
+│   │   │   ├── DashboardPreferencesForm.astro
+│   │   │   ├── PhoneInput.vue      # Phone input with validation
+│   │   │   ├── SetupRequiredBanner.astro
+│   │   │   ├── StockInput.vue      # Fuzzy search stock selector
+│   │   │   └── TrackedStocksPanel.vue
+│   │   ├── landing/        # Landing page components
+│   │   │   ├── CTA.astro
+│   │   │   ├── Features.astro
+│   │   │   └── Hero.astro
+│   │   ├── layout/
+│   │   │   └── Navigation.astro
+│   │   └── profile/        # Profile page components
+│   │       ├── AccountManagement.astro
+│   │       └── DangerZone.astro
 │   ├── layouts/
 │   │   └── Layout.astro    # Main layout with meta tags
-│   ├── lib/                # Utility functions and clients
+│   ├── lib/                # Services and utilities
+│   │   ├── format.ts       # Formatting utilities
 │   │   ├── supabase.ts     # Supabase client configuration
 │   │   └── users.ts        # User service functions
 │   ├── pages/              # File-based routing
+│   │   ├── dashboard.astro # Authenticated dashboard experience
 │   │   ├── api/            # API endpoints
 │   │   │   ├── auth/       # Authentication endpoints
-│   │   │   │   ├── delete-account.ts
-│   │   │   │   ├── forgot-password.ts
-│   │   │   │   ├── register.ts
-│   │   │   │   ├── resend-verification.ts
-│   │   │   │   ├── signin.ts
-│   │   │   │   └── signout.ts
-│   │   │   └── profile/    # Profile management
-│   │   │       └── update.ts
+│   │   │   ├── notifications/
+│   │   │   │   ├── shared.ts       # Shared logic
+│   │   │   │   ├── sms/            # SMS logic
+│   │   │   │   ├── email/          # Email logic
+│   │   │   │   ├── scheduled.ts    # Cron job endpoint
+│   │   │   │   └── instant.ts      # Instant notifications endpoint
+│   │   │   └── preferences/
+│   │   │       └── index.ts        # Update prefs and manage tracked stocks
+│   │   ├── auth/
+│   │   │   ├── forgot.astro
+│   │   │   ├── recover.astro
+│   │   │   ├── register.astro
+│   │   │   └── unconfirmed.astro
 │   │   ├── index.astro     # Landing page
-│   │   ├── register.astro
-│   │   ├── forgot.astro
-│   │   ├── recover.astro
-│   │   ├── unconfirmed.astro
-│   │   ├── dashboard.astro
-│   │   └── profile.astro
-│   ├── styles/
-│   │   └── safelist-tailwindcss.txt
-│   ├── global.css          # Global styles
-│   └── env.d.ts            # TypeScript environment types
+│   │   └── profile.astro   # User profile page
+│   ├── global.css
+│   └── env.d.ts
+├── supabase/               # Supabase configuration
+│   ├── migrations/         # Database migrations
+│   ├── seed.sql            # Initial data (generated)
+│   └── config.toml         # Local config
+├── scripts/                # Utility scripts
+│   ├── generate-seed.ts    # Script to generate seed.sql
+│   └── us-stocks.json      # US stock ticker data
 ├── tests/                  # Vitest unit tests
-├── db/                     # Database setup scripts
-│   ├── users-table.sql
-│   └── apply-schema.sh
-├── astro.config.ts         # Astro + Vercel configuration
+├── astro.config.ts         # Astro + Vercel + Vue config
+├── vercel.json             # Cron job configuration
 ├── biome.jsonc             # Linter/formatter config
 ├── tsconfig.json
 ├── env.example             # Environment variables template
 └── package.json
 ```
 
-**Key Features:**
-- 🔐 Authentication and PostgreSQL database with Supabase
-- 👤 User profile management
-- 🎨 Modern UI with Tailwind CSS
-- 🚀 Serverless deployment on Vercel
+## Security Features
 
-To learn more about the folder structure of an Astro project, refer to [Astro's guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+- ✅ Row Level Security (RLS) on all database tables
+- ✅ Rate limiting on phone verification (3 attempts/hour)
+- ✅ Cron endpoint protected by secret header
+- ✅ Phone verification via Twilio Verify API
+- ✅ SMS opt-out support (STOP keyword compliance)
+- ✅ Service role key never exposed to client
+- ✅ Traditional form submissions (no client-side state)
 
-## 🧞 Commands
+## Adding More Stocks
 
-All commands are run from the root of the project, from a terminal:
+The stock data is imported from `scripts/us-stocks.json`. To update the stock list:
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`            | Installs dependencies                            |
-| `npm run dev`            | Starts local dev server at `localhost:4321`      |
-| `npm run build`          | Build your production site to `./dist/`          |
-| `npm run preview`        | Preview your build locally, before deploying     |
-| `npm run test:unit`      | Run unit tests with Vitest                       |
-| `npm run check:ts`       | Run TypeScript type checking                     |
-| `npm run check:biome`    | Run Biome linter and formatter (auto-fix)        |
-| `npm run fix`            | Run linter + type checking (fixes what it can)   |
-| `npm run outdated`       | Check for outdated packages                      |
-| `npm run update`         | Update all packages to latest versions           |
+### JSON Structure
 
-## Additional Packages/Tools added (These commands have already been run)
+The `scripts/us-stocks.json` file must follow this structure:
 
-```shell
-npm astro add tailwind sitemap
-npm add --save-dev --save-exact @biomejs/biome
-npm biome init
-npm add --save-dev husky
-npm exec husky init
+```json
+{
+  "metadata": {
+    "source": "https://github.com/rreichel3/US-Stock-Symbols",
+    "fetched_at": "2025-11-08T15:18:17Z",
+    "exchanges": ["NASDAQ", "NYSE", "AMEX"],
+    "total_symbols": 7036
+  },
+  "data": [
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc. Common Stock",
+      "exchange": "NASDAQ"
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "exchange": "NASDAQ"
+    }
+  ]
+}
 ```
 
-## Pre-commit Hook Configuration
+**Required fields:**
+- `data` (array) - Array of stock objects
+- Each stock object must have:
+  - `symbol` (string, required) - Stock ticker symbol (max 10 characters)
+  - `name` (string, required) - Company name (max 255 characters)
+  - `exchange` (string, required) - Exchange name (e.g., "NASDAQ", "NYSE", "AMEX")
 
-A pre-commit hook has been configured in `.husky/pre-commit` that runs biome check, tsc and astro check before each commit to format, lint and type check the code.
+**Optional fields:**
+- `metadata` (object) - Metadata about the data source (not imported, for reference only)
+
+See `scripts/us-stocks.json` for the canonical schema and example data.
+
+### Update Process
+
+1. Fetch updated stock data from [US Stock Symbols](https://github.com/rreichel3/US-Stock-Symbols) or your preferred source
+2. Update `scripts/us-stocks.json` with the new data (must match the JSON structure above)
+3. Regenerate the seed file:
+
+```bash
+npm run db:generate-seed
+```
+
+4. Reset the local database to apply the new seed data:
+
+```bash
+npm run db:reset
+```
+
+### ⚠️ Data Reset Warning
+
+**Resetting the database (`npm run db:reset`) will:**
+- Delete all existing data (users, preferences, tracked stocks)
+- Re-apply the schema
+- Re-seed the database with the updated stock list
+
+This is safe for local development but **do not run this against a production database**. For production updates, you should create a migration that inserts/updates the stocks table.
+
+## License
+
+MIT

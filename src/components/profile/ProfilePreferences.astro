@@ -1,0 +1,32 @@
+---
+import ProfileReadonlyField from "./ProfileReadonlyField.astro";
+
+interface Props {
+	timezone: string | null;
+	timeFormat: "12h" | "24h";
+}
+
+const { timezone, timeFormat } = Astro.props as Props;
+
+const timezoneDisplay = timezone ?? "Not set";
+const timeFormatDisplay = timeFormat === "12h" ? "12-hour (AM/PM)" : "24-hour";
+---
+
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+	<h2 class="text-2xl font-bold text-gray-900 mb-4">Preferences</h2>
+
+	<div class="space-y-6">
+		<ProfileReadonlyField
+			label="Timezone"
+			value={timezoneDisplay}
+			helperText="Timezone cannot be changed here. Use the dashboard to update your timezone."
+		/>
+
+		<ProfileReadonlyField
+			label="Time Format"
+			value={timeFormatDisplay}
+			helperText="Time format cannot be changed here. Contact support if you need to update your time format preference."
+		/>
+	</div>
+</div>
+
