@@ -28,7 +28,7 @@
 	"dependencies": {
 		"@astrojs/vercel": "^9.0.2",
 		"@heroicons/vue": "^2.2.0",
-		"@supabase/supabase-js": "^2.75.0",
+		"@supabase/supabase-js": "^2.90.0",
 		"@vueuse/core": "^13.9.0",
 		"fuse.js": "^7.1.0",
 		"libphonenumber-js": "^1.12.24",
