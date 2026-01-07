@@ -29,12 +29,21 @@ export const POST: APIRoute = async ({ request }) => {
 
 	const { email, password, timezone, time_format } = parsed.data;
 
+	const origin = new URL(request.url).origin;
+	const emailRedirectTo = `${origin}/auth/verified`;
+
 	const { data, error } = await supabase.auth.signUp({
 		email,
 		password,
+		options: {
+			emailRedirectTo,
+		},
 	});
 
 	if (error) {
+		if (error.code === "user_already_exists") {
+			return redirect("/auth/register?error=user_already_exists");
+		}
 		console.error("User registration failed:", error);
 		return redirect("/auth/register?error=failed");
 	}

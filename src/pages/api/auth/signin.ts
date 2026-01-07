@@ -15,7 +15,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		console.error("Sign-in attempt rejected due to invalid form", {
 			errors: parsed.allErrors,
 		});
-		return redirect("/?error=invalid_form");
+		return redirect("/signin?error=invalid_form");
 	}
 
 	const email = parsed.data.email;
@@ -40,7 +40,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			message: error.message,
 		});
 		return redirect(
-			`/?error=invalid_credentials${email ? `&email=${encodeURIComponent(email)}` : ""}`,
+			`/signin?error=invalid_credentials${email ? `&email=${encodeURIComponent(email)}` : ""}`,
 		);
 	}
 
