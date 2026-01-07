@@ -65,7 +65,9 @@ Create a `.env.local` file in the root directory (you can copy from `env.example
 
 ```env
 # Site Configuration
-SITE_URL=http://localhost:4321
+# VERCEL_URL is automatically set by Vercel for all deployments.
+# For local development, set it manually:
+VERCEL_URL=http://localhost:4321
 
 # Supabase Configuration
 PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -162,7 +164,7 @@ The database is pre-seeded with stock data. If you need to update the list of av
 ### 1. Add Environment Variables
 
 In your Vercel project settings (Settings → Environment Variables), add all variables from your `.env.local` file:
-- `SITE_URL` - Your production URL (e.g., `https://yourdomain.com`)
+- `VERCEL_URL` - Not needed on Vercel. This is automatically set by Vercel for all deployments.
 - `PUBLIC_SUPABASE_URL`
 - `PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`

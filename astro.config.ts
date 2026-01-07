@@ -5,22 +5,24 @@ import vercel from "@astrojs/vercel";
 import vue from "@astrojs/vue";
 import { loadEnv } from "vite";
 
-let SITE_URL = process.env.SITE_URL;
+const vercelUrl =
+	process.env.VERCEL_URL ||
+	(process.env.NODE_ENV === "development"
+		? loadEnv("development", process.cwd(), "").VERCEL_URL
+		: undefined);
 
-if (!SITE_URL && process.env.NODE_ENV === "development") {
-	SITE_URL = loadEnv("development", process.cwd(), "").SITE_URL;
+if (!vercelUrl) {
+	throw new Error(
+		"VERCEL_URL is not configured. VERCEL_URL is automatically set by Vercel. For local development, set VERCEL_URL=http://localhost:4321 in your .env.local file.",
+	);
 }
 
-// Use placeholder URL in CI environments (builds are for validation only, not deployment).
-// The placeholder URL allows build validation without breaking CI pipelines while still
-// enabling sitemap generation and URL validation in the build process.
-if (!SITE_URL && process.env.CI === "true") {
-	SITE_URL = "https://example.com";
-}
-
-if (!SITE_URL) {
-	throw new Error("SITE_URL environment variable is required");
-}
+// VERCEL_URL from Vercel is just the hostname (e.g., "stocktextalerts.com")
+// Locally, it should include the protocol (e.g., "http://localhost:4321")
+const site =
+	vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://")
+		? vercelUrl
+		: `https://${vercelUrl}`;
 
 // https://astro.build/config
 export default defineConfig({
@@ -30,7 +32,7 @@ export default defineConfig({
         edgeMiddleware: false,
     }),
 
-	site: SITE_URL,
+	site,
 
 	integrations: [
 		sitemap({}),

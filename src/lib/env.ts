@@ -3,7 +3,6 @@ Environment Validation
 ============= */
 
 interface RequiredEnvVars {
-	SITE_URL: string;
 	PUBLIC_SUPABASE_URL: string;
 	PUBLIC_SUPABASE_ANON_KEY: string;
 	SUPABASE_SERVICE_ROLE_KEY: string;
@@ -17,7 +16,6 @@ interface RequiredEnvVars {
 }
 
 const REQUIRED_ENV_VARS: (keyof RequiredEnvVars)[] = [
-	"SITE_URL",
 	"PUBLIC_SUPABASE_URL",
 	"PUBLIC_SUPABASE_ANON_KEY",
 	"SUPABASE_SERVICE_ROLE_KEY",
@@ -49,11 +47,17 @@ export function validateEnv(): void {
 }
 
 export function getSiteUrl(): string {
-	const siteUrl = import.meta.env.SITE_URL;
-	if (!siteUrl) {
+	const vercelUrl = import.meta.env.VERCEL_URL;
+	if (!vercelUrl) {
 		throw new Error(
-			"SITE_URL is not configured. This should have been caught at startup.",
+			"VERCEL_URL is not configured. VERCEL_URL is automatically set by Vercel. For local development, set VERCEL_URL=http://localhost:4321 in your .env.local file.",
 		);
 	}
-	return siteUrl;
+
+	// VERCEL_URL from Vercel is just the hostname (e.g., "stocktextalerts.com")
+	// Locally, it should include the protocol (e.g., "http://localhost:4321")
+	if (vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://")) {
+		return vercelUrl;
+	}
+	return `https://${vercelUrl}`;
 }

@@ -20,6 +20,7 @@ logs/
 # Build
 .npm-cache/
 node_modules/
+.vercel/
 
 # Other
 /.cursor/
