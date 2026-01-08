@@ -73,6 +73,11 @@ CREATE TABLE IF NOT EXISTS users (
   time_format VARCHAR(3) DEFAULT '12h' NOT NULL CHECK (time_format IN ('12h', '24h')),
   notification_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (notification_start_hour >= 0 AND notification_start_hour <= 23),
   notification_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (notification_end_hour >= 0 AND notification_end_hour <= 23),
+  notification_frequency TEXT DEFAULT 'daily' NOT NULL CHECK (notification_frequency IN ('hourly', 'daily')),
+  daily_notification_hour INTEGER CHECK (daily_notification_hour >= 0 AND daily_notification_hour <= 23),
+  breaking_news_enabled BOOLEAN DEFAULT false NOT NULL,
+  breaking_news_threshold_percent NUMERIC(5,2),
+  breaking_news_outside_window BOOLEAN DEFAULT false NOT NULL,
   email_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   sms_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
@@ -149,6 +154,11 @@ CREATE OR REPLACE FUNCTION public.update_user_preferences_and_stocks(
   time_format varchar(3),
   email_notifications_enabled boolean,
   sms_notifications_enabled boolean,
+  notification_frequency text,
+  daily_notification_hour integer,
+  breaking_news_enabled boolean,
+  breaking_news_threshold_percent numeric,
+  breaking_news_outside_window boolean,
   symbols text[]
 )
 RETURNS void
@@ -163,7 +173,12 @@ BEGIN
     notification_end_hour = COALESCE(update_user_preferences_and_stocks.notification_end_hour, users.notification_end_hour),
     time_format = COALESCE(update_user_preferences_and_stocks.time_format, users.time_format),
     email_notifications_enabled = COALESCE(update_user_preferences_and_stocks.email_notifications_enabled, users.email_notifications_enabled),
-    sms_notifications_enabled = COALESCE(update_user_preferences_and_stocks.sms_notifications_enabled, users.sms_notifications_enabled)
+    sms_notifications_enabled = COALESCE(update_user_preferences_and_stocks.sms_notifications_enabled, users.sms_notifications_enabled),
+    notification_frequency = COALESCE(update_user_preferences_and_stocks.notification_frequency, users.notification_frequency),
+    daily_notification_hour = COALESCE(update_user_preferences_and_stocks.daily_notification_hour, users.daily_notification_hour),
+    breaking_news_enabled = COALESCE(update_user_preferences_and_stocks.breaking_news_enabled, users.breaking_news_enabled),
+    breaking_news_threshold_percent = COALESCE(update_user_preferences_and_stocks.breaking_news_threshold_percent, users.breaking_news_threshold_percent),
+    breaking_news_outside_window = COALESCE(update_user_preferences_and_stocks.breaking_news_outside_window, users.breaking_news_outside_window)
   WHERE id = update_user_preferences_and_stocks.user_id;
 
   PERFORM replace_user_stocks(update_user_preferences_and_stocks.user_id, symbols);
@@ -264,6 +279,115 @@ CREATE TRIGGER update_notification_log_updated_at
   BEFORE UPDATE ON notification_log
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+/* =============
+Rate Limits
+============= */
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  window_start TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  count INTEGER DEFAULT 1 NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- Trigger to update updated_at
+CREATE TRIGGER update_rate_limits_updated_at
+  BEFORE UPDATE ON rate_limits
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+/* =============
+Rate Limit Function
+============= */
+
+CREATE OR REPLACE FUNCTION check_rate_limit(
+  p_key text,
+  p_window_seconds integer,
+  p_limit integer
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_window_start timestamptz;
+  v_count integer;
+  v_now timestamptz := now();
+  v_reset_time timestamptz;
+  v_remaining integer;
+BEGIN
+  SELECT window_start, count INTO v_window_start, v_count
+  FROM rate_limits
+  WHERE key = p_key
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    INSERT INTO rate_limits (key, window_start, count)
+    VALUES (p_key, v_now, 1)
+    ON CONFLICT (key) DO UPDATE
+    SET count = CASE
+      WHEN rate_limits.window_start + (p_window_seconds || ' seconds')::interval < v_now
+      THEN 1
+      ELSE rate_limits.count + 1
+    END,
+    window_start = CASE
+      WHEN rate_limits.window_start + (p_window_seconds || ' seconds')::interval < v_now
+      THEN v_now
+      ELSE rate_limits.window_start
+    END
+    RETURNING window_start, count INTO v_window_start, v_count;
+    
+    -- Re-evaluate after upsert
+    v_reset_time := v_window_start + (p_window_seconds || ' seconds')::interval;
+    RETURN json_build_object(
+      'allowed', v_count <= p_limit,
+      'remaining', GREATEST(p_limit - v_count, 0),
+      'reset_time', v_reset_time
+    );
+  END IF;
+
+  v_reset_time := v_window_start + (p_window_seconds || ' seconds')::interval;
+
+  IF v_now > v_reset_time THEN
+    -- Window expired, reset
+    UPDATE rate_limits
+    SET window_start = v_now, count = 1
+    WHERE key = p_key;
+    
+    RETURN json_build_object(
+      'allowed', true,
+      'remaining', p_limit - 1,
+      'reset_time', v_now + (p_window_seconds || ' seconds')::interval
+    );
+  ELSE
+    -- Inside window
+    IF v_count >= p_limit THEN
+      RETURN json_build_object(
+        'allowed', false,
+        'remaining', 0,
+        'reset_time', v_reset_time
+      );
+    ELSE
+      UPDATE rate_limits
+      SET count = count + 1
+      WHERE key = p_key;
+      
+      RETURN json_build_object(
+        'allowed', true,
+        'remaining', p_limit - (v_count + 1),
+        'reset_time', v_reset_time
+      );
+    END IF;
+  END IF;
+END;
+$$;
+
+-- Grant permissions explicitly
+GRANT EXECUTE ON FUNCTION check_rate_limit(text, integer, integer) TO anon, authenticated, service_role;
 
 
 

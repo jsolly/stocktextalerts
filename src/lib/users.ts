@@ -16,6 +16,11 @@ export interface User {
 	time_format: TimeFormat;
 	notification_start_hour: Hour;
 	notification_end_hour: Hour;
+	notification_frequency: "hourly" | "daily";
+	daily_notification_hour: Hour | null;
+	breaking_news_enabled: boolean;
+	breaking_news_threshold_percent: number | null;
+	breaking_news_outside_window: boolean;
 	email_notifications_enabled: boolean;
 	sms_notifications_enabled: boolean;
 	created_at: string;
@@ -33,6 +38,11 @@ type UserUpdateInput = Partial<
 		| "time_format"
 		| "notification_start_hour"
 		| "notification_end_hour"
+		| "notification_frequency"
+		| "daily_notification_hour"
+		| "breaking_news_enabled"
+		| "breaking_news_threshold_percent"
+		| "breaking_news_outside_window"
 		| "email_notifications_enabled"
 		| "sms_notifications_enabled"
 	>

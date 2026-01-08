@@ -1,9 +1,13 @@
 import type { APIRoute } from "astro";
-import { createSupabaseServerClient } from "../../../lib/supabase";
+import {
+	createSupabaseAdminClient,
+	createSupabaseServerClient,
+} from "../../../lib/supabase";
 import { parseWithSchema } from "../form-utils";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const supabase = createSupabaseServerClient();
+	const adminClient = createSupabaseAdminClient();
 
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
@@ -21,6 +25,19 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const email = parsed.data.email;
 	const password = parsed.data.password;
 
+	const { data: existingUser } = await adminClient
+		.from("users")
+		.select("id")
+		.eq("email", email)
+		.maybeSingle();
+
+	if (!existingUser) {
+		console.error("Sign-in failed: user not found", { email });
+		return redirect(
+			`/signin?error=user_not_found&email=${encodeURIComponent(email)}`,
+		);
+	}
+
 	const { data, error } = await supabase.auth.signInWithPassword({
 		email,
 		password,
@@ -34,13 +51,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect(`/auth/unconfirmed?email=${encodeURIComponent(email)}`);
 		}
 
-		// Redirect back to the home page with a generic invalid credentials error
-		console.error("Sign-in failed due to invalid credentials", {
+		console.error("Sign-in failed due to invalid password", {
 			email,
 			message: error.message,
 		});
+
 		return redirect(
-			`/signin?error=invalid_credentials${email ? `&email=${encodeURIComponent(email)}` : ""}`,
+			`/signin?error=invalid_password&email=${encodeURIComponent(email)}`,
 		);
 	}
 

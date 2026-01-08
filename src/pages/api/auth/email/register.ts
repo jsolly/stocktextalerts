@@ -1,4 +1,6 @@
 import type { APIRoute } from "astro";
+import { getSiteUrl } from "../../../../lib/env";
+import { checkRateLimit } from "../../../../lib/rate-limit";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
@@ -6,6 +8,27 @@ import {
 import { parseWithSchema, redirect } from "../../form-utils";
 
 export const POST: APIRoute = async ({ request }) => {
+	const clientIp =
+		request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+
+	// Rate limit: 10 attempts per hour
+	const limitResult = await checkRateLimit(`register:${clientIp}`, 3600, 10);
+
+	if (!limitResult.allowed) {
+		console.warn(
+			`Rate limit exceeded for registration from IP: ${clientIp}. Reset at ${limitResult.resetTime}`,
+		);
+		const now = new Date();
+		const durationSeconds = Math.ceil(
+			(limitResult.resetTime.getTime() - now.getTime()) / 1000,
+		);
+		const resetTimeParams = new URLSearchParams({
+			error: "rate_limit",
+			reset_seconds: durationSeconds.toString(),
+		});
+		return redirect(`/auth/register?${resetTimeParams.toString()}`);
+	}
+
 	const supabase = createSupabaseServerClient();
 
 	const formData = await request.formData();
@@ -29,7 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 	const { email, password, timezone, time_format } = parsed.data;
 
-	const origin = new URL(request.url).origin;
+	const origin = getSiteUrl();
 	const emailRedirectTo = `${origin}/auth/verified`;
 
 	const { data, error } = await supabase.auth.signUp({

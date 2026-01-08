@@ -28,10 +28,16 @@ export interface UserRecord {
 	notification_end_hour: number;
 	email_notifications_enabled: boolean;
 	sms_notifications_enabled: boolean;
+	notification_frequency: "hourly" | "daily";
+	daily_notification_hour: number | null;
+	breaking_news_enabled: boolean;
+	breaking_news_threshold_percent: number | null;
+	breaking_news_outside_window: boolean;
 }
 
 export interface UserStockRow {
 	symbol: string;
+	name: string;
 }
 
 export function shouldNotifyUser(
@@ -58,7 +64,46 @@ export function shouldNotifyUser(
 		user.notification_end_hour,
 	);
 
-	return withinWindow;
+	if (!withinWindow) {
+		return false;
+	}
+
+	if (user.notification_frequency === "daily") {
+		const targetHour =
+			user.daily_notification_hour ?? user.notification_start_hour;
+		return currentHour === targetHour;
+	}
+
+	return true;
+}
+
+export function shouldNotifyBreakingNews(
+	user: UserRecord,
+	getCurrentTime: () => Date,
+): boolean {
+	if (!user.breaking_news_enabled) {
+		return false;
+	}
+
+	if (user.breaking_news_outside_window) {
+		return true;
+	}
+
+	if (!user.timezone) {
+		return false;
+	}
+
+	const currentHour = getCurrentHourInTimezone(user.timezone, getCurrentTime);
+
+	if (currentHour === null) {
+		return false;
+	}
+
+	return isHourWithinWindow(
+		currentHour,
+		user.notification_start_hour,
+		user.notification_end_hour,
+	);
 }
 
 export function getCurrentHourInTimezone(
@@ -108,7 +153,7 @@ export async function loadUserStocks(
 ): Promise<UserStockRow[] | null> {
 	const { data: stocks, error } = await supabase
 		.from("user_stocks")
-		.select("symbol")
+		.select("symbol, stocks(name)")
 		.eq("user_id", userId);
 
 	if (error) {
@@ -123,7 +168,14 @@ export async function loadUserStocks(
 		return [];
 	}
 
-	return stocks;
+	// Transform the nested structure to flat UserStockRow[]
+	return stocks.map((stock) => {
+		const stocksData = stock.stocks as unknown as { name: string } | null;
+		return {
+			symbol: stock.symbol,
+			name: stocksData?.name ?? stock.symbol,
+		};
+	});
 }
 
 export async function recordNotification(

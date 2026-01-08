@@ -2,6 +2,7 @@
 import { readFile } from "node:fs/promises";
 import DashboardPreferencesForm from "../components/dashboard/DashboardPreferencesForm.astro";
 import SetupRequiredBanner from "../components/dashboard/SetupRequiredBanner.astro";
+import TestNotifications from "../components/dashboard/TestNotifications.astro";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
 import { formatMessage } from "../lib/format";
@@ -50,6 +51,13 @@ const url = new URL(Astro.request.url);
 const successMessage = url.searchParams.get("success");
 const errorMessage = url.searchParams.get("error");
 const isEditingPhone = url.searchParams.get("change_phone") === "1";
+
+const isSmsFullyConfigured =
+	user.sms_notifications_enabled &&
+	!user.sms_opted_out &&
+	user.phone_verified &&
+	Boolean(user.phone_country_code) &&
+	Boolean(user.phone_number);
 ---
 
 <Layout title="Dashboard" description="Review and manage your stock notifications">
@@ -84,6 +92,12 @@ const isEditingPhone = url.searchParams.get("change_phone") === "1";
 			stockOptions={stockOptions}
 			initialSymbols={userStocks.map((stock) => stock.symbol)}
 			isEditingPhone={isEditingPhone}
+		/>
+
+		<!-- Section 3: Test Notifications -->
+		<TestNotifications
+			emailEnabled={user.email_notifications_enabled}
+			smsEnabled={isSmsFullyConfigured}
 		/>
 		</div>
 	</div>

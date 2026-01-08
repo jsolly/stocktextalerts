@@ -11,6 +11,11 @@ interface Props {
 		timezone: string | null;
 		notification_start_hour: number;
 		notification_end_hour: number;
+		notification_frequency: "hourly" | "daily";
+		daily_notification_hour: number | null;
+		breaking_news_enabled: boolean;
+		breaking_news_threshold_percent: number | null;
+		breaking_news_outside_window: boolean;
 		sms_opted_out: boolean;
 		phone_verified: boolean;
 		phone_country_code: string | null;
@@ -232,6 +237,69 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 				</select>
 			</div>
 
+			<div class="mt-8 mb-8">
+				<label class="block text-sm font-medium text-slate-700 mb-2">
+					Frequency
+				</label>
+				<div class="space-y-4">
+					<div class="flex items-center gap-4">
+						<label class="flex items-center cursor-pointer">
+							<input
+								type="radio"
+								name="notification_frequency"
+								value="hourly"
+								class="mr-2 cursor-pointer"
+								checked={user.notification_frequency === "hourly"}
+							/>
+							<span>Every hour</span>
+						</label>
+						<label class="flex items-center cursor-pointer">
+							<input
+								type="radio"
+								name="notification_frequency"
+								value="daily"
+								class="mr-2 cursor-pointer"
+								checked={user.notification_frequency === "daily"}
+							/>
+							<span>Once a day</span>
+						</label>
+					</div>
+					
+					<div
+						id="daily-notification-hour-container"
+						class={`ml-6 ${user.notification_frequency === "daily" ? "" : "hidden"}`}
+					>
+						<label
+							for="daily_notification_hour"
+							class="block text-sm font-medium text-slate-700 mb-1"
+						>
+							Preferred Hour (during window)
+						</label>
+						<select
+							id="daily_notification_hour"
+							name="daily_notification_hour"
+							class="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+						>
+							{hours.map((hour) => (
+								<option
+									value={hour}
+									selected={(user.daily_notification_hour ?? user.notification_start_hour) === hour}
+								>
+									{String(hour).padStart(2, "0")}:00
+								</option>
+							))}
+						</select>
+						<div
+							id="daily-hour-validation-error"
+							class="hidden mt-2 text-sm text-red-600"
+							role="alert"
+						>
+							Daily notification hour must be within your time window.
+						</div>
+					</div>
+				</div>
+			</div>
+
 			<div class="grid grid-cols-2 gap-4">
 				<div>
 					<label
@@ -282,6 +350,58 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 						role="alert"
 					>
 						End hour must be greater than or equal to start hour.
+					</div>
+				</div>
+			</div>
+
+			<div class="mt-8 mb-8 border-t border-gray-200 pt-6">
+				<h3 class="text-lg font-semibold text-gray-900 mb-4">Breaking News</h3>
+				<div class="space-y-4">
+					<label class="flex items-center cursor-pointer">
+						<input
+							type="checkbox"
+							name="breaking_news_enabled"
+							class="mr-2 cursor-pointer"
+							checked={user.breaking_news_enabled}
+						/>
+						<span>Enable breaking news notifications</span>
+					</label>
+
+					<div
+						id="breaking-news-settings"
+						class={`ml-6 space-y-4 ${user.breaking_news_enabled ? "" : "hidden"}`}
+					>
+						<div>
+							<label
+								for="breaking_news_threshold_percent"
+								class="block text-sm font-medium text-slate-700 mb-1"
+							>
+								Price Change Threshold (%)
+							</label>
+							<input
+								type="number"
+								id="breaking_news_threshold_percent"
+								name="breaking_news_threshold_percent"
+								min="0.1"
+								max="100"
+								step="0.1"
+								value={user.breaking_news_threshold_percent ?? 5.0}
+								class="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							/>
+							<p class="text-xs text-gray-500 mt-1">
+								Notify me when a stock moves more than this percentage in a short period.
+							</p>
+						</div>
+
+						<label class="flex items-center cursor-pointer">
+							<input
+								type="checkbox"
+								name="breaking_news_outside_window"
+								class="mr-2 cursor-pointer"
+								checked={user.breaking_news_outside_window}
+							/>
+							<span>Allow breaking news outside time window</span>
+						</label>
 					</div>
 				</div>
 			</div>
@@ -381,7 +501,36 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 							"select[name=\"notification_end_hour\"]",
 						) as HTMLSelectElement
 					)?.value || "",
-				tracked_stocks: getTrackedStocksValue(),
+				notification_frequency:
+					(
+						form.querySelector(
+							'input[name="notification_frequency"]:checked',
+						) as HTMLInputElement
+					)?.value || "daily",
+				daily_notification_hour:
+					(
+						form.querySelector(
+							"select[name=\"daily_notification_hour\"]",
+						) as HTMLSelectElement
+					)?.value || "",
+				breaking_news_enabled: (
+					form.querySelector(
+						'input[name="breaking_news_enabled"]',
+					) as HTMLInputElement
+				)?.checked
+					|| false,
+				breaking_news_threshold_percent:
+					(
+						form.querySelector(
+							'input[name="breaking_news_threshold_percent"]',
+						) as HTMLInputElement
+					)?.value || "",
+				breaking_news_outside_window: (
+					form.querySelector(
+						'input[name="breaking_news_outside_window"]',
+					) as HTMLInputElement
+				)?.checked
+					|| false,
 			};
 		}
 
@@ -415,9 +564,14 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 			updateSendButtonState(form);
 		}
 
-		// Listen for input changes on any form field, including tracked_stocks,
+		// Listen for input changes on preference fields only (not tracked_stocks)
 		// to enable/disable Save button and update phone verification button.
-		form.addEventListener("input", () => {
+		form.addEventListener("input", (e) => {
+			// Ignore changes to tracked_stocks input (handled separately)
+			const target = e.target as HTMLElement;
+			if (target.getAttribute("name") === "tracked_stocks") {
+				return;
+			}
 			checkForChanges();
 		});
 
@@ -431,6 +585,45 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 		const hourValidationError = document.getElementById(
 			"hour-validation-error",
 		) as HTMLElement;
+		const dailyHourSelect = form.querySelector(
+			'select[name="daily_notification_hour"]',
+		) as HTMLSelectElement;
+		const dailyHourContainer = document.getElementById(
+			"daily-notification-hour-container",
+		) as HTMLElement;
+		const dailyHourValidationError = document.getElementById(
+			"daily-hour-validation-error",
+		) as HTMLElement;
+
+		// Frequency toggle logic
+		const frequencyRadios = form.querySelectorAll(
+			'input[name="notification_frequency"]',
+		);
+		frequencyRadios.forEach((radio) => {
+			radio.addEventListener("change", (e) => {
+				const target = e.target as HTMLInputElement;
+				if (target.checked) {
+					dailyHourContainer.classList.toggle("hidden", target.value !== "daily");
+					validateDailyHour();
+					checkForChanges();
+				}
+			});
+		});
+
+		// Breaking news toggle logic
+		const breakingNewsCheckbox = form.querySelector(
+			'input[name="breaking_news_enabled"]',
+		) as HTMLInputElement;
+		const breakingNewsSettings = document.getElementById(
+			"breaking-news-settings",
+		) as HTMLElement;
+		
+		if (breakingNewsCheckbox && breakingNewsSettings) {
+			breakingNewsCheckbox.addEventListener("change", () => {
+				breakingNewsSettings.classList.toggle("hidden", !breakingNewsCheckbox.checked);
+				checkForChanges();
+			});
+		}
 
 		function updateEndHourOptions() {
 			if (!startHourSelect || !endHourSelect) return;
@@ -451,6 +644,60 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 			}
 
 			validateHourRelationship();
+			updateDailyHourOptions();
+		}
+
+		function updateDailyHourOptions() {
+			if (!startHourSelect || !endHourSelect || !dailyHourSelect) return;
+
+			const startHour = Number.parseInt(startHourSelect.value, 10);
+			const endHour = Number.parseInt(endHourSelect.value, 10);
+			const currentDailyHour = Number.parseInt(dailyHourSelect.value, 10);
+
+			// Disable invalid options in daily hour select
+			Array.from(dailyHourSelect.options).forEach((option) => {
+				const hour = Number.parseInt(option.value, 10);
+				option.disabled = hour < startHour || hour > endHour;
+			});
+
+			// If current daily hour is invalid, adjust it to startHour
+			if (currentDailyHour < startHour || currentDailyHour > endHour) {
+				dailyHourSelect.value = String(startHour);
+				checkForChanges();
+			}
+			
+			validateDailyHour();
+		}
+
+		function validateDailyHour() {
+			if (!startHourSelect || !endHourSelect || !dailyHourSelect || !dailyHourValidationError) return true;
+
+			// Skip validation if frequency is not daily
+			const frequency = (form.querySelector('input[name="notification_frequency"]:checked') as HTMLInputElement)?.value;
+			if (frequency !== "daily") {
+				dailyHourValidationError.classList.add("hidden");
+				dailyHourSelect.classList.remove("border-red-500");
+				dailyHourSelect.classList.add("border-slate-300");
+				return true;
+			}
+
+			const startHour = Number.parseInt(startHourSelect.value, 10);
+			const endHour = Number.parseInt(endHourSelect.value, 10);
+			const dailyHour = Number.parseInt(dailyHourSelect.value, 10);
+			
+			const isValid = dailyHour >= startHour && dailyHour <= endHour;
+
+			if (isValid) {
+				dailyHourValidationError.classList.add("hidden");
+				dailyHourSelect.classList.remove("border-red-500");
+				dailyHourSelect.classList.add("border-slate-300");
+			} else {
+				dailyHourValidationError.classList.remove("hidden");
+				dailyHourSelect.classList.remove("border-slate-300");
+				dailyHourSelect.classList.add("border-red-500");
+			}
+
+			return isValid;
 		}
 
 		function validateHourRelationship() {
@@ -481,17 +728,31 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 
 			endHourSelect.addEventListener("change", () => {
 				validateHourRelationship();
+				updateDailyHourOptions();
 				checkForChanges();
 			});
+
+			if (dailyHourSelect) {
+				dailyHourSelect.addEventListener("change", () => {
+					validateDailyHour();
+					checkForChanges();
+				});
+			}
 
 			// Initial validation and option update
 			updateEndHourOptions();
 
 			// Prevent form submission if hours are invalid
 			form.addEventListener("submit", (e) => {
-				if (!validateHourRelationship()) {
+				const isHourRelValid = validateHourRelationship();
+				const isDailyHourValid = validateDailyHour();
+				
+				if (!isHourRelValid) {
 					e.preventDefault();
 					endHourSelect.focus();
+				} else if (!isDailyHourValid) {
+					e.preventDefault();
+					dailyHourSelect.focus();
 				}
 			});
 		}

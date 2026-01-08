@@ -24,3 +24,6 @@ node_modules/
 
 # Other
 /.cursor/
+
+# Generated seed file (contains passwords from DEFAULT_PASSWORD env var)
+supabase/seed.sql

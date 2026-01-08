@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { adminClient } from "./setup";
 
 export interface CreateTestUserOptions {
@@ -9,6 +10,7 @@ export interface CreateTestUserOptions {
 	smsNotificationsEnabled?: boolean;
 	notificationStartHour?: number;
 	notificationEndHour?: number;
+	notificationFrequency?: "hourly" | "daily";
 	trackedStocks?: string[];
 }
 
@@ -51,8 +53,9 @@ export async function createTestUser(
 			timezone,
 			email_notifications_enabled: options.emailNotificationsEnabled ?? false,
 			sms_notifications_enabled: options.smsNotificationsEnabled ?? false,
-			notification_start_hour: options.notificationStartHour ?? null,
-			notification_end_hour: options.notificationEndHour ?? null,
+			notification_start_hour: options.notificationStartHour ?? 9,
+			notification_end_hour: options.notificationEndHour ?? 17,
+			notification_frequency: options.notificationFrequency ?? "daily",
 			time_format: options.timeFormat || "12h",
 		},
 		{ onConflict: "id" },
@@ -79,4 +82,38 @@ export async function createTestUser(
 	}
 
 	return { id: userId, email };
+}
+
+export async function createAuthenticatedCookies(
+	email: string,
+	password: string,
+): Promise<Map<string, string>> {
+	const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
+	const supabaseAnonKey = process.env.PUBLIC_SUPABASE_ANON_KEY;
+
+	if (!supabaseUrl || !supabaseAnonKey) {
+		throw new Error("Missing Supabase environment variables");
+	}
+
+	const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false,
+		},
+	});
+
+	const { data, error } = await supabase.auth.signInWithPassword({
+		email,
+		password,
+	});
+
+	if (error || !data.session) {
+		throw new Error(`Failed to sign in: ${error?.message || "Unknown error"}`);
+	}
+
+	const cookies = new Map<string, string>();
+	cookies.set("sb-access-token", data.session.access_token);
+	cookies.set("sb-refresh-token", data.session.refresh_token);
+
+	return cookies;
 }

@@ -1,10 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import type { APIRoute } from "astro";
 
-import { truncateSms } from "../../../lib/format";
 import { createSupabaseAdminClient } from "../../../lib/supabase";
-import { sendUserEmail } from "./email";
-import { createEmailSender, formatEmailMessage } from "./email/utils";
+import { createEmailSender } from "./email/utils";
+import { processEmailUpdate, processSmsUpdate } from "./processing";
 import {
 	type DeliveryMethod,
 	loadUserStocks,
@@ -12,7 +11,7 @@ import {
 	shouldNotifyUser,
 	type UserRecord,
 } from "./shared";
-import { sendUserSms, shouldSendSms } from "./sms";
+import { shouldSendSms } from "./sms";
 import {
 	createSmsSender,
 	createTwilioClient,
@@ -72,6 +71,11 @@ export const POST: APIRoute = async ({ request }) => {
 			timezone,
 			notification_start_hour,
 			notification_end_hour,
+			notification_frequency,
+			daily_notification_hour,
+			breaking_news_enabled,
+			breaking_news_threshold_percent,
+			breaking_news_outside_window,
 			email_notifications_enabled,
 			sms_notifications_enabled
 		`,
@@ -141,31 +145,24 @@ export const POST: APIRoute = async ({ request }) => {
 				const stocksList =
 					userStocks.length === 0
 						? "You don't have any tracked stocks"
-						: userStocks.map((stock) => stock.symbol).join(", ");
+						: userStocks
+								.map((stock) => `${stock.symbol} - ${stock.name}`)
+								.join(", ");
 
 				// Process Email
 				if (user.email_notifications_enabled) {
 					attemptedDeliveryMethod = "email";
-					const message = formatEmailMessage(userStocks, stocksList);
-					const result = await sendUserEmail(
+					const { sent, logged } = await processEmailUpdate(
+						supabase,
 						user,
-						"Your Stock Update",
-						message,
+						userStocks,
+						stocksList,
 						sendEmail,
 					);
 
-					if (result.success) stats.emailsSent++;
+					if (sent) stats.emailsSent++;
 					else stats.emailsFailed++;
 
-					const logged = await recordNotification(supabase, {
-						userId: user.id,
-						type: "scheduled_update",
-						deliveryMethod: "email",
-						messageDelivered: result.success,
-						message: message,
-						error: result.success ? undefined : result.error,
-						errorCode: result.success ? undefined : result.errorCode,
-					});
 					if (!logged) stats.logFailures++;
 				}
 
@@ -187,24 +184,17 @@ export const POST: APIRoute = async ({ request }) => {
 						return stats;
 					}
 
-					const smsMessage = truncateSms(
-						`${userStocks.length > 0 ? "Tracked: " : ""}${stocksList}. Reply STOP to opt out.`,
+					const { sent, logged } = await processSmsUpdate(
+						supabase,
+						user,
+						userStocks,
+						stocksList,
+						smsSender,
 					);
 
-					const result = await sendUserSms(user, smsMessage, smsSender);
-
-					if (result.success) stats.smsSent++;
+					if (sent) stats.smsSent++;
 					else stats.smsFailed++;
 
-					const logged = await recordNotification(supabase, {
-						userId: user.id,
-						type: "scheduled_update",
-						deliveryMethod: "sms",
-						messageDelivered: result.success,
-						message: smsMessage,
-						error: result.success ? undefined : result.error,
-						errorCode: result.success ? undefined : result.errorCode,
-					});
 					if (!logged) stats.logFailures++;
 				}
 				return stats;

@@ -87,6 +87,9 @@ CRON_SECRET=your-random-secret-string
 # Resend Configuration
 RESEND_API_KEY=re_123456789
 EMAIL_FROM=notifications@updates.example.com
+
+# Seed Data (Local Development)
+DEFAULT_PASSWORD=your-strong-local-seed-password
 ```
 
 **Where to find these:**
@@ -99,7 +102,17 @@ EMAIL_FROM=notifications@updates.example.com
 
 **Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. The `.env.local` file (and all `.env*` files) are already excluded from version control via `.gitignore`; keep secrets only in environment files or your deployment platform, not in committed code.
 
-### 4. Start Local Development
+### 4. Generate Seed File
+
+Before starting Supabase, generate the seed file (this uses your `DEFAULT_PASSWORD` from `.env.local`):
+
+```bash
+npm run db:generate-seed
+```
+
+This creates `supabase/seed.sql` with test user data. **Note:** This file is gitignored and should not be committed.
+
+### 5. Start Local Development
 
 Start the local Supabase instance and the Astro development server:
 
@@ -128,7 +141,7 @@ This is useful for:
 - Inspecting email content and formatting
 - Testing without sending real emails
 
-### 5. (Optional) Update Stock Tickers
+### 6. (Optional) Update Stock Tickers
 
 The database is pre-seeded with stock data. If you need to update the list of available stocks:
 
@@ -141,6 +154,13 @@ The database is pre-seeded with stock data. If you need to update the list of av
    ```bash
    npx supabase db reset
    ```
+
+**Important Notes:**
+- `supabase/seed.sql` is **auto-generated** by `scripts/generate-seed.ts` and is **gitignored** (not committed to source control)
+- The seed file includes test user passwords that are generated from the `DEFAULT_PASSWORD` environment variable
+- SQL files cannot access environment variables directly, which is why we use the generation script
+- Always regenerate `seed.sql` using `npm run db:generate-seed` after updating `scripts/users.json` or `scripts/us-stocks.json`
+- Each developer should generate their own `seed.sql` using their local `DEFAULT_PASSWORD` from `.env.local`
 
 ## Usage
 
@@ -159,7 +179,7 @@ The database is pre-seeded with stock data. If you need to update the list of av
 - `POST /api/auth/email/forgot-password` - Request password reset
 - `POST /api/auth/email/resend-verification` - Resend verification email
 - `POST /api/auth/signin` - User sign in
-- `POST /api/auth/signout` - User logout
+- `POST /api/auth/signout` - User sign out
 - `POST /api/auth/delete-account` - Delete user account
 - `POST /api/auth/sms/send-verification` - Send SMS verification code
 - `POST /api/auth/sms/verify-code` - Verify SMS code

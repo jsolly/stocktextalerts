@@ -16,6 +16,7 @@ describe("Scheduled Notifications Integration", () => {
 			smsNotificationsEnabled: false,
 			notificationStartHour: 0,
 			notificationEndHour: 23,
+			notificationFrequency: "hourly",
 			timeFormat: "12h",
 			trackedStocks: ["AAPL"],
 		});

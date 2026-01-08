@@ -43,6 +43,13 @@ type IntegerFieldSpec = {
 	max?: number;
 };
 
+type NumberFieldSpec = {
+	type: "number";
+	required?: boolean;
+	min?: number;
+	max?: number;
+};
+
 type HourFieldSpec = {
 	type: "hour";
 	required?: boolean;
@@ -61,6 +68,7 @@ export type FieldSpec<TValues extends readonly string[] = readonly string[]> =
 	| EnumFieldSpec<TValues>
 	| TimezoneFieldSpec
 	| IntegerFieldSpec
+	| NumberFieldSpec
 	| HourFieldSpec
 	| JsonStringArrayFieldSpec;
 
@@ -75,13 +83,15 @@ type InferField<TSpec> = TSpec extends {
 		? boolean
 		: TSpec extends { type: "integer" }
 			? number
-			: TSpec extends { type: "timezone" }
-				? string | null
-				: TSpec extends { type: "hour" }
-					? Hour
-					: TSpec extends { type: "json_string_array" }
-						? string[]
-						: string;
+			: TSpec extends { type: "number" }
+				? number
+				: TSpec extends { type: "timezone" }
+					? string | null
+					: TSpec extends { type: "hour" }
+						? Hour
+						: TSpec extends { type: "json_string_array" }
+							? string[]
+							: string;
 
 type RequiredFields<TSchema extends FormSchema> = {
 	[K in keyof TSchema as TSchema[K] extends { required: true }
@@ -389,6 +399,59 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 				if (typeof spec.max === "number" && parsedValue > spec.max) {
 					errors.push({
 						reason: "integer_above_max",
+						key,
+						max: spec.max,
+						value: parsedValue,
+					});
+					break;
+				}
+
+				output[key] = parsedValue;
+				break;
+			}
+			case "number": {
+				const trimmed = raw.trim();
+				if (trimmed === "") {
+					if (spec.required) {
+						errors.push({ reason: "missing_field", key });
+					} else {
+						output[key] = undefined;
+					}
+					break;
+				}
+
+				if (!/^-?\d*(\.\d+)?$/.test(trimmed)) {
+					errors.push({
+						reason: "invalid_number",
+						key,
+						value: raw,
+					});
+					break;
+				}
+
+				const parsedValue = Number.parseFloat(trimmed);
+				if (Number.isNaN(parsedValue)) {
+					errors.push({
+						reason: "invalid_number",
+						key,
+						value: raw,
+					});
+					break;
+				}
+
+				if (typeof spec.min === "number" && parsedValue < spec.min) {
+					errors.push({
+						reason: "number_below_min",
+						key,
+						min: spec.min,
+						value: parsedValue,
+					});
+					break;
+				}
+
+				if (typeof spec.max === "number" && parsedValue > spec.max) {
+					errors.push({
+						reason: "number_above_max",
 						key,
 						max: spec.max,
 						value: parsedValue,

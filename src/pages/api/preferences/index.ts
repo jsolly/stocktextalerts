@@ -38,6 +38,14 @@ export function createPreferencesHandler(
 			timezone: { type: "timezone" },
 			notification_start_hour: { type: "hour" },
 			notification_end_hour: { type: "hour" },
+			notification_frequency: {
+				type: "enum",
+				values: ["hourly", "daily"] as const,
+			},
+			daily_notification_hour: { type: "hour" },
+			breaking_news_enabled: { type: "boolean" },
+			breaking_news_threshold_percent: { type: "number", min: 0.1, max: 100 },
+			breaking_news_outside_window: { type: "boolean" },
 			time_format: { type: "enum", values: ["12h", "24h"] as const },
 			tracked_stocks: { type: "json_string_array" },
 		} as const satisfies FormSchema;
@@ -49,6 +57,11 @@ export function createPreferencesHandler(
 				timezone: body.timezone,
 				notification_start_hour: body.notification_start_hour,
 				notification_end_hour: body.notification_end_hour,
+				notification_frequency: body.notification_frequency,
+				daily_notification_hour: body.daily_notification_hour,
+				breaking_news_enabled: body.breaking_news_enabled,
+				breaking_news_threshold_percent: body.breaking_news_threshold_percent,
+				breaking_news_outside_window: body.breaking_news_outside_window,
 				time_format: body.time_format,
 			}),
 			trackedSymbols: body.tracked_stocks,
@@ -62,6 +75,42 @@ export function createPreferencesHandler(
 		}
 
 		const { preferenceUpdates, trackedSymbols } = parsed.data;
+
+		// Validate daily hour is within window
+		if (
+			preferenceUpdates.notification_frequency === "daily" &&
+			preferenceUpdates.daily_notification_hour !== undefined
+		) {
+			const dbUser = await userService.getById(user.id);
+			if (!dbUser) {
+				return redirect("/dashboard?error=user_not_found");
+			}
+			const start =
+				preferenceUpdates.notification_start_hour ??
+				dbUser.notification_start_hour;
+			const end =
+				preferenceUpdates.notification_end_hour ?? dbUser.notification_end_hour;
+			const daily = preferenceUpdates.daily_notification_hour;
+
+			if (daily !== null) {
+				const isInWindow =
+					start <= end
+						? daily >= start && daily <= end // Linear window
+						: daily >= start || daily <= end; // Wraparound window
+
+				if (!isInWindow) {
+					console.error(
+						"Preferences update rejected: daily hour outside window",
+						{
+							daily,
+							start,
+							end,
+						},
+					);
+					return redirect("/dashboard?error=invalid_form");
+				}
+			}
+		}
 
 		const safePreferenceUpdates = {
 			...preferenceUpdates,
