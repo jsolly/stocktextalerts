@@ -143,7 +143,7 @@ describe("POST /api/auth/email/register", () => {
 			throw new Error("No auth user found");
 
 		// Verify email is NOT confirmed initially
-		expect(authUserData.user.email_confirmed_at == null).toBe(true);
+		expect(authUserData.user.email_confirmed_at).toBeUndefined();
 
 		// Simulate email verification by updating the user's email_confirmed_at
 		const { data: updatedUserData, error: updateError } =

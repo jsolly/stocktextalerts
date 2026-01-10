@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { User } from "../../../lib/users";
 
 export type DeliveryMethod = "email" | "sms";
 
@@ -16,23 +17,46 @@ export interface NotificationLogEntry {
 	errorCode?: string;
 }
 
-export interface UserRecord {
-	id: string;
-	email: string;
-	phone_country_code: string | null;
-	phone_number: string | null;
-	phone_verified: boolean;
-	sms_opted_out: boolean;
-	timezone: string | null;
+export type UserRecord = Pick<
+	User,
+	| "id"
+	| "email"
+	| "phone_country_code"
+	| "phone_number"
+	| "phone_verified"
+	| "sms_opted_out"
+	| "timezone"
+	| "notification_frequency"
+	| "email_notifications_enabled"
+	| "sms_notifications_enabled"
+	| "breaking_news_enabled"
+	| "breaking_news_threshold_percent"
+	| "breaking_news_outside_window"
+> & {
 	notification_start_hour: number;
 	notification_end_hour: number;
-	email_notifications_enabled: boolean;
-	sms_notifications_enabled: boolean;
-	notification_frequency: "hourly" | "daily";
 	daily_notification_hour: number | null;
-	breaking_news_enabled: boolean;
-	breaking_news_threshold_percent: number | null;
-	breaking_news_outside_window: boolean;
+};
+
+export function toUserRecord(user: User): UserRecord {
+	return {
+		id: user.id,
+		email: user.email,
+		phone_country_code: user.phone_country_code,
+		phone_number: user.phone_number,
+		phone_verified: user.phone_verified,
+		sms_opted_out: user.sms_opted_out,
+		timezone: user.timezone,
+		notification_frequency: user.notification_frequency,
+		email_notifications_enabled: user.email_notifications_enabled,
+		sms_notifications_enabled: user.sms_notifications_enabled,
+		breaking_news_enabled: user.breaking_news_enabled,
+		breaking_news_threshold_percent: user.breaking_news_threshold_percent,
+		breaking_news_outside_window: user.breaking_news_outside_window,
+		notification_start_hour: user.notification_start_hour as number,
+		notification_end_hour: user.notification_end_hour as number,
+		daily_notification_hour: user.daily_notification_hour as number | null,
+	};
 }
 
 export interface UserStockRow {

@@ -275,27 +275,15 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 						>
 							Preferred Hour (during window)
 						</label>
-						<select
+						<input
+							type="number"
 							id="daily_notification_hour"
 							name="daily_notification_hour"
-							class="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
-						>
-							{hours.map((hour) => (
-								<option
-									value={hour}
-									selected={(user.daily_notification_hour ?? user.notification_start_hour) === hour}
-								>
-									{String(hour).padStart(2, "0")}:00
-								</option>
-							))}
-						</select>
-						<div
-							id="daily-hour-validation-error"
-							class="hidden mt-2 text-sm text-red-600"
-							role="alert"
-						>
-							Daily notification hour must be within your time window.
-						</div>
+							min={user.notification_start_hour}
+							max={user.notification_end_hour}
+							value={user.daily_notification_hour ?? user.notification_start_hour}
+							class="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+						/>
 					</div>
 				</div>
 			</div>
@@ -344,13 +332,6 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 							</option>
 						))}
 					</select>
-					<div
-						id="hour-validation-error"
-						class="hidden mt-2 text-sm text-red-600"
-						role="alert"
-					>
-						End hour must be greater than or equal to start hour.
-					</div>
 				</div>
 			</div>
 
@@ -455,19 +436,6 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 			"save-button",
 		) as HTMLButtonElement;
 		if (!saveButton) return;
-		const initialTrackedStocksJson =
-			saveButton.dataset.initialTrackedStocks ?? "[]";
-
-		function getTrackedStocksValue() {
-			const input = form.querySelector(
-				'input[name="tracked_stocks"]',
-			) as HTMLInputElement | null;
-			if (!input) {
-				return initialTrackedStocksJson;
-			}
-
-			return input.value ?? "";
-		}
 
 		function readFormValues() {
 			return {
@@ -510,8 +478,8 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 				daily_notification_hour:
 					(
 						form.querySelector(
-							"select[name=\"daily_notification_hour\"]",
-						) as HTMLSelectElement
+							"input[name=\"daily_notification_hour\"]",
+						) as HTMLInputElement
 					)?.value || "",
 				breaking_news_enabled: (
 					form.querySelector(
@@ -582,17 +550,11 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 		const endHourSelect = form.querySelector(
 			'select[name="notification_end_hour"]',
 		) as HTMLSelectElement;
-		const hourValidationError = document.getElementById(
-			"hour-validation-error",
-		) as HTMLElement;
-		const dailyHourSelect = form.querySelector(
-			'select[name="daily_notification_hour"]',
-		) as HTMLSelectElement;
+		const dailyHourInput = form.querySelector(
+			'input[name="daily_notification_hour"]',
+		) as HTMLInputElement;
 		const dailyHourContainer = document.getElementById(
 			"daily-notification-hour-container",
-		) as HTMLElement;
-		const dailyHourValidationError = document.getElementById(
-			"daily-hour-validation-error",
 		) as HTMLElement;
 
 		// Frequency toggle logic
@@ -604,7 +566,7 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 				const target = e.target as HTMLInputElement;
 				if (target.checked) {
 					dailyHourContainer.classList.toggle("hidden", target.value !== "daily");
-					validateDailyHour();
+					updateDailyHourConstraints();
 					checkForChanges();
 				}
 			});
@@ -631,93 +593,29 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 			const startHour = Number.parseInt(startHourSelect.value, 10);
 			const currentEndHour = Number.parseInt(endHourSelect.value, 10);
 
-			// Disable invalid options in end hour select
+			// Disable invalid options in end hour select (end must be >= start per DB constraint)
 			Array.from(endHourSelect.options).forEach((option) => {
 				const hour = Number.parseInt(option.value, 10);
 				option.disabled = hour < startHour;
 			});
 
-			// If current end hour is invalid, adjust it
+			// If current end hour is invalid, adjust it to start hour
 			if (currentEndHour < startHour) {
 				endHourSelect.value = String(startHour);
 				checkForChanges();
 			}
 
-			validateHourRelationship();
-			updateDailyHourOptions();
+			updateDailyHourConstraints();
 		}
 
-		function updateDailyHourOptions() {
-			if (!startHourSelect || !endHourSelect || !dailyHourSelect) return;
+		function updateDailyHourConstraints() {
+			if (!startHourSelect || !endHourSelect || !dailyHourInput) return;
 
 			const startHour = Number.parseInt(startHourSelect.value, 10);
 			const endHour = Number.parseInt(endHourSelect.value, 10);
-			const currentDailyHour = Number.parseInt(dailyHourSelect.value, 10);
 
-			// Disable invalid options in daily hour select
-			Array.from(dailyHourSelect.options).forEach((option) => {
-				const hour = Number.parseInt(option.value, 10);
-				option.disabled = hour < startHour || hour > endHour;
-			});
-
-			// If current daily hour is invalid, adjust it to startHour
-			if (currentDailyHour < startHour || currentDailyHour > endHour) {
-				dailyHourSelect.value = String(startHour);
-				checkForChanges();
-			}
-			
-			validateDailyHour();
-		}
-
-		function validateDailyHour() {
-			if (!startHourSelect || !endHourSelect || !dailyHourSelect || !dailyHourValidationError) return true;
-
-			// Skip validation if frequency is not daily
-			const frequency = (form.querySelector('input[name="notification_frequency"]:checked') as HTMLInputElement)?.value;
-			if (frequency !== "daily") {
-				dailyHourValidationError.classList.add("hidden");
-				dailyHourSelect.classList.remove("border-red-500");
-				dailyHourSelect.classList.add("border-slate-300");
-				return true;
-			}
-
-			const startHour = Number.parseInt(startHourSelect.value, 10);
-			const endHour = Number.parseInt(endHourSelect.value, 10);
-			const dailyHour = Number.parseInt(dailyHourSelect.value, 10);
-			
-			const isValid = dailyHour >= startHour && dailyHour <= endHour;
-
-			if (isValid) {
-				dailyHourValidationError.classList.add("hidden");
-				dailyHourSelect.classList.remove("border-red-500");
-				dailyHourSelect.classList.add("border-slate-300");
-			} else {
-				dailyHourValidationError.classList.remove("hidden");
-				dailyHourSelect.classList.remove("border-slate-300");
-				dailyHourSelect.classList.add("border-red-500");
-			}
-
-			return isValid;
-		}
-
-		function validateHourRelationship() {
-			if (!startHourSelect || !endHourSelect || !hourValidationError) return;
-
-			const startHour = Number.parseInt(startHourSelect.value, 10);
-			const endHour = Number.parseInt(endHourSelect.value, 10);
-			const isValid = endHour >= startHour;
-
-			if (isValid) {
-				hourValidationError.classList.add("hidden");
-				endHourSelect.classList.remove("border-red-500");
-				endHourSelect.classList.add("border-slate-300");
-			} else {
-				hourValidationError.classList.remove("hidden");
-				endHourSelect.classList.remove("border-slate-300");
-				endHourSelect.classList.add("border-red-500");
-			}
-
-			return isValid;
+			dailyHourInput.min = String(startHour);
+			dailyHourInput.max = String(endHour);
 		}
 
 		if (startHourSelect && endHourSelect) {
@@ -727,38 +625,27 @@ const hours = Array.from({ length: 24 }, (_, index) => index);
 			});
 
 			endHourSelect.addEventListener("change", () => {
-				validateHourRelationship();
-				updateDailyHourOptions();
+				// Ensure end >= start (DB constraint: notification_start_hour <= notification_end_hour)
+				const startHour = Number.parseInt(startHourSelect.value, 10);
+				const endHour = Number.parseInt(endHourSelect.value, 10);
+				if (endHour < startHour) {
+					endHourSelect.value = String(startHour);
+					checkForChanges();
+				}
+				updateDailyHourConstraints();
 				checkForChanges();
 			});
 
-			if (dailyHourSelect) {
-				dailyHourSelect.addEventListener("change", () => {
-					validateDailyHour();
+			if (dailyHourInput) {
+				dailyHourInput.addEventListener("change", () => {
 					checkForChanges();
 				});
 			}
 
-			// Initial validation and option update
+			// Initial option update
 			updateEndHourOptions();
-
-			// Prevent form submission if hours are invalid
-			form.addEventListener("submit", (e) => {
-				const isHourRelValid = validateHourRelationship();
-				const isDailyHourValid = validateDailyHour();
-				
-				if (!isHourRelValid) {
-					e.preventDefault();
-					endHourSelect.focus();
-				} else if (!isDailyHourValid) {
-					e.preventDefault();
-					dailyHourSelect.focus();
-				}
-			});
 		}
 
 		checkForChanges();
 	});
 </script>
-
-

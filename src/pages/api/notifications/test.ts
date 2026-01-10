@@ -1,12 +1,16 @@
 import type { APIRoute } from "astro";
 import {
+	checkAndIncrementRateLimit,
+	ONE_HOUR_SECONDS,
+} from "../../../lib/rate-limit";
+import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
 import { createEmailSender } from "./email/utils";
 import { processEmailUpdate, processSmsUpdate } from "./processing";
-import { loadUserStocks, type UserRecord } from "./shared";
+import { loadUserStocks, toUserRecord } from "./shared";
 import {
 	createSmsSender,
 	createTwilioClient,
@@ -19,24 +23,72 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 	const authUser = await userService.getCurrentUser();
 
 	if (!authUser) {
-		return new Response("Unauthorized", { status: 401 });
+		return new Response(
+			JSON.stringify({ success: false, error: "Unauthorized" }),
+			{
+				status: 401,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
+	}
+
+	// Rate limit: 5 test notifications per hour per user
+	const limitResult = await checkAndIncrementRateLimit(
+		`test-notification:${authUser.id}`,
+		ONE_HOUR_SECONDS,
+		5,
+	);
+
+	if (!limitResult.allowed) {
+		const now = new Date();
+		const durationSeconds = Math.ceil(
+			(limitResult.resetTime.getTime() - now.getTime()) / 1000,
+		);
+		return new Response(
+			JSON.stringify({
+				success: false,
+				error: `Rate limit exceeded. Try again in ${durationSeconds} seconds.`,
+			}),
+			{
+				status: 429,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 	}
 
 	const user = await userService.getById(authUser.id);
 	if (!user) {
-		return new Response("User not found", { status: 404 });
+		return new Response(
+			JSON.stringify({ success: false, error: "User not found" }),
+			{
+				status: 404,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 	}
 
 	let body: { type?: string };
 	try {
 		body = await request.json();
 	} catch {
-		return new Response("Invalid JSON", { status: 400 });
+		return new Response(
+			JSON.stringify({ success: false, error: "Invalid JSON" }),
+			{
+				status: 400,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 	}
 
 	const { type } = body;
 	if (type !== "email" && type !== "sms") {
-		return new Response("Invalid notification type", { status: 400 });
+		return new Response(
+			JSON.stringify({ success: false, error: "Invalid notification type" }),
+			{
+				status: 400,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 	}
 
 	// Use admin client for processing to bypass RLS on notification_log
@@ -44,7 +96,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
 	const userStocks = await loadUserStocks(adminSupabase, user.id);
 	if (userStocks === null) {
-		return new Response("Failed to load stocks", { status: 500 });
+		return new Response(
+			JSON.stringify({ success: false, error: "Failed to load stocks" }),
+			{
+				status: 500,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 	}
 
 	const stocksList =
@@ -53,16 +111,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			: userStocks.map((stock) => `${stock.symbol} - ${stock.name}`).join(", ");
 
 	try {
+		const userRecord = toUserRecord(user);
 		let sent = false;
 		let logged = false;
 
 		if (type === "email") {
 			const sendEmail = createEmailSender();
-			// Cast user to UserRecord to satisfy UserRecord vs User branding mismatch
-			// This is safe because User (from DB) has all fields required by UserRecord
 			const result = await processEmailUpdate(
 				adminSupabase,
-				user as UserRecord,
+				userRecord,
 				userStocks,
 				stocksList,
 				sendEmail,
@@ -76,7 +133,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
 			const result = await processSmsUpdate(
 				adminSupabase,
-				user as UserRecord,
+				userRecord,
 				userStocks,
 				stocksList,
 				sendSms,
@@ -91,18 +148,28 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 					success: false,
 					error: `Failed to send ${type === "email" ? "email" : "SMS"}`,
 				}),
-				{ status: 500 },
+				{
+					status: 500,
+					headers: { "Content-Type": "application/json" },
+				},
 			);
 		}
 
 		return new Response(JSON.stringify({ success: true, logged }), {
 			status: 200,
+			headers: { "Content-Type": "application/json" },
 		});
 	} catch (error) {
 		console.error("Test notification error:", error);
 		return new Response(
-			JSON.stringify({ success: false, error: String(error) }),
-			{ status: 500 },
+			JSON.stringify({
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			}),
+			{
+				status: 500,
+				headers: { "Content-Type": "application/json" },
+			},
 		);
 	}
 };

@@ -1,5 +1,7 @@
 import { createSupabaseAdminClient } from "./supabase";
 
+export const ONE_HOUR_SECONDS = 3600;
+
 export interface RateLimitResult {
 	allowed: boolean;
 	remaining: number;
@@ -7,7 +9,7 @@ export interface RateLimitResult {
 	error?: unknown;
 }
 
-export async function checkRateLimit(
+export async function checkAndIncrementRateLimit(
 	key: string,
 	windowSeconds: number,
 	limit: number,

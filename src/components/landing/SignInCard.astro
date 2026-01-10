@@ -17,8 +17,6 @@ const isUserNotFound = errorCode === "user_not_found";
 const registerUrl = emailPrefill
 	? `/auth/register?email=${encodeURIComponent(emailPrefill)}`
 	: "/auth/register";
-
-const displayMessage = errorMessage;
 ---
 
 <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg border border-gray-200 p-8 mb-20">
@@ -28,9 +26,9 @@ const displayMessage = errorMessage;
       <p class="text-sm font-medium text-green-800">{successMessage}</p>
     </div>
   )}
-  {displayMessage && (
+  {errorMessage && (
     <div class="mb-4 rounded-md bg-red-50 p-4" role="alert">
-      <p class="text-sm font-medium text-red-800">{displayMessage}</p>
+      <p class="text-sm font-medium text-red-800">{errorMessage}</p>
       {isUserNotFound && (
         <a
           href={registerUrl}

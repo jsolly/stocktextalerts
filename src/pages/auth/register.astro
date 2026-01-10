@@ -150,6 +150,8 @@ if (error) {
 </Layout>
 
 <script>
+	let interval: ReturnType<typeof setInterval> | undefined;
+
 	document.addEventListener('DOMContentLoaded', () => {
 		const form = document.getElementById('register-form');
 		const timezoneInput = document.getElementById('timezone');
@@ -208,7 +210,12 @@ if (error) {
 					return;
 				}
 				let remainingSeconds = parsedSeconds;
-				let interval: ReturnType<typeof setInterval> | undefined;
+
+				// Clear any existing interval to prevent race conditions
+				if (interval) {
+					clearInterval(interval);
+					interval = undefined;
+				}
 				
 				function formatDuration(seconds: number): string {
 					if (seconds <= 0) return 'now';

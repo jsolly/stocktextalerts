@@ -76,42 +76,6 @@ export function createPreferencesHandler(
 
 		const { preferenceUpdates, trackedSymbols } = parsed.data;
 
-		// Validate daily hour is within window
-		if (
-			preferenceUpdates.notification_frequency === "daily" &&
-			preferenceUpdates.daily_notification_hour !== undefined
-		) {
-			const dbUser = await userService.getById(user.id);
-			if (!dbUser) {
-				return redirect("/dashboard?error=user_not_found");
-			}
-			const start =
-				preferenceUpdates.notification_start_hour ??
-				dbUser.notification_start_hour;
-			const end =
-				preferenceUpdates.notification_end_hour ?? dbUser.notification_end_hour;
-			const daily = preferenceUpdates.daily_notification_hour;
-
-			if (daily !== null) {
-				const isInWindow =
-					start <= end
-						? daily >= start && daily <= end // Linear window
-						: daily >= start || daily <= end; // Wraparound window
-
-				if (!isInWindow) {
-					console.error(
-						"Preferences update rejected: daily hour outside window",
-						{
-							daily,
-							start,
-							end,
-						},
-					);
-					return redirect("/dashboard?error=invalid_form");
-				}
-			}
-		}
-
 		const safePreferenceUpdates = {
 			...preferenceUpdates,
 			email_notifications_enabled:

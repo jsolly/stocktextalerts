@@ -11,7 +11,9 @@ const vercelUrl =
 		? loadEnv("development", process.cwd(), "").VERCEL_URL
 		: undefined);
 
-if (!vercelUrl) {
+const isCI = process.env.CI === "true";
+
+if (!vercelUrl && !isCI) {
 	throw new Error(
 		"VERCEL_URL is not configured. VERCEL_URL is automatically set by Vercel. For local development, set VERCEL_URL=http://localhost:4321 in your .env.local file.",
 	);
@@ -19,10 +21,12 @@ if (!vercelUrl) {
 
 // VERCEL_URL from Vercel is just the hostname (e.g., "stocktextalerts.com")
 // Locally, it should include the protocol (e.g., "http://localhost:4321")
-const site =
-	vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://")
-		? vercelUrl
-		: `https://${vercelUrl}`;
+// In CI, use an explicit placeholder if VERCEL_URL is not available
+const site = isCI && !vercelUrl
+	? "https://placeholder.example.com"
+	: vercelUrl!.startsWith("http://") || vercelUrl!.startsWith("https://")
+		? vercelUrl!
+		: `https://${vercelUrl!}`;
 
 // https://astro.build/config
 export default defineConfig({

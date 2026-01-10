@@ -3,14 +3,20 @@ import { createSupabaseServerClient } from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
 import { type FormSchema, parseWithSchema } from "../form-utils";
 
-export const POST: APIRoute = async ({ request, cookies, redirect }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
 	const supabase = createSupabaseServerClient();
 	const userService = createUserService(supabase, cookies);
 
 	const user = await userService.getCurrentUser();
 	if (!user) {
 		console.error("Stocks update attempt without authenticated user");
-		return redirect("/?error=unauthorized&returnTo=/dashboard");
+		return new Response(
+			JSON.stringify({ success: false, error: "Unauthorized" }),
+			{
+				status: 401,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 	}
 
 	const formData = await request.formData();

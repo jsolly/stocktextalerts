@@ -83,6 +83,12 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   CONSTRAINT notification_hours_order CHECK (notification_start_hour <= notification_end_hour),
+  CONSTRAINT daily_hour_in_window CHECK (
+    notification_frequency != 'daily' OR 
+    daily_notification_hour IS NULL OR
+    (daily_notification_hour >= notification_start_hour AND 
+     daily_notification_hour <= notification_end_hour)
+  ),
   CONSTRAINT phone_country_code_format CHECK (phone_country_code ~ '^\+[0-9]{1,4}$'),
   CONSTRAINT phone_number_format CHECK (phone_number ~ '^[0-9]{10,14}$'),
   CONSTRAINT unique_phone UNIQUE (phone_country_code, phone_number),

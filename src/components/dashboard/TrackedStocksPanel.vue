@@ -29,7 +29,7 @@
 					</button>
 				</div>
 			</div>
-			<div v-if="saveStatus" class="mt-3 text-sm" :class="saveStatus === 'saving' ? 'text-gray-600' : saveStatus === 'success' ? 'text-green-600' : 'text-red-600'">
+			<div v-if="saveStatus" class="mt-3 text-sm" :class="statusClass">
 				<span v-if="saveStatus === 'saving'">Saving...</span>
 				<span v-else-if="saveStatus === 'success'">Saved</span>
 				<span v-else-if="saveStatus === 'error'">Failed to save. Please try again.</span>
@@ -39,9 +39,11 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import StockInput, { type StockOption } from "./StockInput.vue";
+
+const SUCCESS_MESSAGE_DISPLAY_DURATION_MS = 2000;
 
 interface Props {
 	stockOptions: StockOption[];
@@ -57,6 +59,75 @@ const saveStatus = ref<"saving" | "success" | "error" | null>(null);
 let statusTimeout: ReturnType<typeof setTimeout> | null = null;
 let abortController: AbortController | null = null;
 
+const statusClass = computed(() => {
+	switch (saveStatus.value) {
+		case "saving":
+			return "text-gray-600";
+		case "success":
+			return "text-green-600";
+		case "error":
+			return "text-red-600";
+		default:
+			return "";
+	}
+});
+
+const performSave = async () => {
+	if (statusTimeout) {
+		clearTimeout(statusTimeout);
+		statusTimeout = null;
+	}
+
+	pendingSave.value = false;
+	saveStatus.value = "saving";
+
+	abortController = new AbortController();
+
+	try {
+		const formData = new FormData();
+		formData.append("tracked_stocks", JSON.stringify(trackedSymbols.value));
+
+		const response = await fetch("/api/preferences/stocks", {
+			method: "POST",
+			body: formData,
+			signal: abortController.signal,
+		});
+
+		const data = await response.json();
+
+		if (response.ok && data.success) {
+			if (!pendingSave.value) {
+				saveStatus.value = "success";
+				// Clear success message after 2s, but only if no new save is pending
+				// (timeout is cleared at start of loop if a new save begins)
+				statusTimeout = setTimeout(() => {
+					saveStatus.value = null;
+					statusTimeout = null;
+				}, SUCCESS_MESSAGE_DISPLAY_DURATION_MS);
+			}
+		} else {
+			if (!pendingSave.value) {
+				saveStatus.value = "error";
+			}
+		}
+	} catch (error) {
+		// Ignore aborted requests (component unmounted)
+		if (error instanceof Error && error.name === "AbortError") {
+			return;
+		}
+		console.error("Failed to save stocks:", error);
+		if (!pendingSave.value) {
+			saveStatus.value = "error";
+		}
+	}
+
+	if (pendingSave.value) {
+		await performSave();
+	} else {
+		isSaving.value = false;
+	}
+};
+
 const saveStocks = async () => {
 	if (isSaving.value) {
 		pendingSave.value = true;
@@ -64,62 +135,7 @@ const saveStocks = async () => {
 	}
 
 	isSaving.value = true;
-
-	while (true) {
-		if (statusTimeout) {
-			clearTimeout(statusTimeout);
-			statusTimeout = null;
-		}
-
-		pendingSave.value = false;
-		saveStatus.value = "saving";
-
-		abortController = new AbortController();
-
-		try {
-			const formData = new FormData();
-			formData.append("tracked_stocks", JSON.stringify(trackedSymbols.value));
-
-			const response = await fetch("/api/preferences/stocks", {
-				method: "POST",
-				body: formData,
-				signal: abortController.signal,
-			});
-
-			const data = await response.json();
-
-			if (response.ok && data.success) {
-				if (!pendingSave.value) {
-					saveStatus.value = "success";
-					// Clear success message after 2s, but only if no new save is pending
-					// (timeout is cleared at start of loop if a new save begins)
-					statusTimeout = setTimeout(() => {
-						saveStatus.value = null;
-						statusTimeout = null;
-					}, 2000);
-				}
-			} else {
-				if (!pendingSave.value) {
-					saveStatus.value = "error";
-				}
-			}
-		} catch (error) {
-			// Ignore aborted requests (component unmounted)
-			if (error instanceof Error && error.name === "AbortError") {
-				return;
-			}
-			console.error("Failed to save stocks:", error);
-			if (!pendingSave.value) {
-				saveStatus.value = "error";
-			}
-		}
-
-		if (!pendingSave.value) {
-			break;
-		}
-	}
-
-	isSaving.value = false;
+	await performSave();
 };
 
 const handleSelect = (symbol: string) => {

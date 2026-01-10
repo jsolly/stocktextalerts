@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Stock } from '../src/lib/stocks';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -51,20 +53,55 @@ ON CONFLICT (symbol) DO NOTHING;
 `;
 }
 
-function generateUsersSql(users: SeedUser[]): string {
+async function listAllAuthUsers(supabase: SupabaseClient) {
+  const perPage = 1000;
+  const maxPages = 100;
+  let page = 1;
+  const users: User[] = [];
+
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+
+    const batch = data.users ?? [];
+    users.push(...batch);
+
+    if (batch.length < perPage) break;
+    
+    page += 1;
+    if (page > maxPages) {
+      throw new Error(`listAllAuthUsers: Maximum page limit (${maxPages}) reached. This may indicate API misbehavior or unexpectedly large user count. Accumulated ${users.length} users before limit was hit.`);
+    }
+  }
+
+  return users;
+}
+
+async function generateUsersSql(
+  users: SeedUser[],
+  supabase: SupabaseClient,
+): Promise<string> {
   if (users.length === 0) return '';
 
   const defaultPassword = process.env.DEFAULT_PASSWORD;
   if (!defaultPassword) {
     throw new Error('DEFAULT_PASSWORD environment variable is not defined in .env.local');
   }
-  const password = defaultPassword;
+
+  const existingUsers = await listAllAuthUsers(supabase);
+  const existingUserIdByEmail = new Map(
+    existingUsers
+      .map((u) => [u.email?.toLowerCase(), u.id] as const)
+      .filter(([email]) => Boolean(email)),
+  );
 
   let sql = '';
 
   for (const user of users) {
-    const userEmail = escapeSql(user.email);
-    const userPassword = escapeSql(user.password || password);
+    const userEmailRaw = user.email.trim();
+    const userEmailLookup = userEmailRaw.toLowerCase();
+    const userEmail = escapeSql(userEmailRaw);
+    const userPassword = escapeSql(user.password || defaultPassword);
     const timezone = escapeSql(user.timezone || 'America/New_York');
     const emailNotificationsEnabled = user.email_notifications_enabled ?? false;
     const smsNotificationsEnabled = user.sms_notifications_enabled ?? false;
@@ -75,11 +112,18 @@ function generateUsersSql(users: SeedUser[]): string {
     const dailyNotificationHour = user.daily_notification_hour ?? 9;
     const trackedStocks = user.tracked_stocks || [];
 
-    // 1. Insert into auth.users
+    // If user exists, use their ID. If not, generate a new UUID for the seed file.
+    // We do NOT create the user here. The seed file will handle creation.
+    const userId = existingUserIdByEmail.get(userEmailLookup) || crypto.randomUUID();
+
+    // Generate SQL for public.users and user_stocks (using the user ID from Admin API)
+    sql += `-- User: ${userEmail} (ID: ${userId})\n`;
+
+    // Add auth.users insert for database reset capability
     sql += `
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = '${userEmail}') THEN
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = '${userId}') THEN
     INSERT INTO auth.users (
       instance_id,
       id,
@@ -100,7 +144,7 @@ BEGIN
       recovery_token
     ) VALUES (
       '00000000-0000-0000-0000-000000000000',
-      gen_random_uuid(),
+      '${userId}',
       'authenticated',
       'authenticated',
       '${userEmail}',
@@ -119,10 +163,7 @@ BEGIN
     );
   END IF;
 END $$;
-`;
 
-    // 2. Insert into auth.identities
-    sql += `
 INSERT INTO auth.identities (
   id,
   user_id,
@@ -134,23 +175,51 @@ INSERT INTO auth.identities (
   updated_at
 )
 SELECT
-  id,
-  id,
-  format('{"sub":"%s","email":"%s"}', id, email)::jsonb,
+  gen_random_uuid(),
+  '${userId}',
+  format('{"sub":"%s","email":"%s"}', '${userId}', '${userEmail}')::jsonb,
   'email',
-  id::text,
+  '${userId}',
   now(),
   now(),
   now()
-FROM auth.users
-WHERE email = '${userEmail}'
-AND NOT EXISTS (
-    SELECT 1 FROM auth.identities WHERE provider_id = auth.users.id::text
+WHERE NOT EXISTS (
+    SELECT 1 FROM auth.identities WHERE user_id = '${userId}'
 );
 `;
 
-    // 3. Insert into public.users
-    sql += `
+    sql += generatePublicUserInsertSql(
+      userId,
+      userEmail,
+      timezone,
+      emailNotificationsEnabled,
+      smsNotificationsEnabled,
+      notificationStartHour,
+      notificationEndHour,
+      timeFormat,
+      notificationFrequency,
+      dailyNotificationHour,
+      trackedStocks,
+    );
+  }
+
+  return sql;
+}
+
+function generatePublicUserInsertSql(
+  userId: string,
+  email: string,
+  timezone: string,
+  emailNotificationsEnabled: boolean,
+  smsNotificationsEnabled: boolean,
+  notificationStartHour: number,
+  notificationEndHour: number,
+  timeFormat: string,
+  notificationFrequency: string,
+  dailyNotificationHour: number,
+  trackedStocks: string[],
+): string {
+  let sql = `
 INSERT INTO public.users (
   id,
   email,
@@ -162,10 +231,9 @@ INSERT INTO public.users (
   time_format,
   notification_frequency,
   daily_notification_hour
-)
-SELECT
-  id,
-  email,
+) VALUES (
+  '${userId}',
+  '${email}',
   '${timezone}',
   ${emailNotificationsEnabled},
   ${smsNotificationsEnabled},
@@ -174,9 +242,10 @@ SELECT
   '${timeFormat}',
   '${notificationFrequency}',
   ${dailyNotificationHour}
-FROM auth.users
-WHERE email = '${userEmail}'
+)
 ON CONFLICT (id) DO UPDATE SET
+  timezone = EXCLUDED.timezone,
+  time_format = EXCLUDED.time_format,
   email_notifications_enabled = EXCLUDED.email_notifications_enabled,
   sms_notifications_enabled = EXCLUDED.sms_notifications_enabled,
   notification_start_hour = EXCLUDED.notification_start_hour,
@@ -185,25 +254,21 @@ ON CONFLICT (id) DO UPDATE SET
   daily_notification_hour = EXCLUDED.daily_notification_hour;
 `;
 
-    // 4. Insert tracked stocks
-    if (trackedStocks.length > 0) {
-      const stocksValues = trackedStocks
-        .map(symbol => `'${escapeSql(symbol)}'`)
-        .join(', ');
-        
-      sql += `
+  if (trackedStocks.length > 0) {
+    const stocksValues = trackedStocks
+      .map(symbol => `'${escapeSql(symbol)}'`)
+      .join(', ');
+      
+    sql += `
 INSERT INTO public.user_stocks (user_id, symbol)
 SELECT
-  id,
+  '${userId}'::uuid,
   s.symbol
-FROM auth.users u
-CROSS JOIN (
+FROM (
   SELECT symbol FROM public.stocks WHERE symbol IN (${stocksValues})
 ) s
-WHERE u.email = '${userEmail}'
 ON CONFLICT (user_id, symbol) DO NOTHING;
 `;
-    }
   }
 
   return sql;
@@ -211,6 +276,24 @@ ON CONFLICT (user_id, symbol) DO NOTHING;
 
 async function main() {
   console.log('Generating supabase/seed.sql...');
+
+  // Check for required environment variables
+  const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error(
+      'Missing required environment variables: PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env.local'
+    );
+  }
+
+  // Create Supabase admin client
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 
   // 1. Read Stocks Data
   let stocksData;
@@ -228,13 +311,14 @@ async function main() {
     try {
       users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
     } catch (error) {
-      console.warn(`Failed to read ${USERS_FILE}, skipping users generation.`);
+      console.warn(`Failed to parse ${USERS_FILE}: ${error instanceof Error ? error.message : error}`);
+      console.warn('Skipping users generation due to invalid JSON.');
     }
   }
 
   // 3. Generate SQL
   const stocksSql = generateStocksSql(stocks);
-  const usersSql = generateUsersSql(users);
+  const usersSql = await generateUsersSql(users, supabase);
 
   const fullSql = `/*
   Auto-generated seed file. 
@@ -245,7 +329,7 @@ async function main() {
 -- 1. Stocks
 ${stocksSql}
 
--- 2. Users
+-- 2. Users (auth users created via Admin API, only public.users inserts here)
 ${usersSql}
 `;
 
@@ -254,7 +338,7 @@ ${usersSql}
   
   console.log(`✅ seed.sql generated at ${SEED_FILE}`);
   console.log(`   - ${stocks.length} stocks`);
-  console.log(`   - ${users.length} users`);
+  console.log(`   - ${users.length} users (auth users created via Admin API)`);
 }
 
 main().catch(console.error);

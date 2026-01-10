@@ -1,6 +1,9 @@
 import type { APIRoute } from "astro";
 import { getSiteUrl } from "../../../../lib/env";
-import { checkRateLimit } from "../../../../lib/rate-limit";
+import {
+	checkAndIncrementRateLimit,
+	ONE_HOUR_SECONDS,
+} from "../../../../lib/rate-limit";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
@@ -12,7 +15,11 @@ export const POST: APIRoute = async ({ request }) => {
 		request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
 
 	// Rate limit: 10 attempts per hour
-	const limitResult = await checkRateLimit(`register:${clientIp}`, 3600, 10);
+	const limitResult = await checkAndIncrementRateLimit(
+		`register:${clientIp}`,
+		ONE_HOUR_SECONDS,
+		10,
+	);
 
 	if (!limitResult.allowed) {
 		console.warn(

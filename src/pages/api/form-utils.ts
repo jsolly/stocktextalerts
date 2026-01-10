@@ -420,15 +420,6 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					break;
 				}
 
-				if (!/^-?\d*(\.\d+)?$/.test(trimmed)) {
-					errors.push({
-						reason: "invalid_number",
-						key,
-						value: raw,
-					});
-					break;
-				}
-
 				const parsedValue = Number.parseFloat(trimmed);
 				if (Number.isNaN(parsedValue)) {
 					errors.push({

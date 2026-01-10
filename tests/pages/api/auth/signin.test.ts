@@ -1,7 +1,6 @@
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
 import { POST } from "../../../../src/pages/api/auth/signin";
-import { adminClient } from "../../../setup";
 import { createTestUser } from "../../../utils";
 
 describe("POST /api/auth/signin", () => {
@@ -9,10 +8,7 @@ describe("POST /api/auth/signin", () => {
 		const testUser = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			password: "TestPassword123!",
-		});
-
-		await adminClient.auth.admin.updateUserById(testUser.id, {
-			email_confirm: true,
+			confirmed: true,
 		});
 
 		const request = new Request("http://localhost/api/auth/signin", {
@@ -79,6 +75,7 @@ describe("POST /api/auth/signin", () => {
 		const testUser = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			password: "CorrectPassword123!",
+			confirmed: true,
 		});
 
 		const request = new Request("http://localhost/api/auth/signin", {

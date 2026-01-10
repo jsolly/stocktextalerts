@@ -53,9 +53,9 @@ export async function processSmsUpdate(
 	stocksList: string,
 	sendSms: SmsSender,
 ): Promise<ProcessingStats> {
-	const smsMessage = truncateSms(
-		`${userStocks.length > 0 ? "Tracked: " : ""}${stocksList}. Reply STOP to opt out.`,
-	);
+	const messagePrefix = userStocks.length > 0 ? "Tracked: " : "";
+	const fullMessage = `${messagePrefix}${stocksList}. Reply STOP to opt out.`;
+	const smsMessage = truncateSms(fullMessage);
 
 	const result = await sendUserSms(user, smsMessage, sendSms);
 

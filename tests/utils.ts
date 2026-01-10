@@ -12,6 +12,7 @@ export interface CreateTestUserOptions {
 	notificationEndHour?: number;
 	notificationFrequency?: "hourly" | "daily";
 	trackedStocks?: string[];
+	confirmed?: boolean;
 }
 
 export interface TestUser {
@@ -44,6 +45,17 @@ export async function createTestUser(
 
 	const userId = authUser.user?.id;
 	if (!userId) throw new Error("Failed to create test user ID");
+
+	// Confirm user if requested
+	if (options.confirmed) {
+		const { error: confirmError } = await adminClient.auth.admin.updateUserById(
+			userId,
+			{ email_confirm: true },
+		);
+		if (confirmError) {
+			throw new Error(`Failed to confirm user: ${confirmError.message}`);
+		}
+	}
 
 	// Create Profile in 'users' table
 	const { error: profileError } = await adminClient.from("users").upsert(
