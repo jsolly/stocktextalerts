@@ -6,18 +6,36 @@ import { createTestUser } from "../../../utils";
 
 describe("Scheduled Notifications Integration", () => {
 	it("sends email notifications to eligible users via Resend", async () => {
+		const timezone = "America/New_York";
+		const formatter = new Intl.DateTimeFormat("en-US", {
+			hour: "numeric",
+			minute: "numeric",
+			hourCycle: "h23",
+			timeZone: timezone,
+		});
+		const parts = formatter.formatToParts(new Date());
+		const hourPart = parts.find((part) => part.type === "hour");
+		const minutePart = parts.find((part) => part.type === "minute");
+		if (!hourPart || !minutePart) {
+			throw new Error("Missing hour or minute part for timezone formatter");
+		}
+		const hours = Number.parseInt(hourPart.value, 10);
+		const minutes = Number.parseInt(minutePart.value, 10);
+		if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+			throw new Error("Invalid hour or minute for timezone formatter");
+		}
+		const dailyDigestNotificationTime = hours * 60 + minutes;
+
 		// 1. Create User
 		const { id } = await createTestUser({
 			email:
 				process.env.TEST_EMAIL_RECIPIENT ||
 				`test-notification-${Date.now()}@resend.dev`,
-			timezone: "America/New_York",
+			timezone,
 			emailNotificationsEnabled: true,
 			smsNotificationsEnabled: false,
-			notificationStartHour: 0,
-			notificationEndHour: 23,
-			notificationFrequency: "hourly",
-			timeFormat: "12h",
+			dailyDigestEnabled: true,
+			dailyDigestNotificationTime,
 			trackedStocks: ["AAPL"],
 		});
 

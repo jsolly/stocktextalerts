@@ -6,8 +6,6 @@ export interface TimezoneOption {
 	display_order: number;
 }
 
-export type TimeFormat = "12h" | "24h";
-
 export interface TimezoneValidationResult {
 	value: string | null;
 	valid: boolean;
@@ -50,31 +48,6 @@ export async function getTimezoneOptions(
 		label: timezone.label,
 		display_order: timezone.display_order,
 	}));
-}
-
-const VALID_TIME_FORMATS = new Set<TimeFormat>(["12h", "24h"]);
-const DEFAULT_TIME_FORMAT: TimeFormat = "12h";
-
-export function validateTimeFormat(
-	timeFormat: string | undefined | null,
-): TimeFormat {
-	if (!timeFormat || typeof timeFormat !== "string") {
-		console.error(
-			"Invalid time format received (empty or non-string), using default",
-		);
-		return DEFAULT_TIME_FORMAT;
-	}
-
-	const normalized = timeFormat.toLowerCase().trim();
-
-	if (!VALID_TIME_FORMATS.has(normalized as TimeFormat)) {
-		console.error(
-			`Invalid time format received: "${timeFormat}", using default`,
-		);
-		return DEFAULT_TIME_FORMAT;
-	}
-
-	return normalized as TimeFormat;
 }
 
 export function validateTimezone(

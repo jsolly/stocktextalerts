@@ -127,9 +127,8 @@ if (error) {
             </div>
           </div>
           
-          <!-- Hidden timezone and time format fields -->
+          <!-- Hidden timezone field -->
           <input type="hidden" name="timezone" id="timezone" value="" />
-          <input type="hidden" name="time_format" id="time_format" value="" />
           <div>
             <button 
               type="submit" 
@@ -155,32 +154,23 @@ if (error) {
 	document.addEventListener('DOMContentLoaded', () => {
 		const form = document.getElementById('register-form');
 		const timezoneInput = document.getElementById('timezone');
-		const timeFormatInput = document.getElementById('time_format');
 		const countdownElement = document.getElementById('rate-limit-countdown');
 		
 		if (!(form instanceof HTMLFormElement) 
-			|| !(timezoneInput instanceof HTMLInputElement) 
-			|| !(timeFormatInput instanceof HTMLInputElement)) {
+			|| !(timezoneInput instanceof HTMLInputElement)) {
 			console.error('Registration form elements not found');
 			return;
 		}
 
-		// Detect timezone and time format
+		// Detect timezone
 
 		function detectAndSetTimezone() {
-			// Detect user's timezone and time format
-			if (Intl && Intl.DateTimeFormat && timezoneInput instanceof HTMLInputElement && timeFormatInput instanceof HTMLInputElement) {
+			// Detect user's timezone
+			if (Intl && Intl.DateTimeFormat && timezoneInput instanceof HTMLInputElement) {
 				try {
 					// Detect timezone
 					const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 					timezoneInput.value = detectedTimezone;
-
-					// Detect time format preference
-					const formatter = new Intl.DateTimeFormat(navigator.language, {
-						hour: 'numeric'
-					});
-					const hour12 = formatter.resolvedOptions().hour12;
-					timeFormatInput.value = hour12 === undefined ? '12h' : (hour12 ? '12h' : '24h');
 				} catch (error) {
 					console.error('Timezone detection failed:', error);
 				}
@@ -196,7 +186,7 @@ if (error) {
 		form.addEventListener('submit', () => {
 			// If values are empty, try to detect again
 			// Server-side validation will handle missing values
-			if (timezoneInput instanceof HTMLInputElement && timeFormatInput instanceof HTMLInputElement && (!timezoneInput.value || !timeFormatInput.value)) {
+			if (timezoneInput instanceof HTMLInputElement && !timezoneInput.value) {
 				detectAndSetTimezone();
 			}
 		});

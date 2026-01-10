@@ -8,7 +8,6 @@ function createRegisterRequest(email: string, ip: string): APIContext {
 		email,
 		password: "TestPassword123!",
 		timezone: "America/New_York",
-		time_format: "12h",
 	};
 
 	const request = new Request("http://localhost/api/auth/email/register", {
@@ -28,7 +27,6 @@ describe("POST /api/auth/email/register", () => {
 			email: `test-${Date.now()}@example.com`,
 			password: "TestPassword123!",
 			timezone: "America/New_York",
-			time_format: "12h",
 		};
 
 		const request = new Request("http://localhost/api/auth/email/register", {
@@ -61,7 +59,6 @@ describe("POST /api/auth/email/register", () => {
 		const user = users[0];
 		expect(user.email).toBe(payload.email);
 		expect(user.timezone).toBe(payload.timezone);
-		expect(user.time_format).toBe(payload.time_format);
 
 		// Verify user was created in auth
 		const { data: authUserData, error: authError } =
@@ -110,7 +107,6 @@ describe("POST /api/auth/email/register", () => {
 			email: `test-verify-${Date.now()}@example.com`,
 			password: "TestPassword123!",
 			timezone: "America/New_York",
-			time_format: "12h",
 		};
 
 		const request = new Request("http://localhost/api/auth/email/register", {

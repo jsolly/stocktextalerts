@@ -70,25 +70,16 @@ CREATE TABLE IF NOT EXISTS users (
   phone_verified BOOLEAN DEFAULT false NOT NULL,
   sms_opted_out BOOLEAN DEFAULT false NOT NULL,
   timezone TEXT REFERENCES timezones(value),
-  time_format VARCHAR(3) DEFAULT '12h' NOT NULL CHECK (time_format IN ('12h', '24h')),
-  notification_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (notification_start_hour >= 0 AND notification_start_hour <= 23),
-  notification_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (notification_end_hour >= 0 AND notification_end_hour <= 23),
-  notification_frequency TEXT DEFAULT 'daily' NOT NULL CHECK (notification_frequency IN ('hourly', 'daily')),
-  daily_notification_hour INTEGER CHECK (daily_notification_hour >= 0 AND daily_notification_hour <= 23),
+  daily_digest_enabled BOOLEAN DEFAULT true NOT NULL,
+  daily_digest_notification_time INTEGER DEFAULT 540 NOT NULL CHECK (daily_digest_notification_time >= 0 AND daily_digest_notification_time <= 1439),
   breaking_news_enabled BOOLEAN DEFAULT false NOT NULL,
-  breaking_news_threshold_percent NUMERIC(5,2),
-  breaking_news_outside_window BOOLEAN DEFAULT false NOT NULL,
+  stock_trends_enabled BOOLEAN DEFAULT false NOT NULL,
+  price_threshold_alerts_enabled BOOLEAN DEFAULT false NOT NULL,
+  volume_spike_alerts_enabled BOOLEAN DEFAULT false NOT NULL,
   email_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   sms_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  CONSTRAINT notification_hours_order CHECK (notification_start_hour <= notification_end_hour),
-  CONSTRAINT daily_hour_in_window CHECK (
-    notification_frequency != 'daily' OR 
-    daily_notification_hour IS NULL OR
-    (daily_notification_hour >= notification_start_hour AND 
-     daily_notification_hour <= notification_end_hour)
-  ),
   CONSTRAINT phone_country_code_format CHECK (phone_country_code ~ '^\+[0-9]{1,4}$'),
   CONSTRAINT phone_number_format CHECK (phone_number ~ '^[0-9]{10,14}$'),
   CONSTRAINT unique_phone UNIQUE (phone_country_code, phone_number),
@@ -145,49 +136,6 @@ BEGIN
     FROM unnest(symbols) AS raw(entry)
     WHERE TRIM(BOTH FROM entry) <> ''
   ) AS sanitized;
-END;
-$$;
-
-/* =============
-User Preferences and Stocks Functions
-============= */
-
-CREATE OR REPLACE FUNCTION public.update_user_preferences_and_stocks(
-  user_id uuid,
-  timezone text,
-  notification_start_hour integer,
-  notification_end_hour integer,
-  time_format varchar(3),
-  email_notifications_enabled boolean,
-  sms_notifications_enabled boolean,
-  notification_frequency text,
-  daily_notification_hour integer,
-  breaking_news_enabled boolean,
-  breaking_news_threshold_percent numeric,
-  breaking_news_outside_window boolean,
-  symbols text[]
-)
-RETURNS void
-LANGUAGE plpgsql
-SET search_path = public, pg_temp
-AS $$
-BEGIN
-  UPDATE users
-  SET
-    timezone = COALESCE(update_user_preferences_and_stocks.timezone, users.timezone),
-    notification_start_hour = COALESCE(update_user_preferences_and_stocks.notification_start_hour, users.notification_start_hour),
-    notification_end_hour = COALESCE(update_user_preferences_and_stocks.notification_end_hour, users.notification_end_hour),
-    time_format = COALESCE(update_user_preferences_and_stocks.time_format, users.time_format),
-    email_notifications_enabled = COALESCE(update_user_preferences_and_stocks.email_notifications_enabled, users.email_notifications_enabled),
-    sms_notifications_enabled = COALESCE(update_user_preferences_and_stocks.sms_notifications_enabled, users.sms_notifications_enabled),
-    notification_frequency = COALESCE(update_user_preferences_and_stocks.notification_frequency, users.notification_frequency),
-    daily_notification_hour = COALESCE(update_user_preferences_and_stocks.daily_notification_hour, users.daily_notification_hour),
-    breaking_news_enabled = COALESCE(update_user_preferences_and_stocks.breaking_news_enabled, users.breaking_news_enabled),
-    breaking_news_threshold_percent = COALESCE(update_user_preferences_and_stocks.breaking_news_threshold_percent, users.breaking_news_threshold_percent),
-    breaking_news_outside_window = COALESCE(update_user_preferences_and_stocks.breaking_news_outside_window, users.breaking_news_outside_window)
-  WHERE id = update_user_preferences_and_stocks.user_id;
-
-  PERFORM replace_user_stocks(update_user_preferences_and_stocks.user_id, symbols);
 END;
 $$;
 

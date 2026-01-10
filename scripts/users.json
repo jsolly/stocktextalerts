@@ -4,11 +4,7 @@
     "timezone": "America/New_York",
     "email_notifications_enabled": false,
     "sms_notifications_enabled": false,
-    "notification_start_hour": 9,
-    "notification_end_hour": 17,
-    "time_format": "12h",
-    "notification_frequency": "daily",
-    "daily_notification_hour": 9,
+    "daily_digest_notification_time": 540,
     "tracked_stocks": []
   }
 ]

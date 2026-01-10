@@ -5,7 +5,9 @@ import DangerZone from "../components/profile/DangerZone.astro";
 import ProfilePreferences from "../components/profile/ProfilePreferences.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage } from "../lib/auth";
+import { formatMessage } from "../lib/format";
 import { createSupabaseServerClient } from "../lib/supabase";
+import { getTimezoneOptions } from "../lib/timezones";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
@@ -29,9 +31,13 @@ if (!user) {
 	return Astro.redirect("/?error=user_not_found");
 }
 
+const timezones = await getTimezoneOptions(supabase);
+
 const search = Astro.url.searchParams;
 const error = search.get("error");
+const success = search.get("success");
 const errorMessage = getAuthErrorMessage(error);
+const successMessage = formatMessage(success);
 ---
 
 <Layout title="Profile" description="Edit your profile">
@@ -53,16 +59,17 @@ const errorMessage = getAuthErrorMessage(error);
       </div>
     
       <div class="space-y-6">
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
-          <p class="text-gray-600 mb-6">View your account information</p>
+        {errorMessage && (
+          <div class="p-4 rounded-md bg-red-50 border border-red-200 text-red-700" role="alert">
+            {errorMessage}
+          </div>
+        )}
 
-          {errorMessage && (
-            <div class="p-4 rounded-md bg-red-50 border border-red-200 text-red-700" role="alert">
-              {errorMessage}
-            </div>
-          )}
-        </div>
+        {successMessage && (
+          <div class="p-4 rounded-md bg-green-50 border border-green-200 text-green-700" role="alert">
+            {successMessage}
+          </div>
+        )}
 
         <AccountManagement
           email={user.email}
@@ -73,7 +80,7 @@ const errorMessage = getAuthErrorMessage(error);
 
         <ProfilePreferences
           timezone={user.timezone}
-          timeFormat={user.time_format}
+          timezones={timezones}
         />
       </div>
 
@@ -83,3 +90,118 @@ const errorMessage = getAuthErrorMessage(error);
     </div>
   </div>
 </Layout>
+
+<script>
+	function setupProfilePreferencesNavigationWarning() {
+		const formElement = document.getElementById("profile-preferences-form");
+		if (!(formElement instanceof HTMLFormElement)) {
+			return;
+		}
+		const form = formElement;
+
+		const saveButtonElement = document.getElementById("save-profile-preferences-button");
+		if (!(saveButtonElement instanceof HTMLButtonElement)) {
+			return;
+		}
+		const saveButton = saveButtonElement;
+
+		let isDirty = false;
+		let isSubmitting = false;
+
+		function readFormValues() {
+			const values: Record<string, string | boolean> = {};
+			const elements = form.querySelectorAll<HTMLElement>("[name]");
+			
+			for (const element of elements) {
+				const name = element.getAttribute("name");
+				if (!name) continue;
+				
+				if (element instanceof HTMLInputElement) {
+					if (element.type === "checkbox") {
+						values[name] = element.checked;
+					} else if (element.type === "radio") {
+						if (element.checked) {
+							values[name] = element.value;
+						}
+					} else {
+						values[name] = element.value;
+					}
+				} else if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+					values[name] = element.value;
+				}
+			}
+			
+			return values;
+		}
+
+		const initialValues = readFormValues();
+
+		function checkIfDirty() {
+			const currentValues = readFormValues();
+			isDirty = Object.keys(initialValues).some((key) => {
+				return (
+					initialValues[key as keyof typeof initialValues] !==
+					currentValues[key as keyof typeof currentValues]
+				);
+			});
+			return isDirty;
+		}
+
+		function updateSaveButtonState() {
+			saveButton.disabled = !checkIfDirty();
+		}
+
+		function handleFormChange() {
+			updateSaveButtonState();
+		}
+
+		form.addEventListener("input", handleFormChange);
+		form.addEventListener("change", handleFormChange);
+
+		form.addEventListener("submit", () => {
+			isSubmitting = true;
+			isDirty = false;
+		});
+
+		window.addEventListener("beforeunload", (event) => {
+			if (isSubmitting) {
+				return;
+			}
+			if (checkIfDirty()) {
+				event.preventDefault();
+				event.returnValue = "";
+				return "";
+			}
+		});
+
+		document.addEventListener("click", (event) => {
+			const target = event.target as HTMLElement;
+			const link = target.closest("a");
+
+			if (!link || !checkIfDirty()) {
+				return;
+			}
+
+			const href = link.getAttribute("href");
+			if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
+				return;
+			}
+
+			if (href.startsWith("/") || href.startsWith("http")) {
+				if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
+					event.preventDefault();
+					event.stopPropagation();
+					return;
+				}
+			}
+		}, true);
+
+		updateSaveButtonState();
+	}
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", setupProfilePreferencesNavigationWarning);
+	} else {
+		setupProfilePreferencesNavigationWarning();
+	}
+</script>

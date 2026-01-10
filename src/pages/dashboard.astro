@@ -1,7 +1,10 @@
 ---
 import { readFile } from "node:fs/promises";
-import DashboardPreferencesForm from "../components/dashboard/DashboardPreferencesForm.astro";
+import InstantNotificationsCard from "../components/dashboard/preferences/InstantNotificationsCard.astro";
+import NotificationPreferencesCard from "../components/dashboard/preferences/NotificationPreferencesCard.astro";
+import ScheduledNotificationsCard from "../components/dashboard/preferences/ScheduledNotificationsCard.astro";
 import SetupRequiredBanner from "../components/dashboard/SetupRequiredBanner.astro";
+import TrackedStocksPanel from "../components/dashboard/stocks/TrackedStocksPanel.vue";
 import TestNotifications from "../components/dashboard/TestNotifications.astro";
 import Navigation from "../components/layout/Navigation.astro";
 import Layout from "../layouts/Layout.astro";
@@ -11,6 +14,11 @@ import { getUserStocks } from "../lib/stocks";
 import { createSupabaseServerClient } from "../lib/supabase";
 import { getTimezoneOptions } from "../lib/timezones";
 import { createUserService } from "../lib/users";
+
+interface StockOption {
+	value: string;
+	label: string;
+}
 
 const supabase = createSupabaseServerClient();
 const users = createUserService(supabase, Astro.cookies);
@@ -42,7 +50,9 @@ const [userStocks, timezones] = await Promise.all([
 	getTimezoneOptions(supabase),
 ]);
 
-const stockOptions = allStocks.map((stock) => ({
+const initialSymbols = userStocks.map((stock) => stock.symbol);
+
+const stockOptions: StockOption[] = allStocks.map((stock) => ({
 	value: stock.symbol,
 	label: `${stock.symbol} - ${stock.name}`,
 }));
@@ -63,7 +73,7 @@ const isSmsFullyConfigured =
 <Layout title="Dashboard" description="Review and manage your stock notifications">
 	<div class="min-h-screen bg-gray-50">
 		<Navigation user={authUser} />
-		
+
 		<div class="max-w-4xl mx-auto px-6 py-12">
 			<div class="mb-8">
 				<h1 class="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
@@ -86,13 +96,168 @@ const isSmsFullyConfigured =
 		<SetupRequiredBanner user={user} />
 
 		<!-- Section 2: Preferences form (stocks + notification settings) -->
-		<DashboardPreferencesForm
-			user={user}
-			timezones={timezones}
-			stockOptions={stockOptions}
-			initialSymbols={userStocks.map((stock) => stock.symbol)}
-			isEditingPhone={isEditingPhone}
-		/>
+		<form
+			id="dashboard-preferences-form"
+			method="POST"
+			action="/api/preferences"
+			class="space-y-6"
+		>
+			<TrackedStocksPanel
+				client:only="vue"
+				stockOptions={stockOptions}
+				initialSymbols={initialSymbols}
+			/>
+
+			<NotificationPreferencesCard
+				user={user}
+				timezones={timezones}
+				isEditingPhone={isEditingPhone}
+			/>
+
+			<ScheduledNotificationsCard user={user} />
+
+			<InstantNotificationsCard user={user} userStocks={userStocks} />
+
+			<button
+				type="submit"
+				id="save-button"
+				class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
+				disabled
+			>
+				Save Preferences
+			</button>
+		</form>
+
+		<script>
+			function setupDashboardPreferencesDirtyCheck() {
+				const formElement = document.getElementById("dashboard-preferences-form");
+				if (!(formElement instanceof HTMLFormElement)) {
+					return;
+				}
+				const form = formElement;
+
+				const saveButtonElement = document.getElementById("save-button");
+				if (!(saveButtonElement instanceof HTMLButtonElement)) {
+					return;
+				}
+				const saveButton = saveButtonElement;
+
+				let isDirty = false;
+				let isSubmitting = false;
+
+				function readFormValues() {
+					return {
+						email_notifications_enabled:
+							(form.querySelector('input[name="email_notifications_enabled"]') as
+								| HTMLInputElement
+								| null)?.checked ?? false,
+						sms_notifications_enabled:
+							(form.querySelector('input[name="sms_notifications_enabled"]') as
+								| HTMLInputElement
+								| null)?.checked ?? false,
+						timezone:
+							(form.querySelector('select[name="timezone"]') as
+								| HTMLSelectElement
+								| null)?.value ?? "",
+						daily_digest_notification_time:
+							(form.querySelector(
+								'input[name="daily_digest_notification_time"]',
+							) as
+								| HTMLInputElement
+								| null)?.value ?? "",
+						daily_digest_enabled:
+							(form.querySelector('input[name="daily_digest_enabled"]') as
+								| HTMLInputElement
+								| null)?.checked ?? false,
+						breaking_news_enabled:
+							(form.querySelector('input[name="breaking_news_enabled"]') as
+								| HTMLInputElement
+								| null)?.checked ?? false,
+					price_threshold_alerts_enabled:
+						(form.querySelector('input[name="price_threshold_alerts_enabled"]') as
+							| HTMLInputElement
+							| null)?.checked ?? false,
+					volume_spike_alerts_enabled:
+						(form.querySelector('input[name="volume_spike_alerts_enabled"]') as
+							| HTMLInputElement
+							| null)?.checked ?? false,
+					};
+				}
+
+				const initialValues = readFormValues();
+
+				function checkIfDirty() {
+					const currentValues = readFormValues();
+					isDirty = Object.keys(initialValues).some((key) => {
+						return (
+							initialValues[key as keyof typeof initialValues] !==
+							currentValues[key as keyof typeof currentValues]
+						);
+					});
+					return isDirty;
+				}
+
+				const updateSaveButtonState = () => {
+					saveButton.disabled = !checkIfDirty();
+				};
+
+				const onFormChange = () => {
+					updateSaveButtonState();
+				};
+
+				form.addEventListener("input", onFormChange);
+				form.addEventListener("change", onFormChange);
+
+				form.addEventListener("submit", () => {
+					isSubmitting = true;
+					isDirty = false;
+				});
+
+				window.addEventListener("beforeunload", (event) => {
+					if (isSubmitting) {
+						return;
+					}
+					if (checkIfDirty()) {
+						event.preventDefault();
+						event.returnValue = "";
+						return "";
+					}
+				});
+
+				document.addEventListener("click", (event) => {
+					const target = event.target as HTMLElement;
+					const link = target.closest("a");
+
+					if (!link || !checkIfDirty()) {
+						return;
+					}
+
+					const href = link.getAttribute("href");
+					if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
+						return;
+					}
+
+					if (href.startsWith("/") || href.startsWith("http")) {
+						if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
+							event.preventDefault();
+							event.stopPropagation();
+							return;
+						}
+					}
+				}, true);
+
+				updateSaveButtonState();
+			}
+
+			if (document.readyState === "loading") {
+				document.addEventListener(
+					"DOMContentLoaded",
+					setupDashboardPreferencesDirtyCheck,
+				);
+			} else {
+				setupDashboardPreferencesDirtyCheck();
+			}
+		</script>
 
 		<!-- Section 3: Test Notifications -->
 		<TestNotifications

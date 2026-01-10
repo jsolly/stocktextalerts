@@ -21,7 +21,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
 	const formData = await request.formData();
 	const shape = {
-		tracked_stocks: { type: "json_string_array" },
+		tracked_stocks: { type: "json_string_array", required: true },
 	} as const satisfies FormSchema;
 
 	const parsed = parseWithSchema(formData, shape, (body) => ({

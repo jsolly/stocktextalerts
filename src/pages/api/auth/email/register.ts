@@ -43,11 +43,6 @@ export const POST: APIRoute = async ({ request }) => {
 		email: { type: "string", required: true },
 		password: { type: "string", required: true },
 		timezone: { type: "timezone", required: true },
-		time_format: {
-			type: "enum",
-			required: true,
-			values: ["12h", "24h"] as const,
-		},
 	} as const);
 
 	if (!parsed.ok) {
@@ -57,7 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
 		return redirect("/auth/register?error=invalid_form");
 	}
 
-	const { email, password, timezone, time_format } = parsed.data;
+	const { email, password, timezone } = parsed.data;
 
 	const origin = getSiteUrl();
 	const emailRedirectTo = `${origin}/auth/verified`;
@@ -86,7 +81,6 @@ export const POST: APIRoute = async ({ request }) => {
 			id: data.user.id,
 			email,
 			timezone,
-			time_format,
 		};
 
 		const { data: profile, error: profileError } = await adminSupabase

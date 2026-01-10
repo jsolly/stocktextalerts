@@ -1,5 +1,4 @@
 import { validateTimezone } from "../../lib/timezones";
-import type { Hour } from "../../lib/users";
 
 /* =============
 Schema parsing
@@ -50,11 +49,9 @@ type NumberFieldSpec = {
 	max?: number;
 };
 
-type HourFieldSpec = {
-	type: "hour";
+type TimeFieldSpec = {
+	type: "time";
 	required?: boolean;
-	min?: number;
-	max?: number;
 };
 
 type JsonStringArrayFieldSpec = {
@@ -69,7 +66,7 @@ export type FieldSpec<TValues extends readonly string[] = readonly string[]> =
 	| TimezoneFieldSpec
 	| IntegerFieldSpec
 	| NumberFieldSpec
-	| HourFieldSpec
+	| TimeFieldSpec
 	| JsonStringArrayFieldSpec;
 
 export type FormSchema = Record<string, FieldSpec>;
@@ -87,8 +84,8 @@ type InferField<TSpec> = TSpec extends {
 				? number
 				: TSpec extends { type: "timezone" }
 					? string | null
-					: TSpec extends { type: "hour" }
-						? Hour
+					: TSpec extends { type: "time" }
+						? number
 						: TSpec extends { type: "json_string_array" }
 							? string[]
 							: string;
@@ -261,7 +258,7 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 				output[key] = trimmed;
 				break;
 			}
-			case "hour": {
+			case "time": {
 				const trimmed = raw.trim();
 				if (trimmed === "") {
 					if (spec.required) {
@@ -272,49 +269,22 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					break;
 				}
 
-				if (!/^\d+$/.test(trimmed)) {
+				const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+				if (!timePattern.test(trimmed)) {
 					errors.push({
-						reason: "invalid_hour",
+						reason: "invalid_time",
 						key,
 						value: raw,
 					});
 					break;
 				}
 
-				const parsedValue = Number.parseInt(trimmed, 10);
-				if (!Number.isInteger(parsedValue)) {
-					errors.push({
-						reason: "invalid_hour",
-						key,
-						value: raw,
-					});
-					break;
-				}
+				const [hoursStr, minutesStr] = trimmed.split(":");
+				const hours = Number.parseInt(hoursStr, 10);
+				const minutes = Number.parseInt(minutesStr, 10);
+				const totalMinutes = hours * 60 + minutes;
 
-				const min = typeof spec.min === "number" ? spec.min : 0;
-				const max = typeof spec.max === "number" ? spec.max : 23;
-
-				if (parsedValue < min) {
-					errors.push({
-						reason: "hour_below_min",
-						key,
-						min,
-						value: parsedValue,
-					});
-					break;
-				}
-
-				if (parsedValue > max) {
-					errors.push({
-						reason: "hour_above_max",
-						key,
-						max,
-						value: parsedValue,
-					});
-					break;
-				}
-
-				output[key] = parsedValue as Hour;
+				output[key] = totalMinutes;
 				break;
 			}
 			case "enum": {

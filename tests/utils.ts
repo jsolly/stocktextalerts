@@ -5,12 +5,10 @@ export interface CreateTestUserOptions {
 	email?: string;
 	password?: string;
 	timezone?: string;
-	timeFormat?: "12h" | "24h";
 	emailNotificationsEnabled?: boolean;
 	smsNotificationsEnabled?: boolean;
-	notificationStartHour?: number;
-	notificationEndHour?: number;
-	notificationFrequency?: "hourly" | "daily";
+	dailyDigestEnabled?: boolean;
+	dailyDigestNotificationTime?: number;
 	trackedStocks?: string[];
 	confirmed?: boolean;
 }
@@ -65,10 +63,9 @@ export async function createTestUser(
 			timezone,
 			email_notifications_enabled: options.emailNotificationsEnabled ?? false,
 			sms_notifications_enabled: options.smsNotificationsEnabled ?? false,
-			notification_start_hour: options.notificationStartHour ?? 9,
-			notification_end_hour: options.notificationEndHour ?? 17,
-			notification_frequency: options.notificationFrequency ?? "daily",
-			time_format: options.timeFormat || "12h",
+			daily_digest_enabled: options.dailyDigestEnabled ?? true,
+			daily_digest_notification_time:
+				options.dailyDigestNotificationTime ?? 540,
 		},
 		{ onConflict: "id" },
 	);

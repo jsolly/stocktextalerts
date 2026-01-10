@@ -1,8 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AstroCookies } from "astro";
-import type { TimeFormat } from "./timezones";
-
-export type Hour = number & { readonly __brand: "Hour" };
 
 export interface User {
 	id: string;
@@ -13,14 +10,12 @@ export interface User {
 	phone_verified: boolean;
 	sms_opted_out: boolean;
 	timezone: string | null;
-	time_format: TimeFormat;
-	notification_start_hour: Hour;
-	notification_end_hour: Hour;
-	notification_frequency: "hourly" | "daily";
-	daily_notification_hour: Hour | null;
+	daily_digest_enabled: boolean;
+	daily_digest_notification_time: number;
 	breaking_news_enabled: boolean;
-	breaking_news_threshold_percent: number | null;
-	breaking_news_outside_window: boolean;
+	stock_trends_enabled: boolean;
+	price_threshold_alerts_enabled: boolean;
+	volume_spike_alerts_enabled: boolean;
 	email_notifications_enabled: boolean;
 	sms_notifications_enabled: boolean;
 	created_at: string;
@@ -35,14 +30,12 @@ type UserUpdateInput = Partial<
 		| "phone_verified"
 		| "sms_opted_out"
 		| "timezone"
-		| "time_format"
-		| "notification_start_hour"
-		| "notification_end_hour"
-		| "notification_frequency"
-		| "daily_notification_hour"
+		| "daily_digest_enabled"
+		| "daily_digest_notification_time"
 		| "breaking_news_enabled"
-		| "breaking_news_threshold_percent"
-		| "breaking_news_outside_window"
+		| "stock_trends_enabled"
+		| "price_threshold_alerts_enabled"
+		| "volume_spike_alerts_enabled"
 		| "email_notifications_enabled"
 		| "sms_notifications_enabled"
 	>

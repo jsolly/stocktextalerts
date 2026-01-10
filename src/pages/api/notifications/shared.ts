@@ -26,17 +26,15 @@ export type UserRecord = Pick<
 	| "phone_verified"
 	| "sms_opted_out"
 	| "timezone"
-	| "notification_frequency"
+	| "daily_digest_enabled"
+	| "daily_digest_notification_time"
 	| "email_notifications_enabled"
 	| "sms_notifications_enabled"
 	| "breaking_news_enabled"
-	| "breaking_news_threshold_percent"
-	| "breaking_news_outside_window"
-> & {
-	notification_start_hour: number;
-	notification_end_hour: number;
-	daily_notification_hour: number | null;
-};
+	| "stock_trends_enabled"
+	| "price_threshold_alerts_enabled"
+	| "volume_spike_alerts_enabled"
+>;
 
 export function toUserRecord(user: User): UserRecord {
 	return {
@@ -47,15 +45,14 @@ export function toUserRecord(user: User): UserRecord {
 		phone_verified: user.phone_verified,
 		sms_opted_out: user.sms_opted_out,
 		timezone: user.timezone,
-		notification_frequency: user.notification_frequency,
+		daily_digest_enabled: user.daily_digest_enabled,
+		daily_digest_notification_time: user.daily_digest_notification_time,
 		email_notifications_enabled: user.email_notifications_enabled,
 		sms_notifications_enabled: user.sms_notifications_enabled,
 		breaking_news_enabled: user.breaking_news_enabled,
-		breaking_news_threshold_percent: user.breaking_news_threshold_percent,
-		breaking_news_outside_window: user.breaking_news_outside_window,
-		notification_start_hour: user.notification_start_hour as number,
-		notification_end_hour: user.notification_end_hour as number,
-		daily_notification_hour: user.daily_notification_hour as number | null,
+		stock_trends_enabled: user.stock_trends_enabled,
+		price_threshold_alerts_enabled: user.price_threshold_alerts_enabled,
+		volume_spike_alerts_enabled: user.volume_spike_alerts_enabled,
 	};
 }
 
@@ -68,107 +65,62 @@ export function shouldNotifyUser(
 	user: UserRecord,
 	getCurrentTime: () => Date,
 ): boolean {
+	if (!user.daily_digest_enabled) {
+		return false;
+	}
+
 	if (!user.timezone) {
 		return false;
 	}
 
-	const currentHour = getCurrentHourInTimezone(user.timezone, getCurrentTime);
+	const currentMinutes = getCurrentMinutesInTimezone(
+		user.timezone,
+		getCurrentTime,
+	);
 
-	if (currentHour === null) {
-		console.error("Unable to determine current hour for user timezone", {
+	if (currentMinutes === null) {
+		console.error("Unable to determine current time for user timezone", {
 			userId: user.id,
 			timezone: user.timezone,
 		});
 		return false;
 	}
 
-	const withinWindow: boolean = isHourWithinWindow(
-		currentHour,
-		user.notification_start_hour,
-		user.notification_end_hour,
-	);
-
-	if (!withinWindow) {
-		return false;
-	}
-
-	if (user.notification_frequency === "daily") {
-		const targetHour =
-			user.daily_notification_hour ?? user.notification_start_hour;
-		return currentHour === targetHour;
-	}
-
-	return true;
+	return currentMinutes === user.daily_digest_notification_time;
 }
 
-export function shouldNotifyBreakingNews(
-	user: UserRecord,
-	getCurrentTime: () => Date,
-): boolean {
-	if (!user.breaking_news_enabled) {
-		return false;
-	}
-
-	if (user.breaking_news_outside_window) {
-		return true;
-	}
-
-	if (!user.timezone) {
-		return false;
-	}
-
-	const currentHour = getCurrentHourInTimezone(user.timezone, getCurrentTime);
-
-	if (currentHour === null) {
-		return false;
-	}
-
-	return isHourWithinWindow(
-		currentHour,
-		user.notification_start_hour,
-		user.notification_end_hour,
-	);
-}
-
-export function getCurrentHourInTimezone(
+export function getCurrentMinutesInTimezone(
 	timezone: string,
 	getCurrentTime: () => Date,
 ): number | null {
 	try {
+		const date = getCurrentTime();
 		const formatter = new Intl.DateTimeFormat("en-US", {
 			hour: "numeric",
+			minute: "numeric",
 			hourCycle: "h23",
 			timeZone: timezone,
 		});
-		const parts = formatter.formatToParts(getCurrentTime());
+		const parts = formatter.formatToParts(date);
 		const hourPart = parts.find((part) => part.type === "hour");
+		const minutePart = parts.find((part) => part.type === "minute");
 
-		if (!hourPart) {
+		if (!hourPart || !minutePart) {
 			return null;
 		}
 
-		const hour = Number.parseInt(hourPart.value, 10);
-		return Number.isNaN(hour) ? null : hour;
+		const hours = Number.parseInt(hourPart.value, 10);
+		const minutes = Number.parseInt(minutePart.value, 10);
+
+		if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+			return null;
+		}
+
+		return hours * 60 + minutes;
 	} catch {
-		console.error("Failed to parse hour from timezone", { timezone });
+		console.error("Failed to parse time from timezone", { timezone });
 		return null;
 	}
-}
-
-export function isHourWithinWindow(
-	hour: number,
-	start: number,
-	end: number,
-): boolean {
-	if (start === end) {
-		return hour === start;
-	}
-
-	if (start < end) {
-		return hour >= start && hour <= end;
-	}
-
-	return hour >= start || hour <= end;
 }
 
 export async function loadUserStocks(

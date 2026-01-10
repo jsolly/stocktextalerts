@@ -5,13 +5,11 @@ import vercel from "@astrojs/vercel";
 import vue from "@astrojs/vue";
 import { loadEnv } from "vite";
 
-const vercelUrl =
-	process.env.VERCEL_URL ||
-	(process.env.NODE_ENV === "development"
-		? loadEnv("development", process.cwd(), "").VERCEL_URL
-		: undefined);
+const mode = process.env.NODE_ENV === "development" ? "development" : "production";
+const loadedEnv = loadEnv(mode, process.cwd(), "");
 
-const isCI = process.env.CI === "true";
+const vercelUrl = process.env.VERCEL_URL || loadedEnv.VERCEL_URL;
+const isCI = Boolean(process.env.CI);
 
 if (!vercelUrl && !isCI) {
 	throw new Error(

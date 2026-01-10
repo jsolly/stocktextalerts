@@ -22,11 +22,7 @@ interface SeedUser {
   timezone?: string;
   email_notifications_enabled?: boolean;
   sms_notifications_enabled?: boolean;
-  notification_start_hour?: number;
-  notification_end_hour?: number;
-  time_format?: string;
-  notification_frequency?: string;
-  daily_notification_hour?: number;
+  daily_digest_notification_time?: number;
   tracked_stocks?: string[];
 }
 
@@ -105,11 +101,7 @@ async function generateUsersSql(
     const timezone = escapeSql(user.timezone || 'America/New_York');
     const emailNotificationsEnabled = user.email_notifications_enabled ?? false;
     const smsNotificationsEnabled = user.sms_notifications_enabled ?? false;
-    const notificationStartHour = user.notification_start_hour ?? 9;
-    const notificationEndHour = user.notification_end_hour ?? 17;
-    const timeFormat = escapeSql(user.time_format || '12h');
-    const notificationFrequency = escapeSql(user.notification_frequency || 'daily');
-    const dailyNotificationHour = user.daily_notification_hour ?? 9;
+    const dailyDigestNotificationTime = user.daily_digest_notification_time ?? 540;
     const trackedStocks = user.tracked_stocks || [];
 
     // If user exists, use their ID. If not, generate a new UUID for the seed file.
@@ -194,11 +186,7 @@ WHERE NOT EXISTS (
       timezone,
       emailNotificationsEnabled,
       smsNotificationsEnabled,
-      notificationStartHour,
-      notificationEndHour,
-      timeFormat,
-      notificationFrequency,
-      dailyNotificationHour,
+      dailyDigestNotificationTime,
       trackedStocks,
     );
   }
@@ -212,11 +200,7 @@ function generatePublicUserInsertSql(
   timezone: string,
   emailNotificationsEnabled: boolean,
   smsNotificationsEnabled: boolean,
-  notificationStartHour: number,
-  notificationEndHour: number,
-  timeFormat: string,
-  notificationFrequency: string,
-  dailyNotificationHour: number,
+  dailyDigestNotificationTime: number,
   trackedStocks: string[],
 ): string {
   let sql = `
@@ -226,32 +210,20 @@ INSERT INTO public.users (
   timezone,
   email_notifications_enabled,
   sms_notifications_enabled,
-  notification_start_hour,
-  notification_end_hour,
-  time_format,
-  notification_frequency,
-  daily_notification_hour
+  daily_digest_notification_time
 ) VALUES (
   '${userId}',
   '${email}',
   '${timezone}',
   ${emailNotificationsEnabled},
   ${smsNotificationsEnabled},
-  ${notificationStartHour},
-  ${notificationEndHour},
-  '${timeFormat}',
-  '${notificationFrequency}',
-  ${dailyNotificationHour}
+  ${dailyDigestNotificationTime}
 )
 ON CONFLICT (id) DO UPDATE SET
   timezone = EXCLUDED.timezone,
-  time_format = EXCLUDED.time_format,
   email_notifications_enabled = EXCLUDED.email_notifications_enabled,
   sms_notifications_enabled = EXCLUDED.sms_notifications_enabled,
-  notification_start_hour = EXCLUDED.notification_start_hour,
-  notification_end_hour = EXCLUDED.notification_end_hour,
-  notification_frequency = EXCLUDED.notification_frequency,
-  daily_notification_hour = EXCLUDED.daily_notification_hour;
+  daily_digest_notification_time = EXCLUDED.daily_digest_notification_time;
 `;
 
   if (trackedStocks.length > 0) {

@@ -118,4 +118,55 @@ describe("POST /api/preferences/stocks", () => {
 
 		expect(trackedStocks).toHaveLength(0);
 	});
+
+	it("should reject request with missing tracked_stocks field", async () => {
+		const testUser = await createTestUser({
+			email: `test-${Date.now()}@example.com`,
+			password: TEST_PASSWORD,
+			trackedStocks: ["AAPL"],
+		});
+
+		await adminClient.auth.admin.updateUserById(testUser.id, {
+			email_confirm: true,
+		});
+
+		const cookies = await createAuthenticatedCookies(
+			testUser.email,
+			TEST_PASSWORD,
+		);
+
+		const formData = new FormData();
+
+		const request = new Request("http://localhost/api/preferences/stocks", {
+			method: "POST",
+			body: formData,
+		});
+
+		const response = await POST({
+			request,
+			cookies: {
+				get: (name: string) => {
+					const cookie = cookies.get(name);
+					return cookie ? { value: cookie } : undefined;
+				},
+				set: () => {},
+			},
+			redirect: () => {
+				throw new Error("Unexpected redirect");
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(400);
+		const responseData = await response.json();
+		expect(responseData.success).toBe(false);
+		expect(responseData.error).toBe("Invalid form");
+
+		const { data: trackedStocks } = await adminClient
+			.from("user_stocks")
+			.select("symbol")
+			.eq("user_id", testUser.id);
+
+		expect(trackedStocks).toHaveLength(1);
+		expect(trackedStocks?.[0]?.symbol).toBe("AAPL");
+	});
 });
