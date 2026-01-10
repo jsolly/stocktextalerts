@@ -61,6 +61,11 @@ export interface UserStockRow {
 	name: string;
 }
 
+type UserStockQueryResult = {
+	symbol: string;
+	stocks: { name: string } | null;
+};
+
 export function shouldNotifyUser(
 	user: UserRecord,
 	getCurrentTime: () => Date,
@@ -145,13 +150,12 @@ export async function loadUserStocks(
 	}
 
 	// Transform the nested structure to flat UserStockRow[]
-	return stocks.map((stock) => {
-		const stocksData = stock.stocks as unknown as { name: string } | null;
-		return {
-			symbol: stock.symbol,
-			name: stocksData?.name ?? stock.symbol,
-		};
-	});
+	// Type assertion needed because Supabase's inferred types for nested selects
+	// are incorrect without generated Database types
+	return (stocks as unknown as UserStockQueryResult[]).map((stock) => ({
+		symbol: stock.symbol,
+		name: stock.stocks?.name ?? stock.symbol,
+	}));
 }
 
 export async function recordNotification(

@@ -58,16 +58,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			headers: { "Content-Type": "application/json" },
 		});
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-
 		console.error("Failed to update stocks", {
 			userId: user.id,
-			symbols: trackedSymbols,
-			error: errorMessage,
+			trackedSymbols,
+			error,
 		});
 
 		return new Response(
-			JSON.stringify({ success: false, error: errorMessage }),
+			JSON.stringify({ success: false, error: "Internal server error" }),
 			{
 				status: 500,
 				headers: { "Content-Type": "application/json" },

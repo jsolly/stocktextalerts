@@ -274,6 +274,11 @@ DECLARE
   v_reset_time timestamptz;
   v_remaining integer;
 BEGIN
+  IF p_window_seconds <= 0 OR p_limit <= 0 THEN
+    RAISE EXCEPTION 'window_seconds and limit must be positive integers'
+      USING ERRCODE = '22023';
+  END IF;
+
   SELECT window_start, count INTO v_window_start, v_count
   FROM rate_limits
   WHERE key = p_key
