@@ -56,6 +56,14 @@ export async function createTestUser(
 	}
 
 	// Create Profile in 'users' table
+	const defaultNotificationTime = 540;
+	const rawNotificationTime =
+		options.dailyDigestNotificationTime ?? defaultNotificationTime;
+	const dailyDigestNotificationTime = Math.max(
+		0,
+		Math.min(1439, rawNotificationTime),
+	);
+
 	const { error: profileError } = await adminClient.from("users").upsert(
 		{
 			id: userId,
@@ -64,8 +72,7 @@ export async function createTestUser(
 			email_notifications_enabled: options.emailNotificationsEnabled ?? false,
 			sms_notifications_enabled: options.smsNotificationsEnabled ?? false,
 			daily_digest_enabled: options.dailyDigestEnabled ?? true,
-			daily_digest_notification_time:
-				options.dailyDigestNotificationTime ?? 540,
+			daily_digest_notification_time: dailyDigestNotificationTime,
 		},
 		{ onConflict: "id" },
 	);

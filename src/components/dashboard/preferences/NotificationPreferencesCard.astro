@@ -44,3 +44,13 @@ const { user, timezones, isEditingPhone } = Astro.props as Props;
 	</div>
 </div>
 
+<script>
+	import { setupDetectedTimezoneOption } from "../../../lib/timezone-select";
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", setupDetectedTimezoneOption);
+	} else {
+		setupDetectedTimezoneOption();
+	}
+</script>
+

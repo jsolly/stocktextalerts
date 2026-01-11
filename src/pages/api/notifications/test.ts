@@ -10,7 +10,7 @@ import {
 import { createUserService } from "../../../lib/users";
 import { createEmailSender } from "./email/utils";
 import { processEmailUpdate, processSmsUpdate } from "./processing";
-import { loadUserStocks, toUserRecord } from "./shared";
+import { loadUserStocks, type UserRecord } from "./shared";
 import {
 	createSmsSender,
 	createTwilioClient,
@@ -111,7 +111,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			: userStocks.map((stock) => `${stock.symbol} - ${stock.name}`).join(", ");
 
 	try {
-		const userRecord = toUserRecord(user);
+		const userRecord = user as UserRecord;
 		let sent = false;
 		let logged = false;
 

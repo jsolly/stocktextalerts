@@ -161,6 +161,7 @@ The database is pre-seeded with stock data. If you need to update the list of av
 - SQL files cannot access environment variables directly, which is why we use the generation script
 - Always regenerate `seed.sql` using `npm run db:generate-seed` after updating `scripts/users.json` or `scripts/us-stocks.json`
 - Each developer should generate their own `seed.sql` using their local `DEFAULT_PASSWORD` from `.env.local`
+- To add test users, copy `scripts/sample-users.json` to `scripts/users.json` and update with your test data (do not include passwords - they will use `DEFAULT_PASSWORD` from `.env.local`)
 
 ## Usage
 

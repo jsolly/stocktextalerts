@@ -1,4 +1,5 @@
 ---
+import { Buffer } from "node:buffer";
 import type { UserStock } from "../../../lib/stocks";
 import type { User } from "../../../lib/users";
 
@@ -8,6 +9,10 @@ interface Props {
 }
 
 const { user, userStocks } = Astro.props as Props;
+
+function stockSymbolKey(symbol: string) {
+	return `sym_${Buffer.from(symbol, "utf8").toString("base64url")}`;
+}
 ---
 
 <div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -76,6 +81,8 @@ const { user, userStocks } = Astro.props as Props;
 							<div class="space-y-3">
 								{userStocks.map((stock) => {
 									const hardcodedPrice = 150.0;
+									const safeKey = stockSymbolKey(stock.symbol);
+									const inputId = `price_threshold_${safeKey}`;
 									return (
 										<div
 											class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -84,23 +91,22 @@ const { user, userStocks } = Astro.props as Props;
 												<span class="font-medium text-gray-900 min-w-[80px]">
 													{stock.symbol}
 												</span>
-												<label
-													class="flex items-center gap-2 flex-1"
-													for={`price_threshold_${stock.symbol}`}
-												>
-													<span class="text-sm text-gray-600">Threshold:</span>
+												<div class="flex items-center gap-2 flex-1">
+													<label class="text-sm text-gray-600" for={inputId}>
+														Threshold:
+													</label>
 													<span class="text-xs text-gray-500">$</span>
 													<input
 														type="number"
-														id={`price_threshold_${stock.symbol}`}
-														name={`price_threshold_${stock.symbol}`}
+														id={inputId}
+														name={inputId}
 														value={hardcodedPrice}
 														step="0.01"
 														min="0"
 														class="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 														disabled={!user.price_threshold_alerts_enabled}
 													/>
-												</label>
+												</div>
 											</div>
 										</div>
 									);
@@ -131,6 +137,7 @@ const { user, userStocks } = Astro.props as Props;
 	function setupPriceThresholdUI() {
 		const formElement = document.getElementById("dashboard-preferences-form");
 		if (!(formElement instanceof HTMLFormElement)) {
+			console.warn("setupPriceThresholdUI: #dashboard-preferences-form not found");
 			return;
 		}
 
@@ -148,6 +155,12 @@ const { user, userStocks } = Astro.props as Props;
 			!(enabledCheckbox instanceof HTMLInputElement) ||
 			!(settingsContainer instanceof HTMLElement)
 		) {
+			console.warn("setupPriceThresholdUI: required elements not found, enabling inputs as fallback");
+			priceInputs.forEach((input) => {
+				if (input instanceof HTMLInputElement) {
+					input.disabled = false;
+				}
+			});
 			return;
 		}
 
@@ -181,7 +194,7 @@ const { user, userStocks } = Astro.props as Props;
 			const isEnabled = enabledCheckbox.checked;
 			
 			if (isEnabled) {
-				settingsContainer.removeAttribute("data-expanded");
+				settingsContainer.setAttribute("data-expanded", "true");
 				settingsContainer.style.paddingTop = "";
 				settingsContainer.style.paddingBottom = "";
 				settingsContainer.style.marginTop = "";
@@ -189,6 +202,7 @@ const { user, userStocks } = Astro.props as Props;
 				settingsContainer.style.maxHeight = "none";
 				const scrollHeight = settingsContainer.scrollHeight;
 				settingsContainer.style.maxHeight = "0";
+				// Force reflow before animation
 				settingsContainer.offsetHeight;
 				requestAnimationFrame(() => {
 					settingsContainer.style.maxHeight = scrollHeight + "px";
@@ -199,6 +213,7 @@ const { user, userStocks } = Astro.props as Props;
 				const currentHeight = settingsContainer.scrollHeight || settingsContainer.offsetHeight;
 				if (currentHeight > 0) {
 					settingsContainer.style.maxHeight = currentHeight + "px";
+					// Force reflow before animation
 					settingsContainer.offsetHeight;
 				}
 				requestAnimationFrame(() => {

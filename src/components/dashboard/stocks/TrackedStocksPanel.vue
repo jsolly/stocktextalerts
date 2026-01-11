@@ -73,6 +73,23 @@ const isSaving = ref(false);
 const saveError = ref<string | null>(null);
 let abortController: AbortController | null = null;
 
+const dispatchTrackedStocksEvent = (
+	name: "tracked-stocks-changed" | "tracked-stocks-saved",
+	symbols: string[],
+) => {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	window.dispatchEvent(
+		new CustomEvent(name, {
+			detail: {
+				symbols,
+			},
+		}),
+	);
+};
+
 const hasUnsavedChanges = computed(() => {
 	if (draftSymbols.value.length !== savedSymbols.value.length) return true;
 	const savedSet = new Set(savedSymbols.value);
@@ -103,12 +120,19 @@ const saveStocks = async () => {
 			signal: abortController.signal,
 		});
 
+		if (!response.ok) {
+			saveError.value = `Failed to save (${response.status} ${response.statusText}). Please try again.`;
+			return;
+		}
+
 		const data = await response.json();
 
-		if (!response.ok || !data.success) {
+		if (!data.success) {
 			saveError.value = "Failed to save. Please try again.";
 			return;
 		}
+
+		dispatchTrackedStocksEvent("tracked-stocks-saved", [...draftSymbols.value]);
 
 		const url = new URL(window.location.href);
 		url.searchParams.set("success", "stocks_updated");
@@ -137,6 +161,7 @@ const handleSelect = (symbol: string) => {
 
 	saveError.value = null;
 	draftSymbols.value = [...draftSymbols.value, symbol];
+	dispatchTrackedStocksEvent("tracked-stocks-changed", [...draftSymbols.value]);
 };
 
 const removeSymbol = (symbol: string) => {
@@ -144,6 +169,7 @@ const removeSymbol = (symbol: string) => {
 	draftSymbols.value = draftSymbols.value.filter(
 		current => current !== symbol,
 	);
+	dispatchTrackedStocksEvent("tracked-stocks-changed", [...draftSymbols.value]);
 };
 
 onUnmounted(() => {

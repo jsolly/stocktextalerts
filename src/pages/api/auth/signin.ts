@@ -5,6 +5,10 @@ import {
 } from "../../../lib/supabase";
 import { parseWithSchema } from "../form-utils";
 
+function escapeIlikePattern(value: string): string {
+	return value.replace(/([\\_%])/g, "\\$1");
+}
+
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const supabase = createSupabaseServerClient();
 	const adminClient = createSupabaseAdminClient();
@@ -22,13 +26,14 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		return redirect("/signin?error=invalid_form");
 	}
 
-	const email = parsed.data.email;
+	const email = parsed.data.email.trim();
 	const password = parsed.data.password;
 
 	const { data: existingUser } = await adminClient
 		.from("users")
 		.select("id")
-		.eq("email", email)
+		.ilike("email", escapeIlikePattern(email))
+		.limit(1)
 		.maybeSingle();
 
 	if (!existingUser) {

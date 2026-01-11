@@ -3,6 +3,7 @@ import Navigation from "../components/layout/Navigation.astro";
 import AccountManagement from "../components/profile/AccountManagement.astro";
 import DangerZone from "../components/profile/DangerZone.astro";
 import ProfilePreferences from "../components/profile/ProfilePreferences.astro";
+import TimezoneMismatchBanner from "../components/TimezoneMismatchBanner.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage } from "../lib/auth";
 import { formatMessage } from "../lib/format";
@@ -31,7 +32,9 @@ if (!user) {
 	return Astro.redirect("/?error=user_not_found");
 }
 
-const timezones = await getTimezoneOptions(supabase);
+const timezones = await getTimezoneOptions(supabase, {
+	includeValues: [user.timezone],
+});
 
 const search = Astro.url.searchParams;
 const error = search.get("error");
@@ -71,6 +74,8 @@ const successMessage = formatMessage(success);
           </div>
         )}
 
+				<TimezoneMismatchBanner returnTo="/profile" savedTimezone={user.timezone} />
+
         <AccountManagement
           email={user.email}
           phone={user.phone_number}
@@ -92,6 +97,8 @@ const successMessage = formatMessage(success);
 </Layout>
 
 <script>
+	import { setupTimezoneMismatchBanner } from "../lib/timezone-banner";
+
 	function setupProfilePreferencesNavigationWarning() {
 		const formElement = document.getElementById("profile-preferences-form");
 		if (!(formElement instanceof HTMLFormElement)) {
@@ -109,8 +116,8 @@ const successMessage = formatMessage(success);
 		let isSubmitting = false;
 
 		function readFormValues() {
-			const values: Record<string, string | boolean> = {};
-			const elements = form.querySelectorAll<HTMLElement>("[name]");
+			const values = new Map();
+			const elements = form.querySelectorAll("[name]");
 			
 			for (const element of elements) {
 				const name = element.getAttribute("name");
@@ -118,16 +125,16 @@ const successMessage = formatMessage(success);
 				
 				if (element instanceof HTMLInputElement) {
 					if (element.type === "checkbox") {
-						values[name] = element.checked;
+						values.set(name, element.checked);
 					} else if (element.type === "radio") {
 						if (element.checked) {
-							values[name] = element.value;
+							values.set(name, element.value);
 						}
 					} else {
-						values[name] = element.value;
+						values.set(name, element.value);
 					}
 				} else if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
-					values[name] = element.value;
+					values.set(name, element.value);
 				}
 			}
 			
@@ -138,11 +145,8 @@ const successMessage = formatMessage(success);
 
 		function checkIfDirty() {
 			const currentValues = readFormValues();
-			isDirty = Object.keys(initialValues).some((key) => {
-				return (
-					initialValues[key as keyof typeof initialValues] !==
-					currentValues[key as keyof typeof currentValues]
-				);
+			isDirty = Array.from(initialValues.entries()).some(([key, value]) => {
+				return value !== currentValues.get(key);
 			});
 			return isDirty;
 		}
@@ -175,15 +179,39 @@ const successMessage = formatMessage(success);
 		});
 
 		document.addEventListener("click", (event) => {
-			const target = event.target as HTMLElement;
+			const target = event.target;
+			if (!(target instanceof Element)) {
+				return;
+			}
+
 			const link = target.closest("a");
 
 			if (!link || !checkIfDirty()) {
 				return;
 			}
 
+			if (link.target === "_blank") {
+				return;
+			}
+
 			const href = link.getAttribute("href");
 			if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
+				return;
+			}
+
+			try {
+				const destination = new URL(link.href, window.location.href);
+				const current = new URL(window.location.href);
+
+				const isSamePage =
+					destination.origin === current.origin &&
+					destination.pathname === current.pathname &&
+					destination.search === current.search;
+
+				if (isSamePage) {
+					return;
+				}
+			} catch {
 				return;
 			}
 
@@ -199,9 +227,23 @@ const successMessage = formatMessage(success);
 		updateSaveButtonState();
 	}
 
+	function setupProfileTimezoneMismatchBanner() {
+		const banner = document.getElementById("timezone-mismatch-banner");
+		if (!(banner instanceof HTMLElement)) {
+			return;
+		}
+
+		const savedTimezone = banner.dataset.savedTimezone ?? "";
+		setupTimezoneMismatchBanner(savedTimezone);
+	}
+
 	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", setupProfilePreferencesNavigationWarning);
+		document.addEventListener("DOMContentLoaded", () => {
+			setupProfileTimezoneMismatchBanner();
+			setupProfilePreferencesNavigationWarning();
+		});
 	} else {
+		setupProfileTimezoneMismatchBanner();
 		setupProfilePreferencesNavigationWarning();
 	}
 </script>

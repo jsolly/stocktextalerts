@@ -27,3 +27,6 @@ node_modules/
 
 # Generated seed file (contains passwords from DEFAULT_PASSWORD env var)
 supabase/seed.sql
+
+# User seed data (may contain real email addresses)
+scripts/users.json

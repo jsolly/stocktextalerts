@@ -314,15 +314,9 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					output[key] = null;
 					break;
 				}
+				// Timezone strings come from the browser or a dropdown, but we validate
+				// existence against the DB at the API layer (resolver) rather than here.
 				const result = validateTimezone(trimmed);
-				if (!result.valid) {
-					errors.push({
-						reason: "invalid_timezone",
-						key,
-						message: result.reason ?? "Unsupported timezone provided.",
-					});
-					break;
-				}
 				output[key] = result.value;
 				break;
 			}

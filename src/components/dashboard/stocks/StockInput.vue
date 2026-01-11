@@ -154,13 +154,11 @@ const handleKeydown = (e: KeyboardEvent) => {
 					: Math.max(highlightedIndex.value - 1, 0);
 		},
 		Enter: () => {
-			if (filteredStocks.value.length > 0) {
-				const safeIndex = Math.min(
-					Math.max(0, highlightedIndex.value),
-					filteredStocks.value.length - 1
-				);
-				selectStock(filteredStocks.value[safeIndex]);
-			}
+			const safeIndex = Math.min(
+				Math.max(0, highlightedIndex.value),
+				filteredStocks.value.length - 1
+			);
+			selectStock(filteredStocks.value[safeIndex]);
 		},
 	};
 

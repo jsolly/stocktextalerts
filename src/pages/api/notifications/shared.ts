@@ -36,26 +36,6 @@ export type UserRecord = Pick<
 	| "volume_spike_alerts_enabled"
 >;
 
-export function toUserRecord(user: User): UserRecord {
-	return {
-		id: user.id,
-		email: user.email,
-		phone_country_code: user.phone_country_code,
-		phone_number: user.phone_number,
-		phone_verified: user.phone_verified,
-		sms_opted_out: user.sms_opted_out,
-		timezone: user.timezone,
-		daily_digest_enabled: user.daily_digest_enabled,
-		daily_digest_notification_time: user.daily_digest_notification_time,
-		email_notifications_enabled: user.email_notifications_enabled,
-		sms_notifications_enabled: user.sms_notifications_enabled,
-		breaking_news_enabled: user.breaking_news_enabled,
-		stock_trends_enabled: user.stock_trends_enabled,
-		price_threshold_alerts_enabled: user.price_threshold_alerts_enabled,
-		volume_spike_alerts_enabled: user.volume_spike_alerts_enabled,
-	};
-}
-
 export interface UserStockRow {
 	symbol: string;
 	name: string;

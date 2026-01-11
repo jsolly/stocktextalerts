@@ -8,6 +8,7 @@ import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../../lib/supabase";
+import { resolveTimezone } from "../../../../lib/timezones";
 import { parseWithSchema, redirect } from "../../form-utils";
 
 export const POST: APIRoute = async ({ request }) => {
@@ -42,7 +43,8 @@ export const POST: APIRoute = async ({ request }) => {
 	const parsed = parseWithSchema(formData, {
 		email: { type: "string", required: true },
 		password: { type: "string", required: true },
-		timezone: { type: "timezone", required: true },
+		timezone: { type: "timezone" },
+		utc_offset_minutes: { type: "integer" },
 	} as const);
 
 	if (!parsed.ok) {
@@ -52,7 +54,13 @@ export const POST: APIRoute = async ({ request }) => {
 		return redirect("/auth/register?error=invalid_form");
 	}
 
-	const { email, password, timezone } = parsed.data;
+	const { email, password, timezone, utc_offset_minutes } = parsed.data;
+
+	const resolvedTimezone = await resolveTimezone({
+		supabase,
+		detectedTimezone: timezone,
+		utcOffsetMinutes: utc_offset_minutes,
+	});
 
 	const origin = getSiteUrl();
 	const emailRedirectTo = `${origin}/auth/verified`;
@@ -80,7 +88,7 @@ export const POST: APIRoute = async ({ request }) => {
 		const userProfileData = {
 			id: data.user.id,
 			email,
-			timezone,
+			timezone: resolvedTimezone,
 		};
 
 		const { data: profile, error: profileError } = await adminSupabase

@@ -9,7 +9,7 @@ export interface User {
 	full_phone: string | null;
 	phone_verified: boolean;
 	sms_opted_out: boolean;
-	timezone: string | null;
+	timezone: string;
 	daily_digest_enabled: boolean;
 	daily_digest_notification_time: number;
 	breaking_news_enabled: boolean;

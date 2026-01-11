@@ -43,6 +43,25 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
 	const { trackedSymbols } = parsed.data;
 
+	const MAX_STOCKS = 50;
+	if (trackedSymbols.length > MAX_STOCKS) {
+		console.error("Stocks update rejected due to array size limit", {
+			userId: user.id,
+			count: trackedSymbols.length,
+			max: MAX_STOCKS,
+		});
+		return new Response(
+			JSON.stringify({
+				success: false,
+				error: `Maximum ${MAX_STOCKS} stocks allowed`,
+			}),
+			{
+				status: 400,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
+	}
+
 	try {
 		const { error } = await supabase.rpc("replace_user_stocks", {
 			user_id: user.id,
@@ -58,14 +77,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			headers: { "Content-Type": "application/json" },
 		});
 	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+
 		console.error("Failed to update stocks", {
 			userId: user.id,
-			trackedSymbols,
-			error,
+			symbols: trackedSymbols,
+			error: errorMessage,
 		});
 
 		return new Response(
-			JSON.stringify({ success: false, error: "Internal server error" }),
+			JSON.stringify({ success: false, error: "Failed to update stocks" }),
 			{
 				status: 500,
 				headers: { "Content-Type": "application/json" },

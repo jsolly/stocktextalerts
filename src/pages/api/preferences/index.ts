@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/supabase";
+import { resolveTimezone } from "../../../lib/timezones";
 import { createUserService } from "../../../lib/users";
 import { type FormSchema, omitUndefined, parseWithSchema } from "../form-utils";
 
@@ -29,6 +30,11 @@ export function createPreferencesHandler(
 		}
 
 		const formData = await request.formData();
+		const priceThresholdPresent = formData.has(
+			"price_threshold_alerts_enabled",
+		);
+		const volumeSpikePresent = formData.has("volume_spike_alerts_enabled");
+
 		const shape = {
 			email_notifications_enabled: { type: "boolean" },
 			sms_notifications_enabled: { type: "boolean" },
@@ -40,21 +46,7 @@ export function createPreferencesHandler(
 			volume_spike_alerts_enabled: { type: "boolean" },
 		} as const satisfies FormSchema;
 
-		const parsed = parseWithSchema(formData, shape, (body) => ({
-			preferenceUpdates: omitUndefined({
-				email_notifications_enabled: body.email_notifications_enabled,
-				sms_notifications_enabled: body.sms_notifications_enabled,
-				timezone: body.timezone,
-				daily_digest_enabled: body.daily_digest_enabled,
-				daily_digest_notification_time: body.daily_digest_notification_time,
-				breaking_news_enabled: body.breaking_news_enabled,
-				stock_trends_enabled:
-					body.price_threshold_alerts_enabled ||
-					body.volume_spike_alerts_enabled,
-				price_threshold_alerts_enabled: body.price_threshold_alerts_enabled,
-				volume_spike_alerts_enabled: body.volume_spike_alerts_enabled,
-			}),
-		}));
+		const parsed = parseWithSchema(formData, shape);
 
 		if (!parsed.ok) {
 			console.error("Preferences update rejected due to invalid form", {
@@ -63,7 +55,28 @@ export function createPreferencesHandler(
 			return redirect("/dashboard?error=invalid_form");
 		}
 
-		const { preferenceUpdates } = parsed.data;
+		const {
+			price_threshold_alerts_enabled,
+			volume_spike_alerts_enabled,
+			...otherFields
+		} = parsed.data;
+
+		const baseUpdates = omitUndefined({
+			...otherFields,
+			timezone: otherFields.timezone ?? undefined,
+			price_threshold_alerts_enabled,
+			volume_spike_alerts_enabled,
+		});
+
+		const preferenceUpdates =
+			priceThresholdPresent || volumeSpikePresent
+				? {
+						...baseUpdates,
+						stock_trends_enabled:
+							Boolean(price_threshold_alerts_enabled) ||
+							Boolean(volume_spike_alerts_enabled),
+					}
+				: baseUpdates;
 
 		const safePreferenceUpdates = {
 			...preferenceUpdates,
@@ -72,6 +85,24 @@ export function createPreferencesHandler(
 			sms_notifications_enabled:
 				preferenceUpdates.sms_notifications_enabled ?? false,
 		};
+
+		const resolvedTimezone =
+			typeof safePreferenceUpdates.timezone === "string" &&
+			safePreferenceUpdates.timezone.trim() !== ""
+				? await resolveTimezone({
+						supabase,
+						detectedTimezone: safePreferenceUpdates.timezone,
+						utcOffsetMinutes: null,
+					})
+				: null;
+
+		const safePreferenceUpdatesWithTimezone =
+			resolvedTimezone === null
+				? safePreferenceUpdates
+				: {
+						...safePreferenceUpdates,
+						timezone: resolvedTimezone,
+					};
 
 		if (safePreferenceUpdates.sms_notifications_enabled) {
 			const dbUser = await userService.getById(user.id);
@@ -88,14 +119,14 @@ export function createPreferencesHandler(
 		}
 
 		try {
-			await userService.update(user.id, safePreferenceUpdates);
+			await userService.update(user.id, safePreferenceUpdatesWithTimezone);
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
 
 			console.error("Failed to update user preferences", {
 				userId: user.id,
-				preferences: safePreferenceUpdates,
+				preferences: safePreferenceUpdatesWithTimezone,
 				error: errorMessage,
 			});
 

@@ -17,6 +17,11 @@ export interface SeedUser {
   tracked_stocks?: string[];
 }
 
+/**
+ * Escapes single quotes for SQL string literals.
+ * WARNING: Only use with trusted data in seed scripts.
+ * For production code, use parameterized queries instead.
+ */
 export function escapeSql(str: string): string {
   return str.replace(/'/g, "''");
 }
@@ -90,7 +95,7 @@ INSERT INTO auth.identities (
 SELECT
   gen_random_uuid(),
   '${userId}'::uuid,
-  format('{"sub":"%s","email":"%s"}', '${userId}', '${email}')::jsonb,
+  jsonb_build_object('sub', '${userId}', 'email', '${email}')::jsonb,
   'email',
   '${userId}',
   now(),
@@ -105,7 +110,8 @@ WHERE NOT EXISTS (
 export function buildPublicUserSql(userId: string, user: SeedUser): string {
   const userEmailRaw = user.email.trim();
   const email = escapeSql(userEmailRaw);
-  const timezone = escapeSql(user.timezone || 'America/New_York');
+  const timezoneRaw = (user.timezone ?? "").trim();
+  const timezone = escapeSql(timezoneRaw || "America/New_York");
 
   const dailyDigestEnabled = user.daily_digest_enabled ?? true;
   const dailyDigestNotificationTime = user.daily_digest_notification_time ?? 540;
@@ -179,7 +185,9 @@ ON CONFLICT (id) DO UPDATE SET
 export function buildUserStocksSql(userId: string, trackedStocks: string[]): string {
   if (trackedStocks.length === 0) return '';
 
-  const stocksValues = trackedStocks.map((symbol) => `'${escapeSql(symbol)}'`).join(', ');
+  const stocksValues = trackedStocks
+    .map((symbol) => `UPPER(TRIM('${escapeSql(symbol)}'))`)
+    .join(', ');
 
   return `
 INSERT INTO public.user_stocks (user_id, symbol)
@@ -187,7 +195,7 @@ SELECT
   '${userId}'::uuid,
   s.symbol
 FROM (
-  SELECT symbol FROM public.stocks WHERE symbol IN (${stocksValues})
+  SELECT symbol FROM public.stocks WHERE UPPER(TRIM(symbol)) IN (${stocksValues})
 ) s
 ON CONFLICT (user_id, symbol) DO NOTHING;
 `;

@@ -211,7 +211,14 @@ const { user, isEditingPhone } = Astro.props as Props;
 			const validField = form.querySelector(
 				'input[name="phone_is_valid"]',
 			) as HTMLInputElement | null;
-			const isValid = (validField?.value ?? "").toLowerCase() === "true";
+			
+			// Ensure the hidden input exists (Vue component has hydrated) before enabling
+			if (!validField) {
+				sendButton.disabled = true;
+				return;
+			}
+			
+			const isValid = validField.value.toLowerCase() === "true";
 			sendButton.disabled = !isValid;
 		}
 

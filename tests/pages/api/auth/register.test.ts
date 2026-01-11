@@ -69,8 +69,51 @@ describe("POST /api/auth/email/register", () => {
 		expect(authUserData.user.email).toBe(payload.email);
 	});
 
+	it("falls back to a DB timezone when detected timezone is missing", async () => {
+		const payload = {
+			email: `test-fallback-${Date.now()}@example.com`,
+			password: "TestPassword123!",
+			timezone: "Fake/Zone",
+			utc_offset_minutes: "0",
+		};
+
+		const request = new Request("http://localhost/api/auth/email/register", {
+			method: "POST",
+			body: new URLSearchParams(payload),
+		});
+
+		const response = await POST({
+			request,
+		} as APIContext);
+
+		expect(response.status).toBe(302);
+		expect(response.headers.get("Location")).toContain("/auth/unconfirmed");
+
+		const { data: users, error: usersError } = await adminClient
+			.from("users")
+			.select("*")
+			.eq("email", payload.email);
+		expect(usersError).toBeNull();
+
+		if (!users) throw new Error("No users found");
+		expect(users).toHaveLength(1);
+
+		const user = users[0];
+		expect(typeof user.timezone).toBe("string");
+		expect(user.timezone).not.toBe("");
+		expect(user.timezone).not.toBe(payload.timezone);
+
+		const { data: timezoneRow, error: timezoneError } = await adminClient
+			.from("timezones")
+			.select("value")
+			.eq("value", user.timezone)
+			.maybeSingle();
+		expect(timezoneError).toBeNull();
+		expect(timezoneRow?.value).toBe(user.timezone);
+	});
+
 	it("rate limits after 10 attempts from the same IP", async () => {
-		const testIp = `192.168.1.${Date.now()}`;
+		const testIp = "192.168.1.1";
 		const baseTimestamp = Date.now();
 
 		// Make 10 registration attempts (rate limit is 10 per hour)
@@ -151,10 +194,12 @@ describe("POST /api/auth/email/register", () => {
 			throw new Error("Failed to update user");
 
 		// Verify email is now confirmed
-		expect(updatedUserData.user.email_confirmed_at).not.toBeNull();
-		expect(typeof updatedUserData.user.email_confirmed_at).toBe("string");
-		expect(
-			new Date(updatedUserData.user.email_confirmed_at).getTime(),
-		).not.toBeNaN();
+		const confirmedAt = updatedUserData.user.email_confirmed_at;
+		expect(confirmedAt).toBeTruthy();
+		expect(typeof confirmedAt).toBe("string");
+		if (!confirmedAt) {
+			throw new Error("Missing email_confirmed_at");
+		}
+		expect(new Date(confirmedAt).getTime()).not.toBeNaN();
 	});
 });
