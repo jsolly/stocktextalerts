@@ -8,7 +8,6 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Add a phone number before verifying";
 		case "invalid_code":
 			return "Invalid or expired verification code";
-		case "rate_limit":
 		case "too_many_attempts":
 			return "Too many attempts. Please try again later.";
 		case "failed":
@@ -16,7 +15,10 @@ export function getAuthErrorMessage(error: string | null): string {
 		case "server_error":
 			return "Something went wrong. Please try again later.";
 		case "invalid_credentials":
-			return "Invalid email or password";
+		case "invalid_password":
+			return "Incorrect password. Please try again.";
+		case "user_not_found":
+			return "No account exists with this email.";
 		case "delete_failed":
 			return "Failed to delete account. Please try again.";
 		case "delete_db_failed":
@@ -25,8 +27,6 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Your account data was deleted, but we couldn't fully remove your sign-in. Please sign out and try again.";
 		case "delete_orphaned_auth_failed":
 			return "Failed to complete account deletion. Please try again.";
-		case "user_not_found":
-			return "We couldn't find an account for that email.";
 		default:
 			return "An unexpected error occurred. Please try again.";
 	}

@@ -1,5 +1,4 @@
 import { validateTimezone } from "../../lib/timezones";
-import type { Hour } from "../../lib/users";
 
 /* =============
 Schema parsing
@@ -43,11 +42,16 @@ type IntegerFieldSpec = {
 	max?: number;
 };
 
-type HourFieldSpec = {
-	type: "hour";
+type NumberFieldSpec = {
+	type: "number";
 	required?: boolean;
 	min?: number;
 	max?: number;
+};
+
+type TimeFieldSpec = {
+	type: "time";
+	required?: boolean;
 };
 
 type JsonStringArrayFieldSpec = {
@@ -61,7 +65,8 @@ export type FieldSpec<TValues extends readonly string[] = readonly string[]> =
 	| EnumFieldSpec<TValues>
 	| TimezoneFieldSpec
 	| IntegerFieldSpec
-	| HourFieldSpec
+	| NumberFieldSpec
+	| TimeFieldSpec
 	| JsonStringArrayFieldSpec;
 
 export type FormSchema = Record<string, FieldSpec>;
@@ -75,13 +80,15 @@ type InferField<TSpec> = TSpec extends {
 		? boolean
 		: TSpec extends { type: "integer" }
 			? number
-			: TSpec extends { type: "timezone" }
-				? string | null
-				: TSpec extends { type: "hour" }
-					? Hour
-					: TSpec extends { type: "json_string_array" }
-						? string[]
-						: string;
+			: TSpec extends { type: "number" }
+				? number
+				: TSpec extends { type: "timezone" }
+					? string | null
+					: TSpec extends { type: "time" }
+						? number
+						: TSpec extends { type: "json_string_array" }
+							? string[]
+							: string;
 
 type RequiredFields<TSchema extends FormSchema> = {
 	[K in keyof TSchema as TSchema[K] extends { required: true }
@@ -251,7 +258,7 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 				output[key] = trimmed;
 				break;
 			}
-			case "hour": {
+			case "time": {
 				const trimmed = raw.trim();
 				if (trimmed === "") {
 					if (spec.required) {
@@ -262,49 +269,22 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					break;
 				}
 
-				if (!/^\d+$/.test(trimmed)) {
+				const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+				if (!timePattern.test(trimmed)) {
 					errors.push({
-						reason: "invalid_hour",
+						reason: "invalid_time",
 						key,
 						value: raw,
 					});
 					break;
 				}
 
-				const parsedValue = Number.parseInt(trimmed, 10);
-				if (!Number.isInteger(parsedValue)) {
-					errors.push({
-						reason: "invalid_hour",
-						key,
-						value: raw,
-					});
-					break;
-				}
+				const [hoursStr, minutesStr] = trimmed.split(":");
+				const hours = Number.parseInt(hoursStr, 10);
+				const minutes = Number.parseInt(minutesStr, 10);
+				const totalMinutes = hours * 60 + minutes;
 
-				const min = typeof spec.min === "number" ? spec.min : 0;
-				const max = typeof spec.max === "number" ? spec.max : 23;
-
-				if (parsedValue < min) {
-					errors.push({
-						reason: "hour_below_min",
-						key,
-						min,
-						value: parsedValue,
-					});
-					break;
-				}
-
-				if (parsedValue > max) {
-					errors.push({
-						reason: "hour_above_max",
-						key,
-						max,
-						value: parsedValue,
-					});
-					break;
-				}
-
-				output[key] = parsedValue as Hour;
+				output[key] = totalMinutes;
 				break;
 			}
 			case "enum": {
@@ -334,15 +314,9 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					output[key] = null;
 					break;
 				}
+				// Timezone strings come from the browser or a dropdown, but we validate
+				// existence against the DB at the API layer (resolver) rather than here.
 				const result = validateTimezone(trimmed);
-				if (!result.valid) {
-					errors.push({
-						reason: "invalid_timezone",
-						key,
-						message: result.reason ?? "Unsupported timezone provided.",
-					});
-					break;
-				}
 				output[key] = result.value;
 				break;
 			}
@@ -389,6 +363,50 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 				if (typeof spec.max === "number" && parsedValue > spec.max) {
 					errors.push({
 						reason: "integer_above_max",
+						key,
+						max: spec.max,
+						value: parsedValue,
+					});
+					break;
+				}
+
+				output[key] = parsedValue;
+				break;
+			}
+			case "number": {
+				const trimmed = raw.trim();
+				if (trimmed === "") {
+					if (spec.required) {
+						errors.push({ reason: "missing_field", key });
+					} else {
+						output[key] = undefined;
+					}
+					break;
+				}
+
+				const parsedValue = Number.parseFloat(trimmed);
+				if (Number.isNaN(parsedValue)) {
+					errors.push({
+						reason: "invalid_number",
+						key,
+						value: raw,
+					});
+					break;
+				}
+
+				if (typeof spec.min === "number" && parsedValue < spec.min) {
+					errors.push({
+						reason: "number_below_min",
+						key,
+						min: spec.min,
+						value: parsedValue,
+					});
+					break;
+				}
+
+				if (typeof spec.max === "number" && parsedValue > spec.max) {
+					errors.push({
+						reason: "number_above_max",
 						key,
 						max: spec.max,
 						value: parsedValue,

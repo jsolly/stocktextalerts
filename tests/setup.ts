@@ -35,16 +35,32 @@ export async function resetDatabase() {
 	await client.connect();
 
 	try {
+		// Find the test user by email to preserve them
+		const { rows: testUserRows } = await client.query(
+			"SELECT id FROM auth.users WHERE email = $1",
+			["test@jsolly.com"],
+		);
+		const testUserId = testUserRows[0]?.id;
+
+		// Build list of preserved user IDs
+		const preservedUserIds = [PRESERVED_USER_ID];
+		if (testUserId) {
+			preservedUserIds.push(testUserId);
+		}
+
 		// Clean up public schema tables
 		// Deleting from users cascades to user_stocks and notification_log
-		await client.query("DELETE FROM public.users WHERE id != $1", [
-			PRESERVED_USER_ID,
+		await client.query(`DELETE FROM public.users WHERE id != ALL($1::uuid[])`, [
+			preservedUserIds,
 		]);
+
+		// Clear rate limits to prevent test interference
+		await client.query(`DELETE FROM public.rate_limits`);
 
 		// Clean up auth.users via Admin API to ensure proper cleanup of sessions/metadata
 		const { rows: authUsers } = await client.query(
-			"SELECT id FROM auth.users WHERE id != $1",
-			[PRESERVED_USER_ID],
+			`SELECT id FROM auth.users WHERE id != ALL($1::uuid[])`,
+			[preservedUserIds],
 		);
 
 		await Promise.all(

@@ -1,19 +1,17 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/supabase";
+import { resolveTimezone } from "../../../lib/timezones";
 import { createUserService } from "../../../lib/users";
 import { type FormSchema, omitUndefined, parseWithSchema } from "../form-utils";
-import { updateUserPreferencesAndStocks } from "./stocks-utils";
 
 interface PreferencesDependencies {
 	createSupabaseServerClient: typeof createSupabaseServerClient;
 	createUserService: typeof createUserService;
-	updateUserPreferencesAndStocks: typeof updateUserPreferencesAndStocks;
 }
 
 const defaultDependencies: PreferencesDependencies = {
 	createSupabaseServerClient,
 	createUserService,
-	updateUserPreferencesAndStocks,
 };
 
 export function createPreferencesHandler(
@@ -32,27 +30,23 @@ export function createPreferencesHandler(
 		}
 
 		const formData = await request.formData();
+		const priceThresholdPresent = formData.has(
+			"price_threshold_alerts_enabled",
+		);
+		const volumeSpikePresent = formData.has("volume_spike_alerts_enabled");
+
 		const shape = {
 			email_notifications_enabled: { type: "boolean" },
 			sms_notifications_enabled: { type: "boolean" },
 			timezone: { type: "timezone" },
-			notification_start_hour: { type: "hour" },
-			notification_end_hour: { type: "hour" },
-			time_format: { type: "enum", values: ["12h", "24h"] as const },
-			tracked_stocks: { type: "json_string_array" },
+			daily_digest_enabled: { type: "boolean" },
+			daily_digest_notification_time: { type: "time" },
+			breaking_news_enabled: { type: "boolean" },
+			price_threshold_alerts_enabled: { type: "boolean" },
+			volume_spike_alerts_enabled: { type: "boolean" },
 		} as const satisfies FormSchema;
 
-		const parsed = parseWithSchema(formData, shape, (body) => ({
-			preferenceUpdates: omitUndefined({
-				email_notifications_enabled: body.email_notifications_enabled,
-				sms_notifications_enabled: body.sms_notifications_enabled,
-				timezone: body.timezone,
-				notification_start_hour: body.notification_start_hour,
-				notification_end_hour: body.notification_end_hour,
-				time_format: body.time_format,
-			}),
-			trackedSymbols: body.tracked_stocks,
-		}));
+		const parsed = parseWithSchema(formData, shape);
 
 		if (!parsed.ok) {
 			console.error("Preferences update rejected due to invalid form", {
@@ -61,7 +55,28 @@ export function createPreferencesHandler(
 			return redirect("/dashboard?error=invalid_form");
 		}
 
-		const { preferenceUpdates, trackedSymbols } = parsed.data;
+		const {
+			price_threshold_alerts_enabled,
+			volume_spike_alerts_enabled,
+			...otherFields
+		} = parsed.data;
+
+		const baseUpdates = omitUndefined({
+			...otherFields,
+			timezone: otherFields.timezone ?? undefined,
+			price_threshold_alerts_enabled,
+			volume_spike_alerts_enabled,
+		});
+
+		const preferenceUpdates =
+			priceThresholdPresent || volumeSpikePresent
+				? {
+						...baseUpdates,
+						stock_trends_enabled:
+							Boolean(price_threshold_alerts_enabled) ||
+							Boolean(volume_spike_alerts_enabled),
+					}
+				: baseUpdates;
 
 		const safePreferenceUpdates = {
 			...preferenceUpdates,
@@ -70,6 +85,24 @@ export function createPreferencesHandler(
 			sms_notifications_enabled:
 				preferenceUpdates.sms_notifications_enabled ?? false,
 		};
+
+		const resolvedTimezone =
+			typeof safePreferenceUpdates.timezone === "string" &&
+			safePreferenceUpdates.timezone.trim() !== ""
+				? await resolveTimezone({
+						supabase,
+						detectedTimezone: safePreferenceUpdates.timezone,
+						utcOffsetMinutes: null,
+					})
+				: null;
+
+		const safePreferenceUpdatesWithTimezone =
+			resolvedTimezone === null
+				? safePreferenceUpdates
+				: {
+						...safePreferenceUpdates,
+						timezone: resolvedTimezone,
+					};
 
 		if (safePreferenceUpdates.sms_notifications_enabled) {
 			const dbUser = await userService.getById(user.id);
@@ -86,24 +119,14 @@ export function createPreferencesHandler(
 		}
 
 		try {
-			if (Array.isArray(trackedSymbols)) {
-				await dependencies.updateUserPreferencesAndStocks(
-					supabase,
-					user.id,
-					safePreferenceUpdates,
-					trackedSymbols,
-				);
-			} else {
-				await userService.update(user.id, safePreferenceUpdates);
-			}
+			await userService.update(user.id, safePreferenceUpdatesWithTimezone);
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
 
 			console.error("Failed to update user preferences", {
 				userId: user.id,
-				preferences: safePreferenceUpdates,
-				symbols: Array.isArray(trackedSymbols) ? trackedSymbols : undefined,
+				preferences: safePreferenceUpdatesWithTimezone,
 				error: errorMessage,
 			});
 

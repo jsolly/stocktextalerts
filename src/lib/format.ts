@@ -1,6 +1,7 @@
 const MESSAGE_ALLOWLIST: Record<string, string> = {
 	stock_added: "Stock added successfully",
 	stock_removed: "Stock removed successfully",
+	stocks_updated: "Tracked stocks updated successfully",
 	phone_verified: "Phone number verified successfully",
 	settings_updated: "Settings updated successfully",
 	invalid_form:

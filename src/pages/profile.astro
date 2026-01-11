@@ -3,9 +3,12 @@ import Navigation from "../components/layout/Navigation.astro";
 import AccountManagement from "../components/profile/AccountManagement.astro";
 import DangerZone from "../components/profile/DangerZone.astro";
 import ProfilePreferences from "../components/profile/ProfilePreferences.astro";
+import TimezoneMismatchBanner from "../components/TimezoneMismatchBanner.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage } from "../lib/auth";
+import { formatMessage } from "../lib/format";
 import { createSupabaseServerClient } from "../lib/supabase";
+import { getTimezoneOptions } from "../lib/timezones";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
@@ -29,9 +32,15 @@ if (!user) {
 	return Astro.redirect("/?error=user_not_found");
 }
 
+const timezones = await getTimezoneOptions(supabase, {
+	includeValues: [user.timezone],
+});
+
 const search = Astro.url.searchParams;
 const error = search.get("error");
+const success = search.get("success");
 const errorMessage = getAuthErrorMessage(error);
+const successMessage = formatMessage(success);
 ---
 
 <Layout title="Profile" description="Edit your profile">
@@ -53,16 +62,19 @@ const errorMessage = getAuthErrorMessage(error);
       </div>
     
       <div class="space-y-6">
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
-          <p class="text-gray-600 mb-6">View your account information</p>
+        {errorMessage && (
+          <div class="p-4 rounded-md bg-red-50 border border-red-200 text-red-700" role="alert">
+            {errorMessage}
+          </div>
+        )}
 
-          {errorMessage && (
-            <div class="p-4 rounded-md bg-red-50 border border-red-200 text-red-700" role="alert">
-              {errorMessage}
-            </div>
-          )}
-        </div>
+        {successMessage && (
+          <div class="p-4 rounded-md bg-green-50 border border-green-200 text-green-700" role="alert">
+            {successMessage}
+          </div>
+        )}
+
+				<TimezoneMismatchBanner returnTo="/profile" savedTimezone={user.timezone} />
 
         <AccountManagement
           email={user.email}
@@ -73,7 +85,7 @@ const errorMessage = getAuthErrorMessage(error);
 
         <ProfilePreferences
           timezone={user.timezone}
-          timeFormat={user.time_format}
+          timezones={timezones}
         />
       </div>
 
@@ -83,3 +95,155 @@ const errorMessage = getAuthErrorMessage(error);
     </div>
   </div>
 </Layout>
+
+<script>
+	import { setupTimezoneMismatchBanner } from "../lib/timezone-banner";
+
+	function setupProfilePreferencesNavigationWarning() {
+		const formElement = document.getElementById("profile-preferences-form");
+		if (!(formElement instanceof HTMLFormElement)) {
+			return;
+		}
+		const form = formElement;
+
+		const saveButtonElement = document.getElementById("save-profile-preferences-button");
+		if (!(saveButtonElement instanceof HTMLButtonElement)) {
+			return;
+		}
+		const saveButton = saveButtonElement;
+
+		let isDirty = false;
+		let isSubmitting = false;
+
+		function readFormValues() {
+			const values = new Map();
+			const elements = form.querySelectorAll("[name]");
+			
+			for (const element of elements) {
+				const name = element.getAttribute("name");
+				if (!name) continue;
+				
+				if (element instanceof HTMLInputElement) {
+					if (element.type === "checkbox") {
+						values.set(name, element.checked);
+					} else if (element.type === "radio") {
+						if (element.checked) {
+							values.set(name, element.value);
+						}
+					} else {
+						values.set(name, element.value);
+					}
+				} else if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+					values.set(name, element.value);
+				}
+			}
+			
+			return values;
+		}
+
+		const initialValues = readFormValues();
+
+		function checkIfDirty() {
+			const currentValues = readFormValues();
+			isDirty = Array.from(initialValues.entries()).some(([key, value]) => {
+				return value !== currentValues.get(key);
+			});
+			return isDirty;
+		}
+
+		function updateSaveButtonState() {
+			saveButton.disabled = !checkIfDirty();
+		}
+
+		function handleFormChange() {
+			updateSaveButtonState();
+		}
+
+		form.addEventListener("input", handleFormChange);
+		form.addEventListener("change", handleFormChange);
+
+		form.addEventListener("submit", () => {
+			isSubmitting = true;
+			isDirty = false;
+		});
+
+		window.addEventListener("beforeunload", (event) => {
+			if (isSubmitting) {
+				return;
+			}
+			if (checkIfDirty()) {
+				event.preventDefault();
+				event.returnValue = "";
+				return "";
+			}
+		});
+
+		document.addEventListener("click", (event) => {
+			const target = event.target;
+			if (!(target instanceof Element)) {
+				return;
+			}
+
+			const link = target.closest("a");
+
+			if (!link || !checkIfDirty()) {
+				return;
+			}
+
+			if (link.target === "_blank") {
+				return;
+			}
+
+			const href = link.getAttribute("href");
+			if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
+				return;
+			}
+
+			try {
+				const destination = new URL(link.href, window.location.href);
+				const current = new URL(window.location.href);
+
+				const isSamePage =
+					destination.origin === current.origin &&
+					destination.pathname === current.pathname &&
+					destination.search === current.search;
+
+				if (isSamePage) {
+					return;
+				}
+			} catch {
+				return;
+			}
+
+			if (href.startsWith("/") || href.startsWith("http")) {
+				if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
+					event.preventDefault();
+					event.stopPropagation();
+					return;
+				}
+			}
+		}, true);
+
+		updateSaveButtonState();
+	}
+
+	function setupProfileTimezoneMismatchBanner() {
+		const banner = document.getElementById("timezone-mismatch-banner");
+		if (!(banner instanceof HTMLElement)) {
+			return;
+		}
+
+		const savedTimezone = banner.dataset.savedTimezone ?? "";
+		setupTimezoneMismatchBanner(savedTimezone);
+	}
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", () => {
+			setupProfileTimezoneMismatchBanner();
+			setupProfilePreferencesNavigationWarning();
+		});
+	} else {
+		setupProfileTimezoneMismatchBanner();
+		setupProfilePreferencesNavigationWarning();
+	}
+</script>

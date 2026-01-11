@@ -1,11 +1,32 @@
 ---
 import Navigation from "../../components/layout/Navigation.astro";
 import Layout from "../../layouts/Layout.astro";
+import { createSupabaseServerClient } from "../../lib/supabase";
+import { getTimezoneOptions } from "../../lib/timezones";
 
 const search = Astro.url.searchParams;
 const error = search.get("error");
+const resetSecondsStr = search.get("reset_seconds");
+const resetSecondsParsed = resetSecondsStr
+	? parseInt(resetSecondsStr, 10)
+	: undefined;
+const resetSeconds = Number.isNaN(resetSecondsParsed)
+	? undefined
+	: resetSecondsParsed;
+const remainingStr = search.get("remaining");
+const remainingAttemptsParsed = remainingStr
+	? parseInt(remainingStr, 10)
+	: undefined;
+const remainingAttempts = Number.isNaN(remainingAttemptsParsed)
+	? undefined
+	: remainingAttemptsParsed;
 
 let message = "";
+let showSignInLink = false;
+const isRateLimited = error === "rate_limit";
+
+const supabase = createSupabaseServerClient();
+const timezones = await getTimezoneOptions(supabase);
 
 if (error) {
 	switch (error) {
@@ -15,9 +36,17 @@ if (error) {
 		case "failed":
 			message = "Failed to register account. Please try again.";
 			break;
+		case "user_already_exists":
+			message = "An account with this email already exists.";
+			showSignInLink = true;
+			break;
 		case "profile_creation_failed":
 			message =
 				"Failed to create user profile. Please try again or contact support.";
+			break;
+		case "rate_limit":
+			message =
+				"Too many registration attempts. Please wait before trying again.";
 			break;
 		default:
 			message = "An unexpected error occurred. Please try again.";
@@ -46,7 +75,7 @@ if (error) {
         <div>
           <h1 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Register</h1>
           <p class="mt-2 text-center text-sm text-gray-600">
-            Already have an account? <a href="/" class="font-medium text-blue-600 hover:text-blue-500">Sign in</a>
+            Already have an account? <a href="/signin" class="font-medium text-blue-600 hover:text-blue-500">Sign in</a>
           </p>
         </div>
 
@@ -54,7 +83,20 @@ if (error) {
           <div class="rounded-md bg-red-50 p-4" role="alert">
             <div class="flex">
               <div class="ml-0">
-                <h3 class="text-sm font-medium text-red-800">{message}</h3>
+                <h3 class="text-sm font-medium text-red-800">
+                  {message}
+                  {showSignInLink && (
+                    <> <a href="/signin" class="font-bold underline hover:text-red-900">Sign in</a>.</>
+                  )}
+                </h3>
+                {isRateLimited && resetSeconds !== undefined && (
+                  <p class="text-sm text-red-700 mt-2" id="rate-limit-countdown"></p>
+                )}
+                {remainingAttempts !== undefined && remainingAttempts <= 3 && !isRateLimited && (
+                  <p class="text-sm text-red-700 mt-2">
+                    You have {remainingAttempts} attempt{remainingAttempts === 1 ? "" : "s"} remaining.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -70,7 +112,8 @@ if (error) {
                 id="email" 
                 required 
                 autocomplete="email"
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
+                disabled={isRateLimited}
+                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
                 placeholder="Email address"
               />
             </div>
@@ -82,19 +125,50 @@ if (error) {
                 id="password" 
                 required 
                 autocomplete="new-password"
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
+                disabled={isRateLimited}
+                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
                 placeholder="Password"
               />
             </div>
           </div>
           
-          <!-- Hidden timezone and time format fields -->
-          <input type="hidden" name="timezone" id="timezone" value="" />
-          <input type="hidden" name="time_format" id="time_format" value="" />
+					<div>
+						<label for="timezone" class="block text-sm font-medium text-slate-700 mb-1">
+							Timezone
+						</label>
+						<p class="text-sm text-slate-600 mb-2">
+							We auto-detected this, but you can change it if it’s wrong.
+						</p>
+						<select
+							id="timezone"
+							name="timezone"
+							disabled={isRateLimited}
+							class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
+						>
+							<option value="">
+								Select your timezone (optional)
+							</option>
+							{timezones.map((tz) => (
+								<option value={tz.value}>{tz.label}</option>
+							))}
+						</select>
+					</div>
+
+          <input
+            type="hidden"
+            name="utc_offset_minutes"
+            id="utc_offset_minutes"
+            value=""
+          />
           <div>
             <button 
               type="submit" 
-              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
+              disabled={isRateLimited}
+              class={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                isRateLimited
+                  ? "text-white bg-gray-400 cursor-not-allowed"
+                  : "text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
+              }`}
             >
               Register
             </button>
@@ -106,53 +180,130 @@ if (error) {
 </Layout>
 
 <script>
+	import { setupDetectedTimezoneOption } from "../../lib/timezone-select";
+
+	let interval: ReturnType<typeof setInterval> | undefined;
+
 	document.addEventListener('DOMContentLoaded', () => {
 		const form = document.getElementById('register-form');
-		const timezoneInput = document.getElementById('timezone');
-		const timeFormatInput = document.getElementById('time_format');
+		const timezoneInputElement = document.getElementById('timezone');
+		const offsetInputElement = document.getElementById('utc_offset_minutes');
+		const countdownElement = document.getElementById('rate-limit-countdown');
 		
 		if (!(form instanceof HTMLFormElement) 
-			|| !(timezoneInput instanceof HTMLInputElement) 
-			|| !(timeFormatInput instanceof HTMLInputElement)) {
+			|| !(timezoneInputElement instanceof HTMLSelectElement)
+			|| !(offsetInputElement instanceof HTMLInputElement)) {
 			console.error('Registration form elements not found');
 			return;
 		}
 
-		// Detect timezone and time format
+		const timezoneSelect = timezoneInputElement;
+		const offsetInput = offsetInputElement;
 
-		function detectAndSetTimezone() {
-			// Detect user's timezone and time format
-			if (Intl && Intl.DateTimeFormat && timezoneInput instanceof HTMLInputElement && timeFormatInput instanceof HTMLInputElement) {
-				try {
-					// Detect timezone
-					const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-					timezoneInput.value = detectedTimezone;
-
-					// Detect time format preference
-					const formatter = new Intl.DateTimeFormat(navigator.language, {
-						hour: 'numeric'
-					});
-					const hour12 = formatter.resolvedOptions().hour12;
-					timeFormatInput.value = hour12 === undefined ? '12h' : (hour12 ? '12h' : '24h');
-				} catch (error) {
-					console.error('Timezone detection failed:', error);
-				}
-			} else {
-				console.error('Intl or DateTimeFormat not available');
+		function getDetectedTimezone(): string {
+			try {
+				return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+			} catch {
+				return "";
 			}
 		}
 
-		// Initial detection
-		detectAndSetTimezone();
+		function setUtcOffsetMinutes() {
+			try {
+				offsetInput.value = String(new Date().getTimezoneOffset());
+			} catch (error) {
+				console.error('UTC offset detection failed:', error);
+			}
+		}
 
-		// Re-detect on form submission if values are empty
+		setupDetectedTimezoneOption();
+
+		const detectedTimezone = getDetectedTimezone().trim();
+		if (detectedTimezone) {
+			timezoneSelect.value = detectedTimezone;
+		}
+		setUtcOffsetMinutes();
+
 		form.addEventListener('submit', () => {
-			// If values are empty, try to detect again
-			// Server-side validation will handle missing values
-			if (timezoneInput instanceof HTMLInputElement && timeFormatInput instanceof HTMLInputElement && (!timezoneInput.value || !timeFormatInput.value)) {
-				detectAndSetTimezone();
+			const detectedAtSubmit = getDetectedTimezone().trim();
+			if (!timezoneSelect.value && detectedAtSubmit) {
+				setupDetectedTimezoneOption();
+				timezoneSelect.value = detectedAtSubmit;
+			}
+			if (!offsetInput.value) {
+				setUtcOffsetMinutes();
 			}
 		});
+
+		// Rate limit countdown timer
+		if (countdownElement) {
+			const resetSecondsParam = new URLSearchParams(window.location.search).get('reset_seconds');
+			if (resetSecondsParam) {
+				const parsedSeconds = parseInt(resetSecondsParam, 10);
+				if (Number.isNaN(parsedSeconds)) {
+					return;
+				}
+				let remainingSeconds = parsedSeconds;
+
+				// Clear any existing interval to prevent race conditions
+				if (interval) {
+					clearInterval(interval);
+					interval = undefined;
+				}
+				
+				function formatDuration(seconds: number): string {
+					if (seconds <= 0) return 'now';
+					
+					const hours = Math.floor(seconds / 3600);
+					const minutes = Math.floor((seconds % 3600) / 60);
+					const secs = seconds % 60;
+					
+					if (hours > 0) {
+						if (minutes === 0) {
+							return `${hours} hour${hours === 1 ? '' : 's'}`;
+						}
+						return `${hours} hour${hours === 1 ? '' : 's'} and ${minutes} minute${minutes === 1 ? '' : 's'}`;
+					}
+					if (minutes > 0) {
+						if (secs === 0) {
+							return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+						}
+						return `${minutes} minute${minutes === 1 ? '' : 's'} and ${secs} second${secs === 1 ? '' : 's'}`;
+					}
+					return `${secs} second${secs === 1 ? '' : 's'}`;
+				}
+				
+				function updateCountdown() {
+					if (!countdownElement) return;
+					
+					if (remainingSeconds <= 0) {
+						if (interval) {
+							clearInterval(interval);
+							interval = undefined;
+						}
+						countdownElement.textContent = 'Rate limit has expired. You can try again now.';
+						// Reload page to clear rate limit state
+						setTimeout(() => {
+							window.location.href = '/auth/register';
+						}, 2000);
+						return;
+					}
+					
+					countdownElement.textContent = `Please try again in ${formatDuration(remainingSeconds)}.`;
+					remainingSeconds--;
+				}
+				
+				updateCountdown();
+				interval = setInterval(updateCountdown, 1000);
+				
+				// Cleanup on page unload
+				window.addEventListener('beforeunload', () => {
+					if (interval) {
+						clearInterval(interval);
+						interval = undefined;
+					}
+				});
+			}
+		}
 	});
 </script>
-

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { User } from "../../../lib/users";
 
 export type DeliveryMethod = "email" | "sms";
 
@@ -16,90 +17,95 @@ export interface NotificationLogEntry {
 	errorCode?: string;
 }
 
-export interface UserRecord {
-	id: string;
-	email: string;
-	phone_country_code: string | null;
-	phone_number: string | null;
-	phone_verified: boolean;
-	sms_opted_out: boolean;
-	timezone: string | null;
-	notification_start_hour: number;
-	notification_end_hour: number;
-	email_notifications_enabled: boolean;
-	sms_notifications_enabled: boolean;
-}
+export type UserRecord = Pick<
+	User,
+	| "id"
+	| "email"
+	| "phone_country_code"
+	| "phone_number"
+	| "phone_verified"
+	| "sms_opted_out"
+	| "timezone"
+	| "daily_digest_enabled"
+	| "daily_digest_notification_time"
+	| "email_notifications_enabled"
+	| "sms_notifications_enabled"
+	| "breaking_news_enabled"
+	| "stock_trends_enabled"
+	| "price_threshold_alerts_enabled"
+	| "volume_spike_alerts_enabled"
+>;
 
 export interface UserStockRow {
 	symbol: string;
+	name: string;
 }
+
+type UserStockQueryResult = {
+	symbol: string;
+	stocks: { name: string } | null;
+};
 
 export function shouldNotifyUser(
 	user: UserRecord,
 	getCurrentTime: () => Date,
 ): boolean {
+	if (!user.daily_digest_enabled) {
+		return false;
+	}
+
 	if (!user.timezone) {
 		return false;
 	}
 
-	const currentHour = getCurrentHourInTimezone(user.timezone, getCurrentTime);
+	const currentMinutes = getCurrentMinutesInTimezone(
+		user.timezone,
+		getCurrentTime,
+	);
 
-	if (currentHour === null) {
-		console.error("Unable to determine current hour for user timezone", {
+	if (currentMinutes === null) {
+		console.error("Unable to determine current time for user timezone", {
 			userId: user.id,
 			timezone: user.timezone,
 		});
 		return false;
 	}
 
-	const withinWindow: boolean = isHourWithinWindow(
-		currentHour,
-		user.notification_start_hour,
-		user.notification_end_hour,
-	);
-
-	return withinWindow;
+	return currentMinutes === user.daily_digest_notification_time;
 }
 
-export function getCurrentHourInTimezone(
+export function getCurrentMinutesInTimezone(
 	timezone: string,
 	getCurrentTime: () => Date,
 ): number | null {
 	try {
+		const date = getCurrentTime();
 		const formatter = new Intl.DateTimeFormat("en-US", {
 			hour: "numeric",
+			minute: "numeric",
 			hourCycle: "h23",
 			timeZone: timezone,
 		});
-		const parts = formatter.formatToParts(getCurrentTime());
+		const parts = formatter.formatToParts(date);
 		const hourPart = parts.find((part) => part.type === "hour");
+		const minutePart = parts.find((part) => part.type === "minute");
 
-		if (!hourPart) {
+		if (!hourPart || !minutePart) {
 			return null;
 		}
 
-		const hour = Number.parseInt(hourPart.value, 10);
-		return Number.isNaN(hour) ? null : hour;
+		const hours = Number.parseInt(hourPart.value, 10);
+		const minutes = Number.parseInt(minutePart.value, 10);
+
+		if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+			return null;
+		}
+
+		return hours * 60 + minutes;
 	} catch {
-		console.error("Failed to parse hour from timezone", { timezone });
+		console.error("Failed to parse time from timezone", { timezone });
 		return null;
 	}
-}
-
-export function isHourWithinWindow(
-	hour: number,
-	start: number,
-	end: number,
-): boolean {
-	if (start === end) {
-		return hour === start;
-	}
-
-	if (start < end) {
-		return hour >= start && hour <= end;
-	}
-
-	return hour >= start || hour <= end;
 }
 
 export async function loadUserStocks(
@@ -108,7 +114,7 @@ export async function loadUserStocks(
 ): Promise<UserStockRow[] | null> {
 	const { data: stocks, error } = await supabase
 		.from("user_stocks")
-		.select("symbol")
+		.select("symbol, stocks(name)")
 		.eq("user_id", userId);
 
 	if (error) {
@@ -123,7 +129,13 @@ export async function loadUserStocks(
 		return [];
 	}
 
-	return stocks;
+	// Transform the nested structure to flat UserStockRow[]
+	// Type assertion needed because Supabase's inferred types for nested selects
+	// are incorrect without generated Database types
+	return (stocks as unknown as UserStockQueryResult[]).map((stock) => ({
+		symbol: stock.symbol,
+		name: stock.stocks?.name ?? stock.symbol,
+	}));
 }
 
 export async function recordNotification(

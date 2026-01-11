@@ -1,0 +1,103 @@
+---
+interface Props {
+	emailEnabled: boolean;
+	smsEnabled: boolean;
+}
+
+const { emailEnabled, smsEnabled } = Astro.props as Props;
+
+const showSection = emailEnabled || smsEnabled;
+---
+
+{showSection && (
+	<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-8">
+		<h2 class="text-2xl font-bold text-gray-900 mb-4">Test Notifications</h2>
+		<p class="text-gray-600 mb-6">
+			Send a test notification to verify your settings. These will be sent
+			immediately, regardless of your time window preferences.
+		</p>
+
+		<div class="flex gap-4">
+			{emailEnabled && (
+				<button
+					id="test-email-btn"
+					type="button"
+					class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+				>
+					Send Test Email
+				</button>
+			)}
+			{smsEnabled && (
+				<button
+					id="test-sms-btn"
+					type="button"
+					class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+				>
+					Send Test SMS
+				</button>
+			)}
+		</div>
+
+		<div
+			id="test-notification-feedback"
+			class="mt-4 hidden p-3 rounded-lg text-sm"
+			role="alert"
+		>
+		</div>
+	</div>
+)}
+
+<script>
+	function setupTestButton(btnId: string, type: "email" | "sms") {
+		const btn = document.getElementById(btnId) as HTMLButtonElement;
+		const feedback = document.getElementById("test-notification-feedback");
+
+		if (!btn || !feedback) return;
+
+		btn.addEventListener("click", async () => {
+			// Reset state
+			const originalText = btn.textContent;
+			btn.disabled = true;
+			btn.textContent = "Sending...";
+			feedback.classList.add("hidden");
+			feedback.className = "mt-4 hidden p-3 rounded-lg text-sm";
+
+			try {
+				const res = await fetch("/api/notifications/test", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type }),
+				});
+
+				const data = await res.json();
+
+				if (res.ok && data.success) {
+					feedback.textContent = `Test ${type === "email" ? "email" : "SMS"} sent successfully!`;
+					feedback.classList.remove("hidden");
+					feedback.classList.add("bg-green-50", "text-green-800");
+				} else {
+					throw new Error(data.error || "Failed to send");
+				}
+			} catch (error) {
+				feedback.textContent =
+					error instanceof Error ? error.message : "An error occurred";
+				feedback.classList.remove("hidden");
+				feedback.classList.add("bg-red-50", "text-red-800");
+			} finally {
+				btn.disabled = false;
+				btn.textContent = originalText;
+			}
+		});
+	}
+
+	const emailBtn = document.getElementById("test-email-btn");
+	const smsBtn = document.getElementById("test-sms-btn");
+
+	if (emailBtn) {
+		setupTestButton("test-email-btn", "email");
+	}
+	if (smsBtn) {
+		setupTestButton("test-sms-btn", "sms");
+	}
+</script>
+

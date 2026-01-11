@@ -1,9 +1,17 @@
 import type { APIRoute } from "astro";
-import { createSupabaseServerClient } from "../../../lib/supabase";
+import {
+	createSupabaseAdminClient,
+	createSupabaseServerClient,
+} from "../../../lib/supabase";
 import { parseWithSchema } from "../form-utils";
+
+function escapeIlikePattern(value: string): string {
+	return value.replace(/([\\_%])/g, "\\$1");
+}
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const supabase = createSupabaseServerClient();
+	const adminClient = createSupabaseAdminClient();
 
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
@@ -15,11 +23,25 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		console.error("Sign-in attempt rejected due to invalid form", {
 			errors: parsed.allErrors,
 		});
-		return redirect("/?error=invalid_form");
+		return redirect("/signin?error=invalid_form");
 	}
 
-	const email = parsed.data.email;
+	const email = parsed.data.email.trim();
 	const password = parsed.data.password;
+
+	const { data: existingUser } = await adminClient
+		.from("users")
+		.select("id")
+		.ilike("email", escapeIlikePattern(email))
+		.limit(1)
+		.maybeSingle();
+
+	if (!existingUser) {
+		console.error("Sign-in failed: user not found", { email });
+		return redirect(
+			`/signin?error=user_not_found&email=${encodeURIComponent(email)}`,
+		);
+	}
 
 	const { data, error } = await supabase.auth.signInWithPassword({
 		email,
@@ -34,13 +56,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			return redirect(`/auth/unconfirmed?email=${encodeURIComponent(email)}`);
 		}
 
-		// Redirect back to the home page with a generic invalid credentials error
-		console.error("Sign-in failed due to invalid credentials", {
+		console.error("Sign-in failed due to invalid password", {
 			email,
 			message: error.message,
 		});
+
 		return redirect(
-			`/?error=invalid_credentials${email ? `&email=${encodeURIComponent(email)}` : ""}`,
+			`/signin?error=invalid_password&email=${encodeURIComponent(email)}`,
 		);
 	}
 

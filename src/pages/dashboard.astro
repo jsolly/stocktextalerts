@@ -1,8 +1,13 @@
 ---
 import { readFile } from "node:fs/promises";
-import DashboardPreferencesForm from "../components/dashboard/DashboardPreferencesForm.astro";
+import InstantNotificationsCard from "../components/dashboard/preferences/InstantNotificationsCard.astro";
+import NotificationPreferencesCard from "../components/dashboard/preferences/NotificationPreferencesCard.astro";
+import ScheduledNotificationsCard from "../components/dashboard/preferences/ScheduledNotificationsCard.astro";
 import SetupRequiredBanner from "../components/dashboard/SetupRequiredBanner.astro";
+import TrackedStocksPanel from "../components/dashboard/stocks/TrackedStocksPanel.vue";
+import TestNotifications from "../components/dashboard/TestNotifications.astro";
 import Navigation from "../components/layout/Navigation.astro";
+import TimezoneMismatchBanner from "../components/TimezoneMismatchBanner.astro";
 import Layout from "../layouts/Layout.astro";
 import { formatMessage } from "../lib/format";
 import type { Stock } from "../lib/stocks";
@@ -10,6 +15,11 @@ import { getUserStocks } from "../lib/stocks";
 import { createSupabaseServerClient } from "../lib/supabase";
 import { getTimezoneOptions } from "../lib/timezones";
 import { createUserService } from "../lib/users";
+
+interface StockOption {
+	value: string;
+	label: string;
+}
 
 const supabase = createSupabaseServerClient();
 const users = createUserService(supabase, Astro.cookies);
@@ -38,10 +48,12 @@ const { data: allStocks } = JSON.parse(stocksFileContents) as { data: Stock[] };
 
 const [userStocks, timezones] = await Promise.all([
 	getUserStocks(supabase, authUser.id),
-	getTimezoneOptions(supabase),
+	getTimezoneOptions(supabase, { includeValues: [user.timezone] }),
 ]);
 
-const stockOptions = allStocks.map((stock) => ({
+const initialSymbols = userStocks.map((stock) => stock.symbol);
+
+const stockOptions: StockOption[] = allStocks.map((stock) => ({
 	value: stock.symbol,
 	label: `${stock.symbol} - ${stock.name}`,
 }));
@@ -50,12 +62,19 @@ const url = new URL(Astro.request.url);
 const successMessage = url.searchParams.get("success");
 const errorMessage = url.searchParams.get("error");
 const isEditingPhone = url.searchParams.get("change_phone") === "1";
+
+const isSmsFullyConfigured =
+	user.sms_notifications_enabled &&
+	!user.sms_opted_out &&
+	user.phone_verified &&
+	Boolean(user.phone_country_code) &&
+	Boolean(user.phone_number);
 ---
 
 <Layout title="Dashboard" description="Review and manage your stock notifications">
 	<div class="min-h-screen bg-gray-50">
 		<Navigation user={authUser} />
-		
+
 		<div class="max-w-4xl mx-auto px-6 py-12">
 			<div class="mb-8">
 				<h1 class="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
@@ -74,19 +93,265 @@ const isEditingPhone = url.searchParams.get("change_phone") === "1";
 			</div>
 		)}
 
+		<TimezoneMismatchBanner returnTo="/dashboard" savedTimezone={user.timezone} />
+
 		<!-- Section 1: Setup Required Banner -->
 		<SetupRequiredBanner user={user} />
 
 		<!-- Section 2: Preferences form (stocks + notification settings) -->
-		<DashboardPreferencesForm
-			user={user}
-			timezones={timezones}
-			stockOptions={stockOptions}
-			initialSymbols={userStocks.map((stock) => stock.symbol)}
-			isEditingPhone={isEditingPhone}
+		<form
+			id="dashboard-preferences-form"
+			method="POST"
+			action="/api/preferences"
+			class="space-y-6"
+		>
+			<TrackedStocksPanel
+				client:only="vue"
+				stockOptions={stockOptions}
+				initialSymbols={initialSymbols}
+			/>
+
+			<NotificationPreferencesCard
+				user={user}
+				timezones={timezones}
+				isEditingPhone={isEditingPhone}
+			/>
+
+			<ScheduledNotificationsCard user={user} />
+
+			<InstantNotificationsCard user={user} userStocks={userStocks} />
+
+			<button
+				type="submit"
+				id="save-button"
+				class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
+				disabled
+			>
+				Save Preferences
+			</button>
+		</form>
+		<!-- Section 3: Test Notifications -->
+		<TestNotifications
+			emailEnabled={user.email_notifications_enabled}
+			smsEnabled={isSmsFullyConfigured}
 		/>
 		</div>
 	</div>
 </Layout>
+
+<script define:vars={{ initialSymbols }}>
+	function setupDashboardPreferencesDirtyCheck() {
+		const formElement = document.getElementById("dashboard-preferences-form");
+		if (!(formElement instanceof HTMLFormElement)) {
+			return;
+		}
+		const form = formElement;
+
+		const saveButtonElement = document.getElementById("save-button");
+		if (!(saveButtonElement instanceof HTMLButtonElement)) {
+			return;
+		}
+		const saveButton = saveButtonElement;
+
+		let isSubmitting = false;
+
+		function readPreferencesValues() {
+			const getCheckboxChecked = (name) => {
+				const element = form.querySelector(`input[name="${name}"]`);
+				if (!(element instanceof HTMLInputElement)) {
+					return false;
+				}
+
+				return element.checked;
+			};
+
+			const getInputValue = (name) => {
+				const element = form.querySelector(`input[name="${name}"]`);
+				if (!(element instanceof HTMLInputElement)) {
+					return "";
+				}
+
+				return element.value;
+			};
+
+			const getSelectValue = (name) => {
+				const element = form.querySelector(`select[name="${name}"]`);
+				if (!(element instanceof HTMLSelectElement)) {
+					return "";
+				}
+
+				return element.value;
+			};
+
+			return {
+				email_notifications_enabled: getCheckboxChecked(
+					"email_notifications_enabled",
+				),
+				sms_notifications_enabled: getCheckboxChecked(
+					"sms_notifications_enabled",
+				),
+				timezone: getSelectValue("timezone"),
+				daily_digest_notification_time: getInputValue(
+					"daily_digest_notification_time",
+				),
+				daily_digest_enabled: getCheckboxChecked("daily_digest_enabled"),
+				breaking_news_enabled: getCheckboxChecked("breaking_news_enabled"),
+				price_threshold_alerts_enabled: getCheckboxChecked(
+					"price_threshold_alerts_enabled",
+				),
+				volume_spike_alerts_enabled: getCheckboxChecked(
+					"volume_spike_alerts_enabled",
+				),
+			};
+		}
+
+		const initialPreferences = readPreferencesValues();
+
+		function normalizeSymbols(value) {
+			if (!Array.isArray(value)) {
+				return [];
+			}
+
+			return value.filter((entry) => typeof entry === "string");
+		}
+
+		function areSymbolsSetsEqual(left, right) {
+			if (left.length !== right.length) {
+				return false;
+			}
+
+			const leftSet = new Set(left);
+			if (leftSet.size !== right.length) {
+				return false;
+			}
+
+			return right.every((symbol) => leftSet.has(symbol));
+		}
+
+		let initialTrackedSymbols = normalizeSymbols(initialSymbols);
+		let currentTrackedSymbols = [...initialTrackedSymbols];
+
+		function isStocksDirty() {
+			return !areSymbolsSetsEqual(initialTrackedSymbols, currentTrackedSymbols);
+		}
+
+		function isPreferencesDirty() {
+			const currentPreferences = readPreferencesValues();
+			return Object.entries(initialPreferences).some(
+				([key, initialValue]) => currentPreferences[key] !== initialValue,
+			);
+		}
+
+		function hasUnsavedChanges() {
+			return isPreferencesDirty() || isStocksDirty();
+		}
+
+		// Save button only considers preferences, not stocks.
+		// Stocks are saved separately via TrackedStocksPanel's own save button.
+		// Navigation warnings (hasUnsavedChanges) include both to warn about any unsaved changes.
+		const updateSaveButtonState = () => {
+			saveButton.disabled = !isPreferencesDirty();
+		};
+
+		const onFormChange = () => {
+			updateSaveButtonState();
+		};
+
+		form.addEventListener("input", onFormChange);
+		form.addEventListener("change", onFormChange);
+
+		window.addEventListener("tracked-stocks-changed", (event) => {
+			if (!(event instanceof CustomEvent)) {
+				return;
+			}
+
+			const symbols = normalizeSymbols(event.detail?.symbols);
+			currentTrackedSymbols = symbols;
+		});
+
+		window.addEventListener("tracked-stocks-saved", (event) => {
+			if (!(event instanceof CustomEvent)) {
+				return;
+			}
+
+			const symbols = normalizeSymbols(event.detail?.symbols);
+			initialTrackedSymbols = symbols;
+			currentTrackedSymbols = symbols;
+		});
+
+		form.addEventListener("submit", () => {
+			isSubmitting = true;
+		});
+
+		window.addEventListener("beforeunload", (event) => {
+			if (isSubmitting) {
+				return;
+			}
+			if (hasUnsavedChanges()) {
+				event.preventDefault();
+			}
+		});
+
+		document.addEventListener("click", (event) => {
+			const target = event.target;
+			if (!(target instanceof HTMLElement)) {
+				return;
+			}
+
+			const link = target.closest("a");
+
+			if (!link || !hasUnsavedChanges()) {
+				return;
+			}
+
+			const href = link.getAttribute("href");
+			if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
+				return;
+			}
+
+			if (href.startsWith("/") || href.startsWith("http")) {
+				if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
+					event.preventDefault();
+					event.stopPropagation();
+					return;
+				}
+			}
+		}, true);
+
+		updateSaveButtonState();
+	}
+
+	if (document.readyState === "loading") {
+		document.addEventListener(
+			"DOMContentLoaded",
+			setupDashboardPreferencesDirtyCheck,
+		);
+	} else {
+		setupDashboardPreferencesDirtyCheck();
+	}
+</script>
+
+<script>
+	import { setupTimezoneMismatchBanner } from "../lib/timezone-banner";
+
+	function setupDashboardTimezoneMismatchBanner() {
+		const banner = document.getElementById("timezone-mismatch-banner");
+		if (!(banner instanceof HTMLElement)) {
+			return;
+		}
+
+		const savedTimezone = banner.dataset.savedTimezone ?? "";
+		setupTimezoneMismatchBanner(savedTimezone);
+	}
+
+	if (document.readyState === "loading") {
+		document.addEventListener(
+			"DOMContentLoaded",
+			setupDashboardTimezoneMismatchBanner,
+		);
+	} else {
+		setupDashboardTimezoneMismatchBanner();
+	}
+</script>
 
 

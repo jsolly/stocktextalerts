@@ -16,6 +16,16 @@ CREATE TABLE IF NOT EXISTS timezones (
   active BOOLEAN DEFAULT true NOT NULL
 );
 
+-- Populate all Postgres-known timezones (IANA + aliases) as inactive by default.
+-- Curated UI options are applied below via upserts.
+INSERT INTO timezones (value, label, display_order, active)
+SELECT name, name, 0, false
+FROM pg_timezone_names
+ON CONFLICT (value) DO UPDATE SET
+  label = EXCLUDED.label,
+  display_order = EXCLUDED.display_order,
+  active = EXCLUDED.active;
+
 INSERT INTO timezones (value, label, display_order, active) VALUES
   ('America/New_York', 'Eastern Time (ET)', 1, true),
   ('America/Detroit', 'Eastern Time - Detroit (ET)', 2, true),
@@ -45,7 +55,83 @@ INSERT INTO timezones (value, label, display_order, active) VALUES
   ('America/Yakutat', 'Alaska Time - Yakutat (AKT)', 26, true),
   ('America/Nome', 'Alaska Time - Nome (AKT)', 27, true),
   ('America/Adak', 'Hawaii-Aleutian Time (HST)', 28, true),
-  ('Pacific/Honolulu', 'Hawaii Time (HST)', 29, true)
+  ('Pacific/Honolulu', 'Hawaii Time (HST)', 29, true),
+  ('America/Toronto', 'Eastern Time - Toronto (ET)', 30, true),
+  ('America/Vancouver', 'Pacific Time - Vancouver (PT)', 31, true),
+  ('America/Winnipeg', 'Central Time - Winnipeg (CT)', 32, true),
+  ('America/Edmonton', 'Mountain Time - Edmonton (MT)', 33, true),
+  ('America/Halifax', 'Atlantic Time - Halifax (AT)', 34, true),
+  ('America/St_Johns', 'Newfoundland Time (NT)', 35, true),
+  ('America/Mexico_City', 'Central Time - Mexico City (CT)', 36, true),
+  ('America/Monterrey', 'Central Time - Monterrey (CT)', 37, true),
+  ('America/Cancun', 'Eastern Time - Cancún (ET)', 38, true),
+  ('America/Tijuana', 'Pacific Time - Tijuana (PT)', 39, true),
+  ('America/Sao_Paulo', 'Brasília Time (BRT)', 40, true),
+  ('America/Buenos_Aires', 'Argentina Time (ART)', 41, true),
+  ('America/Lima', 'Peru Time (PET)', 42, true),
+  ('America/Santiago', 'Chile Time (CLT)', 43, true),
+  ('America/Bogota', 'Colombia Time (COT)', 44, true),
+  ('America/Caracas', 'Venezuela Time (VET)', 45, true),
+  ('Europe/London', 'Greenwich Mean Time (GMT)', 50, true),
+  ('Europe/Dublin', 'Greenwich Mean Time - Dublin (GMT)', 51, true),
+  ('Europe/Lisbon', 'Western European Time (WET)', 52, true),
+  ('Europe/Paris', 'Central European Time (CET)', 53, true),
+  ('Europe/Berlin', 'Central European Time - Berlin (CET)', 54, true),
+  ('Europe/Rome', 'Central European Time - Rome (CET)', 55, true),
+  ('Europe/Madrid', 'Central European Time - Madrid (CET)', 56, true),
+  ('Europe/Amsterdam', 'Central European Time - Amsterdam (CET)', 57, true),
+  ('Europe/Brussels', 'Central European Time - Brussels (CET)', 58, true),
+  ('Europe/Vienna', 'Central European Time - Vienna (CET)', 59, true),
+  ('Europe/Zurich', 'Central European Time - Zurich (CET)', 60, true),
+  ('Europe/Stockholm', 'Central European Time - Stockholm (CET)', 61, true),
+  ('Europe/Oslo', 'Central European Time - Oslo (CET)', 62, true),
+  ('Europe/Copenhagen', 'Central European Time - Copenhagen (CET)', 63, true),
+  ('Europe/Helsinki', 'Eastern European Time - Helsinki (EET)', 64, true),
+  ('Europe/Athens', 'Eastern European Time - Athens (EET)', 65, true),
+  ('Europe/Prague', 'Central European Time - Prague (CET)', 66, true),
+  ('Europe/Warsaw', 'Central European Time - Warsaw (CET)', 67, true),
+  ('Europe/Budapest', 'Central European Time - Budapest (CET)', 68, true),
+  ('Europe/Bucharest', 'Eastern European Time - Bucharest (EET)', 69, true),
+  ('Europe/Istanbul', 'Turkey Time (TRT)', 70, true),
+  ('Europe/Moscow', 'Moscow Time (MSK)', 71, true),
+  ('Europe/Kiev', 'Eastern European Time - Kyiv (EET)', 72, true),
+  ('Asia/Dubai', 'Gulf Standard Time (GST)', 80, true),
+  ('Asia/Riyadh', 'Arabia Standard Time (AST)', 81, true),
+  ('Asia/Kuwait', 'Arabia Standard Time - Kuwait (AST)', 82, true),
+  ('Asia/Baghdad', 'Arabia Standard Time - Baghdad (AST)', 83, true),
+  ('Asia/Tehran', 'Iran Standard Time (IRST)', 84, true),
+  ('Asia/Karachi', 'Pakistan Standard Time (PKT)', 85, true),
+  ('Asia/Dhaka', 'Bangladesh Standard Time (BST)', 86, true),
+  ('Asia/Kolkata', 'India Standard Time (IST)', 87, true),
+  ('Asia/Colombo', 'India Standard Time - Colombo (IST)', 88, true),
+  ('Asia/Kathmandu', 'Nepal Time (NPT)', 89, true),
+  ('Asia/Yangon', 'Myanmar Time (MMT)', 90, true),
+  ('Asia/Bangkok', 'Indochina Time (ICT)', 91, true),
+  ('Asia/Ho_Chi_Minh', 'Indochina Time - Ho Chi Minh City (ICT)', 92, true),
+  ('Asia/Phnom_Penh', 'Indochina Time - Phnom Penh (ICT)', 93, true),
+  ('Asia/Jakarta', 'Western Indonesia Time (WIB)', 94, true),
+  ('Asia/Singapore', 'Singapore Time (SGT)', 95, true),
+  ('Asia/Kuala_Lumpur', 'Malaysia Time (MYT)', 96, true),
+  ('Asia/Manila', 'Philippine Time (PHT)', 97, true),
+  ('Asia/Hong_Kong', 'Hong Kong Time (HKT)', 98, true),
+  ('Asia/Shanghai', 'China Standard Time (CST)', 99, true),
+  ('Asia/Beijing', 'China Standard Time - Beijing (CST)', 100, true),
+  ('Asia/Taipei', 'Taipei Time (TST)', 101, true),
+  ('Asia/Seoul', 'Korea Standard Time (KST)', 102, true),
+  ('Asia/Tokyo', 'Japan Standard Time (JST)', 103, true),
+  ('Australia/Sydney', 'Australian Eastern Time (AET)', 110, true),
+  ('Australia/Melbourne', 'Australian Eastern Time - Melbourne (AET)', 111, true),
+  ('Australia/Brisbane', 'Australian Eastern Time - Brisbane (AET)', 112, true),
+  ('Australia/Adelaide', 'Australian Central Time (ACT)', 113, true),
+  ('Australia/Perth', 'Australian Western Time (AWT)', 114, true),
+  ('Australia/Darwin', 'Australian Central Time - Darwin (ACT)', 115, true),
+  ('Pacific/Auckland', 'New Zealand Time (NZST)', 116, true),
+  ('Pacific/Fiji', 'Fiji Time (FJT)', 117, true),
+  ('Africa/Cairo', 'Eastern European Time - Cairo (EET)', 120, true),
+  ('Africa/Johannesburg', 'South Africa Standard Time (SAST)', 121, true),
+  ('Africa/Lagos', 'West Africa Time (WAT)', 122, true),
+  ('Africa/Nairobi', 'East Africa Time (EAT)', 123, true),
+  ('Africa/Casablanca', 'Western European Time - Casablanca (WET)', 124, true)
 ON CONFLICT (value) DO UPDATE SET
   label = EXCLUDED.label,
   display_order = EXCLUDED.display_order,
@@ -69,15 +155,17 @@ CREATE TABLE IF NOT EXISTS users (
   ) STORED,
   phone_verified BOOLEAN DEFAULT false NOT NULL,
   sms_opted_out BOOLEAN DEFAULT false NOT NULL,
-  timezone TEXT REFERENCES timezones(value),
-  time_format VARCHAR(3) DEFAULT '12h' NOT NULL CHECK (time_format IN ('12h', '24h')),
-  notification_start_hour INTEGER DEFAULT 9 NOT NULL CHECK (notification_start_hour >= 0 AND notification_start_hour <= 23),
-  notification_end_hour INTEGER DEFAULT 17 NOT NULL CHECK (notification_end_hour >= 0 AND notification_end_hour <= 23),
+  timezone TEXT DEFAULT 'America/New_York' REFERENCES timezones(value) NOT NULL,
+  daily_digest_enabled BOOLEAN DEFAULT true NOT NULL,
+  daily_digest_notification_time INTEGER DEFAULT 540 NOT NULL CHECK (daily_digest_notification_time >= 0 AND daily_digest_notification_time <= 1439),
+  breaking_news_enabled BOOLEAN DEFAULT false NOT NULL,
+  stock_trends_enabled BOOLEAN DEFAULT false NOT NULL,
+  price_threshold_alerts_enabled BOOLEAN DEFAULT false NOT NULL,
+  volume_spike_alerts_enabled BOOLEAN DEFAULT false NOT NULL,
   email_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   sms_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  CONSTRAINT notification_hours_order CHECK (notification_start_hour <= notification_end_hour),
   CONSTRAINT phone_country_code_format CHECK (phone_country_code ~ '^\+[0-9]{1,4}$'),
   CONSTRAINT phone_number_format CHECK (phone_number ~ '^[0-9]{10,14}$'),
   CONSTRAINT unique_phone UNIQUE (phone_country_code, phone_number),
@@ -137,38 +225,35 @@ BEGIN
 END;
 $$;
 
-/* =============
-User Preferences and Stocks Functions
-============= */
-
-CREATE OR REPLACE FUNCTION public.update_user_preferences_and_stocks(
-  user_id uuid,
-  timezone text,
-  notification_start_hour integer,
-  notification_end_hour integer,
-  time_format varchar(3),
-  email_notifications_enabled boolean,
-  sms_notifications_enabled boolean,
+CREATE OR REPLACE FUNCTION public.validate_stock_symbols(
   symbols text[]
 )
-RETURNS void
+RETURNS text[]
 LANGUAGE plpgsql
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  valid_symbols text[];
 BEGIN
-  UPDATE users
-  SET
-    timezone = COALESCE(update_user_preferences_and_stocks.timezone, users.timezone),
-    notification_start_hour = COALESCE(update_user_preferences_and_stocks.notification_start_hour, users.notification_start_hour),
-    notification_end_hour = COALESCE(update_user_preferences_and_stocks.notification_end_hour, users.notification_end_hour),
-    time_format = COALESCE(update_user_preferences_and_stocks.time_format, users.time_format),
-    email_notifications_enabled = COALESCE(update_user_preferences_and_stocks.email_notifications_enabled, users.email_notifications_enabled),
-    sms_notifications_enabled = COALESCE(update_user_preferences_and_stocks.sms_notifications_enabled, users.sms_notifications_enabled)
-  WHERE id = update_user_preferences_and_stocks.user_id;
+  IF symbols IS NULL OR array_length(symbols, 1) IS NULL THEN
+    RETURN ARRAY[]::text[];
+  END IF;
 
-  PERFORM replace_user_stocks(update_user_preferences_and_stocks.user_id, symbols);
+  SELECT ARRAY_AGG(DISTINCT s.symbol)
+  INTO valid_symbols
+  FROM (
+    SELECT UPPER(TRIM(BOTH FROM entry)) AS symbol
+    FROM unnest(symbols) AS raw(entry)
+    WHERE TRIM(BOTH FROM entry) <> ''
+  ) AS normalized
+  INNER JOIN stocks s ON s.symbol = normalized.symbol;
+
+  RETURN COALESCE(valid_symbols, ARRAY[]::text[]);
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.replace_user_stocks(uuid, text[]) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.validate_stock_symbols(text[]) TO anon, authenticated, service_role;
 
 /* =============
 Notification Log
@@ -264,6 +349,78 @@ CREATE TRIGGER update_notification_log_updated_at
   BEFORE UPDATE ON notification_log
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+/* =============
+Rate Limits
+============= */
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  window_start TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  count INTEGER DEFAULT 1 NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- Trigger to update updated_at
+CREATE TRIGGER update_rate_limits_updated_at
+  BEFORE UPDATE ON rate_limits
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+/* =============
+Rate Limit Function
+============= */
+
+CREATE OR REPLACE FUNCTION public.check_rate_limit(
+  p_key text,
+  p_window_seconds integer,
+  p_limit integer
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_window_start timestamptz;
+  v_count integer;
+  v_now timestamptz := now();
+  v_reset_time timestamptz;
+BEGIN
+  IF p_window_seconds <= 0 OR p_limit <= 0 THEN
+    RAISE EXCEPTION 'window_seconds and limit must be positive integers'
+      USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO rate_limits (key, window_start, count)
+  VALUES (p_key, v_now, 1)
+  ON CONFLICT (key) DO UPDATE
+  SET count = CASE
+      WHEN rate_limits.window_start + (p_window_seconds || ' seconds')::interval <= v_now
+      THEN 1
+      ELSE rate_limits.count + 1
+    END,
+    window_start = CASE
+      WHEN rate_limits.window_start + (p_window_seconds || ' seconds')::interval <= v_now
+      THEN v_now
+      ELSE rate_limits.window_start
+    END
+  RETURNING window_start, count INTO v_window_start, v_count;
+
+  v_reset_time := v_window_start + (p_window_seconds || ' seconds')::interval;
+
+  RETURN json_build_object(
+    'allowed', v_count <= p_limit,
+    'remaining', GREATEST(p_limit - v_count, 0),
+    'reset_time', v_reset_time
+  );
+END;
+$$;
+
+-- Grant permissions explicitly
+GRANT EXECUTE ON FUNCTION public.check_rate_limit(text, integer, integer) TO anon, authenticated, service_role;
 
 
 
