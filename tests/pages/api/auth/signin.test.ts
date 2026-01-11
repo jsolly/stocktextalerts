@@ -16,6 +16,7 @@ describe("POST /api/auth/signin", () => {
 			body: new URLSearchParams({
 				email: testUser.email,
 				password: "TestPassword123!",
+				captcha_token: "test-captcha-token",
 			}),
 		});
 
@@ -41,7 +42,7 @@ describe("POST /api/auth/signin", () => {
 		expect(cookies.get("sb-refresh-token")).toBeDefined();
 	});
 
-	it("should return user_not_found error when email does not exist", async () => {
+	it("should return invalid_credentials when email does not exist", async () => {
 		const nonExistentEmail = `nonexistent-${Date.now()}@example.com`;
 
 		const request = new Request("http://localhost/api/auth/signin", {
@@ -49,6 +50,7 @@ describe("POST /api/auth/signin", () => {
 			body: new URLSearchParams({
 				email: nonExistentEmail,
 				password: "AnyPassword123!",
+				captcha_token: "test-captcha-token",
 			}),
 		});
 
@@ -67,11 +69,11 @@ describe("POST /api/auth/signin", () => {
 
 		expect(response.status).toBe(302);
 		const location = response.headers.get("Location");
-		expect(location).toContain("/signin?error=user_not_found");
+		expect(location).toContain("/signin?error=invalid_credentials");
 		expect(location).toContain(encodeURIComponent(nonExistentEmail));
 	});
 
-	it("should return invalid_password error when password is incorrect", async () => {
+	it("should return invalid_credentials when password is incorrect", async () => {
 		const testUser = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			password: "CorrectPassword123!",
@@ -83,6 +85,7 @@ describe("POST /api/auth/signin", () => {
 			body: new URLSearchParams({
 				email: testUser.email,
 				password: "WrongPassword123!",
+				captcha_token: "test-captcha-token",
 			}),
 		});
 
@@ -101,7 +104,7 @@ describe("POST /api/auth/signin", () => {
 
 		expect(response.status).toBe(302);
 		const location = response.headers.get("Location");
-		expect(location).toContain("/signin?error=invalid_password");
+		expect(location).toContain("/signin?error=invalid_credentials");
 		expect(location).toContain(encodeURIComponent(testUser.email));
 	});
 });

@@ -93,6 +93,7 @@ async function generateUsersSql(
       throw new Error(`Invalid seed user: email cannot be empty. User data: ${JSON.stringify(user)}`);
     }
     const userEmailLookup = userEmailRaw.toLowerCase();
+    const userEmail = escapeSql(userEmailRaw);
     const userPassword = escapeSql(user.password || defaultPassword);
     const trackedStocks = Array.isArray(user.tracked_stocks)
       ? user.tracked_stocks
@@ -106,8 +107,8 @@ async function generateUsersSql(
 
     sql += `-- User: ${escapeSql(userEmailRaw)} (ID: ${userId})\n`;
 
-    sql += buildAuthUserSql(userId, escapeSql(userEmailRaw), userPassword);
-    sql += buildAuthIdentitySql(userId, escapeSql(userEmailRaw));
+    sql += buildAuthUserSql(userId, userEmail, userPassword);
+    sql += buildAuthIdentitySql(userId, userEmail);
     sql += buildPublicUserSql(userId, user);
     sql += buildUserStocksSql(userId, trackedStocks);
   }

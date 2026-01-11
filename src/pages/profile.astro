@@ -74,7 +74,7 @@ const successMessage = formatMessage(success);
           </div>
         )}
 
-				<TimezoneMismatchBanner returnTo="/profile" savedTimezone={user.timezone} />
+				<TimezoneMismatchBanner savedTimezone={user.timezone} />
 
         <AccountManagement
           email={user.email}
@@ -178,25 +178,18 @@ const successMessage = formatMessage(success);
 			}
 		});
 
-		document.addEventListener("click", (event) => {
-			const target = event.target;
-			if (!(target instanceof Element)) {
-				return;
-			}
-
-			const link = target.closest("a");
-
-			if (!link || !checkIfDirty()) {
-				return;
+		function shouldWarnOnLinkClick(link: HTMLAnchorElement): boolean {
+			if (!checkIfDirty()) {
+				return false;
 			}
 
 			if (link.target === "_blank") {
-				return;
+				return false;
 			}
 
 			const href = link.getAttribute("href");
 			if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
-				return;
+				return false;
 			}
 
 			try {
@@ -209,18 +202,29 @@ const successMessage = formatMessage(success);
 					destination.search === current.search;
 
 				if (isSamePage) {
-					return;
+					return false;
 				}
 			} catch {
+				return false;
+			}
+
+			return href.startsWith("/") || href.startsWith("http");
+		}
+
+		document.addEventListener("click", (event) => {
+			const target = event.target;
+			if (!(target instanceof Element)) {
 				return;
 			}
 
-			if (href.startsWith("/") || href.startsWith("http")) {
-				if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
-					event.preventDefault();
-					event.stopPropagation();
-					return;
-				}
+			const link = target.closest("a");
+			if (!link || !shouldWarnOnLinkClick(link)) {
+				return;
+			}
+
+			if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
+				event.preventDefault();
+				event.stopPropagation();
 			}
 		}, true);
 

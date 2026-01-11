@@ -1,9 +1,5 @@
 import type { APIRoute } from "astro";
 import {
-	checkAndIncrementRateLimit,
-	ONE_HOUR_SECONDS,
-} from "../../../lib/rate-limit";
-import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../lib/supabase";
@@ -27,30 +23,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			JSON.stringify({ success: false, error: "Unauthorized" }),
 			{
 				status: 401,
-				headers: { "Content-Type": "application/json" },
-			},
-		);
-	}
-
-	// Rate limit: 5 test notifications per hour per user
-	const limitResult = await checkAndIncrementRateLimit(
-		`test-notification:${authUser.id}`,
-		ONE_HOUR_SECONDS,
-		5,
-	);
-
-	if (!limitResult.allowed) {
-		const now = new Date();
-		const durationSeconds = Math.ceil(
-			(limitResult.resetTime.getTime() - now.getTime()) / 1000,
-		);
-		return new Response(
-			JSON.stringify({
-				success: false,
-				error: `Rate limit exceeded. Try again in ${durationSeconds} seconds.`,
-			}),
-			{
-				status: 429,
 				headers: { "Content-Type": "application/json" },
 			},
 		);

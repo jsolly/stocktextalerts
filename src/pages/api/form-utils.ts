@@ -1,5 +1,3 @@
-import { validateTimezone } from "../../lib/timezones";
-
 /* =============
 Schema parsing
 ============= */
@@ -314,10 +312,7 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					output[key] = null;
 					break;
 				}
-				// Timezone strings come from the browser or a dropdown, but we validate
-				// existence against the DB at the API layer (resolver) rather than here.
-				const result = validateTimezone(trimmed);
-				output[key] = result.value;
+				output[key] = trimmed;
 				break;
 			}
 			case "integer": {

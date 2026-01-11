@@ -30,10 +30,6 @@ export type UserRecord = Pick<
 	| "daily_digest_notification_time"
 	| "email_notifications_enabled"
 	| "sms_notifications_enabled"
-	| "breaking_news_enabled"
-	| "stock_trends_enabled"
-	| "price_threshold_alerts_enabled"
-	| "volume_spike_alerts_enabled"
 >;
 
 export interface UserStockRow {
@@ -58,6 +54,8 @@ export function shouldNotifyUser(
 		return false;
 	}
 
+	const storedTime = user.daily_digest_notification_time;
+
 	const currentMinutes = getCurrentMinutesInTimezone(
 		user.timezone,
 		getCurrentTime,
@@ -71,7 +69,7 @@ export function shouldNotifyUser(
 		return false;
 	}
 
-	return currentMinutes === user.daily_digest_notification_time;
+	return currentMinutes === storedTime;
 }
 
 export function getCurrentMinutesInTimezone(

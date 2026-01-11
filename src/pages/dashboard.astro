@@ -1,6 +1,5 @@
 ---
 import { readFile } from "node:fs/promises";
-import InstantNotificationsCard from "../components/dashboard/preferences/InstantNotificationsCard.astro";
 import NotificationPreferencesCard from "../components/dashboard/preferences/NotificationPreferencesCard.astro";
 import ScheduledNotificationsCard from "../components/dashboard/preferences/ScheduledNotificationsCard.astro";
 import SetupRequiredBanner from "../components/dashboard/SetupRequiredBanner.astro";
@@ -93,7 +92,7 @@ const isSmsFullyConfigured =
 			</div>
 		)}
 
-		<TimezoneMismatchBanner returnTo="/dashboard" savedTimezone={user.timezone} />
+		<TimezoneMismatchBanner savedTimezone={user.timezone} />
 
 		<!-- Section 1: Setup Required Banner -->
 		<SetupRequiredBanner user={user} />
@@ -118,8 +117,6 @@ const isSmsFullyConfigured =
 			/>
 
 			<ScheduledNotificationsCard user={user} />
-
-			<InstantNotificationsCard user={user} userStocks={userStocks} />
 
 			<button
 				type="submit"
@@ -155,57 +152,33 @@ const isSmsFullyConfigured =
 
 		let isSubmitting = false;
 
-		function readPreferencesValues() {
-			const getCheckboxChecked = (name) => {
-				const element = form.querySelector(`input[name="${name}"]`);
-				if (!(element instanceof HTMLInputElement)) {
-					return false;
+		function readFormValues() {
+			const values = new Map();
+			const elements = form.querySelectorAll("[name]");
+			
+			for (const element of elements) {
+				const name = element.getAttribute("name");
+				if (!name) continue;
+				
+				if (element instanceof HTMLInputElement) {
+					if (element.type === "checkbox") {
+						values.set(name, element.checked);
+					} else if (element.type === "radio") {
+						if (element.checked) {
+							values.set(name, element.value);
+						}
+					} else {
+						values.set(name, element.value);
+					}
+				} else if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+					values.set(name, element.value);
 				}
-
-				return element.checked;
-			};
-
-			const getInputValue = (name) => {
-				const element = form.querySelector(`input[name="${name}"]`);
-				if (!(element instanceof HTMLInputElement)) {
-					return "";
-				}
-
-				return element.value;
-			};
-
-			const getSelectValue = (name) => {
-				const element = form.querySelector(`select[name="${name}"]`);
-				if (!(element instanceof HTMLSelectElement)) {
-					return "";
-				}
-
-				return element.value;
-			};
-
-			return {
-				email_notifications_enabled: getCheckboxChecked(
-					"email_notifications_enabled",
-				),
-				sms_notifications_enabled: getCheckboxChecked(
-					"sms_notifications_enabled",
-				),
-				timezone: getSelectValue("timezone"),
-				daily_digest_notification_time: getInputValue(
-					"daily_digest_notification_time",
-				),
-				daily_digest_enabled: getCheckboxChecked("daily_digest_enabled"),
-				breaking_news_enabled: getCheckboxChecked("breaking_news_enabled"),
-				price_threshold_alerts_enabled: getCheckboxChecked(
-					"price_threshold_alerts_enabled",
-				),
-				volume_spike_alerts_enabled: getCheckboxChecked(
-					"volume_spike_alerts_enabled",
-				),
-			};
+			}
+			
+			return values;
 		}
 
-		const initialPreferences = readPreferencesValues();
+		const initialPreferences = readFormValues();
 
 		function normalizeSymbols(value) {
 			if (!Array.isArray(value)) {
@@ -236,10 +209,10 @@ const isSmsFullyConfigured =
 		}
 
 		function isPreferencesDirty() {
-			const currentPreferences = readPreferencesValues();
-			return Object.entries(initialPreferences).some(
-				([key, initialValue]) => currentPreferences[key] !== initialValue,
-			);
+			const currentPreferences = readFormValues();
+			return Array.from(initialPreferences.entries()).some(([key, value]) => {
+				return value !== currentPreferences.get(key);
+			});
 		}
 
 		function hasUnsavedChanges() {

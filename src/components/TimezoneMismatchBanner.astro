@@ -1,10 +1,9 @@
 ---
 interface Props {
-	returnTo: string;
 	savedTimezone: string;
 }
 
-const { returnTo, savedTimezone } = Astro.props as Props;
+const { savedTimezone } = Astro.props as Props;
 ---
 
 <div
@@ -34,7 +33,6 @@ const { returnTo, savedTimezone } = Astro.props as Props;
 					id="timezone-update-offset"
 					value=""
 				/>
-				<input type="hidden" name="return_to" value={returnTo} />
 				<button
 					type="submit"
 					class="px-3 py-1.5 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors cursor-pointer"

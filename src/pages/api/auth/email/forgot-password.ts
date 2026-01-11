@@ -10,6 +10,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		const formData = await request.formData();
 		const parsed = parseWithSchema(formData, {
 			email: { type: "string", required: true },
+			captcha_token: { type: "string", required: true, trim: true },
 		} as const);
 
 		if (!parsed.ok) {
@@ -21,11 +22,13 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		}
 
 		const email = parsed.data.email;
+		const captchaToken = parsed.data.captcha_token;
 
 		const redirectTo = new URL("/auth/recover", getSiteUrl()).toString();
 
 		const { error } = await supabase.auth.resetPasswordForEmail(email, {
 			redirectTo,
+			captchaToken,
 		});
 
 		if (error) {

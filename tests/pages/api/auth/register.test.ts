@@ -3,29 +3,12 @@ import { describe, expect, it } from "vitest";
 import { POST } from "../../../../src/pages/api/auth/email/register";
 import { adminClient } from "../../../setup";
 
-function createRegisterRequest(email: string, ip: string): APIContext {
-	const payload = {
-		email,
-		password: "TestPassword123!",
-		timezone: "America/New_York",
-	};
-
-	const request = new Request("http://localhost/api/auth/email/register", {
-		method: "POST",
-		headers: {
-			"x-forwarded-for": ip,
-		},
-		body: new URLSearchParams(payload),
-	});
-
-	return { request } as APIContext;
-}
-
 describe("POST /api/auth/email/register", () => {
 	it("can register a user", async () => {
 		const payload = {
 			email: `test-${Date.now()}@example.com`,
 			password: "TestPassword123!",
+			captcha_token: "test-captcha-token",
 			timezone: "America/New_York",
 		};
 
@@ -69,12 +52,16 @@ describe("POST /api/auth/email/register", () => {
 		expect(authUserData.user.email).toBe(payload.email);
 	});
 
-	it("falls back to a DB timezone when detected timezone is missing", async () => {
+	it("correctly matches a timezone based on user's current time offset when browser timezone isn't in the database", async () => {
+		// Pacific Time is typically UTC-8, which is -480 minutes from UTC
+		// JavaScript-style offset (opposite) is +480 minutes
+		const pacificOffsetMinutes = 480;
 		const payload = {
-			email: `test-fallback-${Date.now()}@example.com`,
+			email: `test-offset-match-${Date.now()}@example.com`,
 			password: "TestPassword123!",
-			timezone: "Fake/Zone",
-			utc_offset_minutes: "0",
+			captcha_token: "test-captcha-token",
+			timezone: "Fake/Pacific_Zone",
+			utc_offset_minutes: String(pacificOffsetMinutes),
 		};
 
 		const request = new Request("http://localhost/api/auth/email/register", {
@@ -86,69 +73,113 @@ describe("POST /api/auth/email/register", () => {
 			request,
 		} as APIContext);
 
+		// Verify redirect to unconfirmed email page
 		expect(response.status).toBe(302);
 		expect(response.headers.get("Location")).toContain("/auth/unconfirmed");
+		expect(response.headers.get("Location")).toContain(
+			encodeURIComponent(payload.email),
+		);
 
+		// Verify user was created with a matching timezone from the database
+		// (should match a Pacific timezone like America/Los_Angeles based on offset)
 		const { data: users, error: usersError } = await adminClient
 			.from("users")
 			.select("*")
 			.eq("email", payload.email);
 		expect(usersError).toBeNull();
-
 		if (!users) throw new Error("No users found");
 		expect(users).toHaveLength(1);
 
 		const user = users[0];
-		expect(typeof user.timezone).toBe("string");
-		expect(user.timezone).not.toBe("");
+		expect(user.email).toBe(payload.email);
+		// Should have matched a Pacific timezone, not the fake one or default
 		expect(user.timezone).not.toBe(payload.timezone);
-
-		const { data: timezoneRow, error: timezoneError } = await adminClient
-			.from("timezones")
-			.select("value")
-			.eq("value", user.timezone)
-			.maybeSingle();
-		expect(timezoneError).toBeNull();
-		expect(timezoneRow?.value).toBe(user.timezone);
+		expect(user.timezone).not.toBe("America/New_York");
+		// Should match a timezone in the database (likely America/Los_Angeles for Pacific offset)
+		expect(user.timezone).toMatch(/^America\//);
 	});
 
-	it("rate limits after 10 attempts from the same IP", async () => {
-		const testIp = "192.168.1.1";
-		const baseTimestamp = Date.now();
+	it("fallback timezone is used if a detected timezone does not exist in the database and no valid offset is provided", async () => {
+		const payload = {
+			email: `test-fallback-${Date.now()}@example.com`,
+			password: "TestPassword123!",
+			captcha_token: "test-captcha-token",
+			timezone: "Fake/Zone",
+		};
 
-		// Make 10 registration attempts (rate limit is 10 per hour)
-		for (let i = 0; i < 10; i++) {
-			const context = createRegisterRequest(
-				`test-rate-limit-${baseTimestamp}-${i}@example.com`,
-				testIp,
-			);
+		const request = new Request("http://localhost/api/auth/email/register", {
+			method: "POST",
+			body: new URLSearchParams(payload),
+		});
 
-			const response = await POST(context);
+		const response = await POST({
+			request,
+		} as APIContext);
 
-			// First 10 attempts should not be rate limited
-			expect(response.status).toBe(302);
-			const location = response.headers.get("Location");
-			expect(location).not.toContain("error=rate_limit");
-		}
-
-		// 11th attempt should be rate limited
-		const context = createRegisterRequest(
-			`test-rate-limit-${baseTimestamp}-10@example.com`,
-			testIp,
+		// Verify redirect to unconfirmed email page
+		expect(response.status).toBe(302);
+		expect(response.headers.get("Location")).toContain("/auth/unconfirmed");
+		expect(response.headers.get("Location")).toContain(
+			encodeURIComponent(payload.email),
 		);
 
-		const response = await POST(context);
+		// Verify user was created with fallback timezone
+		const { data: users, error: usersError } = await adminClient
+			.from("users")
+			.select("*")
+			.eq("email", payload.email);
+		expect(usersError).toBeNull();
+		if (!users) throw new Error("No users found");
+		expect(users).toHaveLength(1);
 
+		const user = users[0];
+		expect(user.email).toBe(payload.email);
+		expect(user.timezone).toBe("America/New_York");
+	});
+
+	it("correctly matches a user with a timezone in the database", async () => {
+		const payload = {
+			email: `test-match-${Date.now()}@example.com`,
+			password: "TestPassword123!",
+			captcha_token: "test-captcha-token",
+			timezone: "America/Los_Angeles",
+		};
+
+		const request = new Request("http://localhost/api/auth/email/register", {
+			method: "POST",
+			body: new URLSearchParams(payload),
+		});
+
+		const response = await POST({
+			request,
+		} as APIContext);
+
+		// Verify redirect to unconfirmed email page
 		expect(response.status).toBe(302);
-		const location = response.headers.get("Location");
-		expect(location).toContain("/auth/register");
-		expect(location).toContain("error=rate_limit");
+		expect(response.headers.get("Location")).toContain("/auth/unconfirmed");
+		expect(response.headers.get("Location")).toContain(
+			encodeURIComponent(payload.email),
+		);
+
+		// Verify user was created with the provided timezone
+		const { data: users, error: usersError } = await adminClient
+			.from("users")
+			.select("*")
+			.eq("email", payload.email);
+		expect(usersError).toBeNull();
+		if (!users) throw new Error("No users found");
+		expect(users).toHaveLength(1);
+
+		const user = users[0];
+		expect(user.email).toBe(payload.email);
+		expect(user.timezone).toBe(payload.timezone);
 	});
 
 	it("verifies email after registration", async () => {
 		const payload = {
 			email: `test-verify-${Date.now()}@example.com`,
 			password: "TestPassword123!",
+			captcha_token: "test-captcha-token",
 			timezone: "America/New_York",
 		};
 

@@ -28,7 +28,7 @@ export function createVerifyCodeHandler(
 		const user = await userService.getCurrentUser();
 		if (!user) {
 			console.error("SMS verification attempt without authenticated user");
-			return redirect("/?error=unauthorized&returnTo=/dashboard");
+			return redirect("/signin?error=unauthorized");
 		}
 
 		try {

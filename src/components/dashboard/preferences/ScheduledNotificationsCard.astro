@@ -60,6 +60,9 @@ const currentTime = minutesToTimeInputValue(
 						id="daily_digest_notification_time"
 						name="daily_digest_notification_time"
 						value={currentTime}
+						min="00:00"
+						max="23:45"
+						step="900"
 						class="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
 						disabled={!user.daily_digest_enabled}
 					/>

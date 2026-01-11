@@ -8,10 +8,6 @@ export interface SeedUser {
   sms_opted_out?: boolean;
   daily_digest_enabled?: boolean;
   daily_digest_notification_time?: number;
-  breaking_news_enabled?: boolean;
-  stock_trends_enabled?: boolean;
-  price_threshold_alerts_enabled?: boolean;
-  volume_spike_alerts_enabled?: boolean;
   email_notifications_enabled?: boolean;
   sms_notifications_enabled?: boolean;
   tracked_stocks?: string[];
@@ -117,10 +113,6 @@ export function buildPublicUserSql(userId: string, user: SeedUser): string {
   const dailyDigestNotificationTime = user.daily_digest_notification_time ?? 540;
   const phoneVerified = user.phone_verified ?? false;
   const smsOptedOut = user.sms_opted_out ?? false;
-  const breakingNewsEnabled = user.breaking_news_enabled ?? false;
-  const stockTrendsEnabled = user.stock_trends_enabled ?? false;
-  const priceThresholdAlertsEnabled = user.price_threshold_alerts_enabled ?? false;
-  const volumeSpikeAlertsEnabled = user.volume_spike_alerts_enabled ?? false;
   const emailNotificationsEnabled = user.email_notifications_enabled ?? false;
   const smsNotificationsEnabled = user.sms_notifications_enabled ?? false;
 
@@ -141,10 +133,6 @@ INSERT INTO public.users (
   timezone,
   daily_digest_enabled,
   daily_digest_notification_time,
-  breaking_news_enabled,
-  stock_trends_enabled,
-  price_threshold_alerts_enabled,
-  volume_spike_alerts_enabled,
   email_notifications_enabled,
   sms_notifications_enabled
 ) VALUES (
@@ -157,10 +145,6 @@ INSERT INTO public.users (
   '${timezone}',
   ${dailyDigestEnabled},
   ${dailyDigestNotificationTime},
-  ${breakingNewsEnabled},
-  ${stockTrendsEnabled},
-  ${priceThresholdAlertsEnabled},
-  ${volumeSpikeAlertsEnabled},
   ${emailNotificationsEnabled},
   ${smsNotificationsEnabled}
 )
@@ -173,10 +157,6 @@ ON CONFLICT (id) DO UPDATE SET
   timezone = EXCLUDED.timezone,
   daily_digest_enabled = EXCLUDED.daily_digest_enabled,
   daily_digest_notification_time = EXCLUDED.daily_digest_notification_time,
-  breaking_news_enabled = EXCLUDED.breaking_news_enabled,
-  stock_trends_enabled = EXCLUDED.stock_trends_enabled,
-  price_threshold_alerts_enabled = EXCLUDED.price_threshold_alerts_enabled,
-  volume_spike_alerts_enabled = EXCLUDED.volume_spike_alerts_enabled,
   email_notifications_enabled = EXCLUDED.email_notifications_enabled,
   sms_notifications_enabled = EXCLUDED.sms_notifications_enabled;
 `;

@@ -54,9 +54,6 @@ export async function resetDatabase() {
 			preservedUserIds,
 		]);
 
-		// Clear rate limits to prevent test interference
-		await client.query(`DELETE FROM public.rate_limits`);
-
 		// Clean up auth.users via Admin API to ensure proper cleanup of sessions/metadata
 		const { rows: authUsers } = await client.query(
 			`SELECT id FROM auth.users WHERE id != ALL($1::uuid[])`,

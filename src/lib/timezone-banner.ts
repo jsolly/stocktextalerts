@@ -28,7 +28,7 @@ export function setupTimezoneMismatchBanner(savedTimezone: string) {
 	const detectedTimezone = detected.trim();
 	const savedTimezoneTrimmed = String(savedTimezone ?? "").trim();
 
-	const dismissalKey = `timezone_banner_dismissed:${savedTimezoneTrimmed}:${detectedTimezone}`;
+	const dismissalKey = `timezone_mismatch_banner_dismissed:${savedTimezoneTrimmed}:${detectedTimezone}`;
 	if (sessionStorage.getItem(dismissalKey) === "1") {
 		return;
 	}

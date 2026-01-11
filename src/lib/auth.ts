@@ -8,21 +8,18 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Add a phone number before verifying";
 		case "invalid_code":
 			return "Invalid or expired verification code";
-		case "too_many_attempts":
-			return "Too many attempts. Please try again later.";
+		case "captcha_required":
+			return "Please complete the CAPTCHA and try again.";
 		case "failed":
 			return "Failed to process request. Please try again.";
 		case "server_error":
 			return "Something went wrong. Please try again later.";
 		case "invalid_credentials":
-		case "invalid_password":
 			return "Incorrect password. Please try again.";
 		case "user_not_found":
 			return "No account exists with this email.";
 		case "delete_failed":
 			return "Failed to delete account. Please try again.";
-		case "delete_db_failed":
-			return "We couldn't remove your account data. Please try again.";
 		case "delete_partial":
 			return "Your account data was deleted, but we couldn't fully remove your sign-in. Please sign out and try again.";
 		case "delete_orphaned_auth_failed":

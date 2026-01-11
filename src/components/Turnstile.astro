@@ -1,0 +1,39 @@
+---
+interface Props {
+	tokenInputId: string;
+	callbackName: string;
+	widgetClasses?: string;
+	errorCallback?: string;
+	expiredCallback?: string;
+}
+
+const {
+	tokenInputId,
+	callbackName,
+	widgetClasses = "",
+	errorCallback,
+	expiredCallback,
+} = Astro.props;
+
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
+---
+
+<input
+	type="hidden"
+	name="captcha_token"
+	id={tokenInputId}
+	value=""
+/>
+<div
+	class={`cf-turnstile ${widgetClasses}`}
+	data-sitekey={turnstileSiteKey}
+	data-callback={callbackName}
+	data-error-callback={errorCallback}
+	data-expired-callback={expiredCallback}
+></div>
+
+<script
+	src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+	async
+	defer
+></script>

@@ -25,7 +25,6 @@ describe("POST /api/preferences", () => {
 		formData.append("sms_notifications_enabled", "false");
 		formData.append("timezone", "America/Los_Angeles");
 		formData.append("daily_digest_notification_time", "08:00");
-		formData.append("breaking_news_enabled", "true");
 
 		const request = new Request("http://localhost/api/preferences", {
 			method: "POST",
@@ -64,7 +63,6 @@ describe("POST /api/preferences", () => {
 		expect(updatedUser.sms_notifications_enabled).toBe(false);
 		expect(updatedUser.timezone).toBe("America/Los_Angeles");
 		expect(updatedUser.daily_digest_notification_time).toBe(480);
-		expect(updatedUser.breaking_news_enabled).toBe(true);
 	});
 
 	it("should successfully update preferences with a different daily digest hour", async () => {

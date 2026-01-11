@@ -1,6 +1,5 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/supabase";
-import { resolveTimezone } from "../../../lib/timezones";
 import { createUserService } from "../../../lib/users";
 import { type FormSchema, omitUndefined, parseWithSchema } from "../form-utils";
 
@@ -28,7 +27,7 @@ export function createProfilePreferencesHandler(
 			console.error(
 				"Profile preferences update attempt without authenticated user",
 			);
-			return redirect("/?error=unauthorized&returnTo=/profile");
+			return redirect("/signin?error=unauthorized");
 		}
 
 		const formData = await request.formData();
@@ -51,34 +50,19 @@ export function createProfilePreferencesHandler(
 
 		const { preferenceUpdates } = parsed.data;
 
-		const resolvedTimezone =
-			typeof preferenceUpdates.timezone === "string" &&
-			preferenceUpdates.timezone.trim() !== ""
-				? await resolveTimezone({
-						supabase,
-						detectedTimezone: preferenceUpdates.timezone,
-						utcOffsetMinutes: null,
-					})
-				: null;
-
-		const preferenceUpdatesWithTimezone =
-			resolvedTimezone === null
-				? preferenceUpdates
-				: { ...preferenceUpdates, timezone: resolvedTimezone };
-
-		if (Object.keys(preferenceUpdatesWithTimezone).length === 0) {
+		if (Object.keys(preferenceUpdates).length === 0) {
 			return redirect("/profile?error=no_updates");
 		}
 
 		try {
-			await userService.update(user.id, preferenceUpdatesWithTimezone);
+			await userService.update(user.id, preferenceUpdates);
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
 
 			console.error("Failed to update profile preferences", {
 				userId: user.id,
-				preferences: preferenceUpdatesWithTimezone,
+				preferences: preferenceUpdates,
 				error: errorMessage,
 			});
 

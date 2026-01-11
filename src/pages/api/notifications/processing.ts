@@ -10,7 +10,7 @@ import {
 import { sendUserSms } from "./sms";
 import type { SmsSender } from "./sms/twilio-utils";
 
-export interface ProcessingStats {
+interface ProcessingStats {
 	sent: boolean;
 	logged: boolean;
 }

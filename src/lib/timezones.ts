@@ -6,12 +6,6 @@ export interface TimezoneOption {
 	display_order: number;
 }
 
-export interface TimezoneValidationResult {
-	value: string | null;
-	valid: boolean;
-	reason?: string;
-}
-
 export const DEFAULT_TIMEZONE = "America/New_York";
 
 const ALL_TIMEZONE_VALUES_TTL_MS = 5 * 60 * 1000;
@@ -71,22 +65,6 @@ export async function getTimezoneOptions(
 		.sort((left, right) => left.value.localeCompare(right.value));
 
 	return [...extras, ...normalizedActive];
-}
-
-export function validateTimezone(
-	timezone: string | undefined | null,
-): TimezoneValidationResult {
-	if (!timezone) {
-		return { value: null, valid: true };
-	}
-
-	const candidate = timezone.trim();
-
-	if (candidate === "") {
-		return { value: null, valid: true };
-	}
-
-	return { value: candidate, valid: true };
 }
 
 function parseShortOffsetToMinutes(value: string): number | null {

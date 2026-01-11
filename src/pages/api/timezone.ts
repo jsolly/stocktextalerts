@@ -1,6 +1,5 @@
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../lib/supabase";
-import { resolveTimezone } from "../../lib/timezones";
 import { createUserService } from "../../lib/users";
 import { parseWithSchema, redirect } from "./form-utils";
 
@@ -11,14 +10,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 	const authUser = await users.getCurrentUser();
 	if (!authUser) {
 		console.error("Timezone update attempt without authenticated user");
-		return redirect("/?error=unauthorized");
+		return redirect("/signin?error=unauthorized");
 	}
 
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
 		timezone: { type: "timezone", required: true },
 		utc_offset_minutes: { type: "integer" },
-		return_to: { type: "string", trim: true },
 	} as const);
 
 	if (!parsed.ok) {
@@ -28,25 +26,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 		return redirect("/dashboard?error=invalid_form");
 	}
 
-	const returnTo = parsed.data.return_to || "/dashboard";
-
-	const resolvedTimezone = await resolveTimezone({
-		supabase,
-		detectedTimezone: parsed.data.timezone,
-		utcOffsetMinutes: parsed.data.utc_offset_minutes,
-	});
-
 	try {
-		await users.update(authUser.id, { timezone: resolvedTimezone });
+		await users.update(authUser.id, {
+			timezone: parsed.data.timezone ?? undefined,
+		});
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		console.error("Failed to update timezone", {
 			userId: authUser.id,
-			timezone: resolvedTimezone,
+			timezone: parsed.data.timezone,
 			error: errorMessage,
 		});
-		return redirect(`${returnTo}?error=update_failed`);
+		return redirect("/dashboard?error=update_failed");
 	}
 
-	return redirect(`${returnTo}?success=timezone_updated`);
+	return redirect("/dashboard?success=timezone_updated");
 };

@@ -5,11 +5,11 @@ A stock notification application that sends scheduled SMS and email updates abou
 ## Features
 
 - 📊 **Stock Tracking** - Search and track your favorite stocks (AAPL, MSFT, GOOGL, etc.)
-- 📧 **Email Notifications** - Receive scheduled email updates about your tracked stocks
-- 📱 **SMS Notifications** - Optional SMS messages via Twilio
-- 📞 **Phone Verification** - Secure phone verification with rate limiting (3 attempts/hour)
+- 📧 **Email Notifications** - Receive daily digest email updates about your tracked stocks
+- 📱 **SMS Notifications** - Optional daily digest SMS messages via Twilio
+- 📞 **Phone Verification** - Secure phone verification via Twilio Verify
 - 🌍 **Timezone Support** - All US timezones with browser auto-detection
-- ⏰ **Notification Windows** - Configure start/end hours for delivery
+- ⏰ **Daily Digest Scheduling** - Choose the time for your daily digest
 - 🔕 **SMS Opt-out** - Users can reply STOP to opt out of SMS
 
 ## Tech Stack
@@ -47,6 +47,12 @@ npm install
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Choose a project name, database password, and region
 3. Wait for the project to finish provisioning
+
+**Supabase Auth CAPTCHA (Cloudflare Turnstile):**
+1. Create a Turnstile site in the Cloudflare dashboard and copy the **Sitekey** + **Secret Key**
+2. In Supabase Dashboard, enable CAPTCHA protection: Settings → Authentication → Bot and Abuse Protection → **Enable CAPTCHA protection**
+3. Select **Cloudflare Turnstile** and paste the **Secret Key**
+4. For local dev, add `localhost` to your Turnstile domain allowlist (per Supabase docs: `https://supabase.com/docs/guides/auth/auth-captcha?queryGroups=captcha-method&captcha-method=turnstile-2`)
 
 **Twilio:**
 1. Go to [twilio.com](https://www.twilio.com) and create an account
@@ -87,6 +93,9 @@ CRON_SECRET=your-random-secret-string
 # Resend Configuration
 RESEND_API_KEY=re_123456789
 EMAIL_FROM=notifications@updates.example.com
+
+# Cloudflare Turnstile (Sitekey is public)
+PUBLIC_TURNSTILE_SITE_KEY=0x0000000000000000000000000000000AA
 
 # Seed Data (Local Development)
 DEFAULT_PASSWORD=your-strong-local-seed-password
@@ -168,10 +177,10 @@ The database is pre-seeded with stock data. If you need to update the list of av
 ### User Flow
 
 1. **Register** - Create an account with email
-2. **Set Settings** - Configure timezone and notification window
+2. **Set Settings** - Configure timezone and daily digest time
 3. **Add Stocks** - Search and add stocks to track
 4. **Enable SMS** (optional) - Add phone number and verify via SMS code
-5. **Receive Notifications** - Get scheduled updates during your configured time window
+5. **Receive Notifications** - Get your daily digest via email and/or SMS
 
 ### API Endpoints
 
@@ -186,9 +195,10 @@ The database is pre-seeded with stock data. If you need to update the list of av
 - `POST /api/auth/sms/verify-code` - Verify SMS code
 
 **Notifications & Preferences:**
-- `POST /api/preferences` - Update notification preferences and tracked stocks
+- `POST /api/preferences` - Update notification preferences (channels, timezone, daily digest)
+- `POST /api/preferences/stocks` - Update tracked stocks
 - `POST /api/notifications/scheduled` - Cron endpoint (protected by CRON_SECRET)
-- `POST /api/notifications/inbound-sms` - Twilio webhook for STOP/START/HELP keywords
+- `POST /api/notifications/sms/inbound` - Twilio webhook for STOP/START/HELP keywords
 
 ## Deployment to Vercel
 
@@ -230,84 +240,154 @@ After deployment, configure the Twilio webhook for incoming SMS:
 
 The `vercel.json` file configures a scheduled cron job that runs at minute 0 of every hour.
 
-Vercel will automatically call `/api/notifications/scheduled` with the `x-vercel-cron-secret` header.
+The cron job calls `/api/notifications/scheduled` and must include:
+- `Authorization: Bearer <CRON_SECRET>`
 
 The cron job:
-1. Queries users who need notifications based on their timezone and time window
+1. Queries users who need notifications based on their timezone and daily digest time
 2. Fetches their tracked stocks
 3. Sends via email and/or SMS based on settings
 4. Logs all notification attempts to `notification_log` table
 
 ## Project Structure
 
-```text
-/
-├── public/
-│   └── favicons/           # Favicon files
+```
+.
 ├── src/
 │   ├── components/
-│   │   ├── dashboard/      # Dashboard components for managing preferences
-│   │   │   ├── DashboardPreferencesForm.astro
-│   │   │   ├── PhoneInput.vue      # Phone input with validation
+│   │   ├── dashboard/
+│   │   │   ├── preferences/
+│   │   │   │   ├── NotificationChannelsSection.astro
+│   │   │   │   ├── NotificationPreferencesCard.astro
+│   │   │   │   └── ScheduledNotificationsCard.astro
+│   │   │   ├── stocks/
+│   │   │   │   ├── StockInput.vue
+│   │   │   │   └── TrackedStocksPanel.vue
 │   │   │   ├── SetupRequiredBanner.astro
-│   │   │   ├── StockInput.vue      # Fuzzy search stock selector
-│   │   │   └── TrackedStocksPanel.vue
-│   │   ├── landing/        # Landing page components
+│   │   │   └── TestNotifications.astro
+│   │   ├── landing/
 │   │   │   ├── CTA.astro
 │   │   │   ├── Features.astro
-│   │   │   └── Hero.astro
+│   │   │   ├── Hero.astro
+│   │   │   └── SignInCard.astro
 │   │   ├── layout/
 │   │   │   └── Navigation.astro
-│   │   └── profile/        # Profile page components
-│   │       ├── AccountManagement.astro
-│   │       └── DangerZone.astro
+│   │   ├── profile/
+│   │   │   ├── AccountManagement.astro
+│   │   │   ├── DangerZone.astro
+│   │   │   └── ProfilePreferences.astro
+│   │   ├── PhoneInput.vue
+│   │   ├── TimezoneMismatchBanner.astro
+│   │   └── Turnstile.astro
 │   ├── layouts/
-│   │   └── Layout.astro    # Main layout with meta tags
-│   ├── lib/                # Services and utilities
-│   │   ├── format.ts       # Formatting utilities
-│   │   ├── supabase.ts     # Supabase client configuration
-│   │   └── users.ts        # User service functions
-│   ├── pages/              # File-based routing
-│   │   ├── dashboard.astro # Authenticated dashboard experience
-│   │   ├── api/            # API endpoints
-│   │   │   ├── auth/       # Authentication endpoints
+│   │   └── Layout.astro
+│   ├── lib/
+│   │   ├── auth.ts
+│   │   ├── env.ts
+│   │   ├── format.ts
+│   │   ├── phone-format.ts
+│   │   ├── stocks.ts
+│   │   ├── supabase.ts
+│   │   ├── timezone-banner.ts
+│   │   ├── timezone-select.ts
+│   │   ├── timezones.ts
+│   │   ├── timezones.test.ts
+│   │   ├── turnstile-utils.ts
+│   │   └── users.ts
+│   ├── pages/
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   ├── email/
+│   │   │   │   │   ├── forgot-password.ts
+│   │   │   │   │   ├── register.ts
+│   │   │   │   │   └── resend-verification.ts
+│   │   │   │   ├── sms/
+│   │   │   │   │   ├── send-verification.ts
+│   │   │   │   │   ├── verify-code.ts
+│   │   │   │   │   └── verify-utils.ts
+│   │   │   │   ├── delete-account.ts
+│   │   │   │   ├── signin.ts
+│   │   │   │   └── signout.ts
 │   │   │   ├── notifications/
-│   │   │   │   ├── shared.ts       # Shared logic
-│   │   │   │   ├── sms/            # SMS logic
-│   │   │   │   ├── email/          # Email logic
-│   │   │   │   ├── scheduled.ts    # Cron job endpoint
-│   │   │   │   └── instant.ts      # Instant notifications endpoint
-│   │   │   └── preferences/
-│   │   │       └── index.ts        # Update prefs and manage tracked stocks
+│   │   │   │   ├── email/
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   └── utils.ts
+│   │   │   │   ├── sms/
+│   │   │   │   │   ├── inbound.ts
+│   │   │   │   │   ├── inbound-utils.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   └── twilio-utils.ts
+│   │   │   │   ├── processing.ts
+│   │   │   │   ├── scheduled.ts
+│   │   │   │   ├── shared.ts
+│   │   │   │   └── test.ts
+│   │   │   ├── preferences/
+│   │   │   │   ├── index.ts
+│   │   │   │   └── stocks.ts
+│   │   │   ├── profile/
+│   │   │   │   └── preferences.ts
+│   │   │   ├── form-utils.ts
+│   │   │   └── timezone.ts
 │   │   ├── auth/
 │   │   │   ├── forgot.astro
 │   │   │   ├── recover.astro
 │   │   │   ├── register.astro
-│   │   │   └── unconfirmed.astro
-│   │   ├── index.astro     # Landing page
-│   │   └── profile.astro   # User profile page
+│   │   │   ├── unconfirmed.astro
+│   │   │   └── verified.astro
+│   │   ├── dashboard.astro
+│   │   ├── index.astro
+│   │   ├── profile.astro
+│   │   └── signin.astro
+│   ├── types/
+│   │   ├── env.d.ts
+│   │   └── libphonenumber-examples.d.ts
 │   ├── global.css
-│   └── env.d.ts
-├── supabase/               # Supabase configuration
-│   ├── migrations/         # Database migrations
-│   ├── seed.sql            # Initial data (generated)
-│   └── config.toml         # Local config
-├── scripts/                # Utility scripts
-│   ├── generate-seed.ts    # Script to generate seed.sql
-│   └── us-stocks.json      # US stock ticker data
-├── tests/                  # Vitest unit tests
-├── astro.config.ts         # Astro + Vercel + Vue config
-├── vercel.json             # Cron job configuration
-├── biome.jsonc             # Linter/formatter config
+│   └── middleware.ts
+├── supabase/
+│   ├── migrations/
+│   │   └── 20250101000000_initial_schema.sql
+│   └── config.toml
+├── scripts/
+│   ├── generate-seed.ts
+│   ├── sample-users.json
+│   ├── seed-sql.ts
+│   ├── us-stocks.json
+│   └── users.json
+├── tests/
+│   ├── pages/
+│   │   └── api/
+│   │       ├── auth/
+│   │       │   ├── register.test.ts
+│   │       │   └── signin.test.ts
+│   │       ├── notifications/
+│   │       │   └── email.test.ts
+│   │       ├── preferences/
+│   │       │   ├── index.test.ts
+│   │       │   └── stocks.test.ts
+│   │       └── timezone.test.ts
+│   ├── setup.ts
+│   └── utils.ts
+├── public/
+│   └── favicons/
+│       ├── android-chrome-192x192.png
+│       ├── android-chrome-512x512.png
+│       ├── apple-touch-icon.png
+│       ├── favicon-16x16.png
+│       ├── favicon-32x32.png
+│       ├── favicon.ico
+│       └── site.webmanifest
+├── astro.config.ts
+├── biome.jsonc
+├── package.json
 ├── tsconfig.json
-├── env.example             # Environment variables template
-└── package.json
+├── vercel.json
+└── vitest.config.ts
 ```
 
 ## Security Features
 
 - ✅ Row Level Security (RLS) on all database tables
-- ✅ Rate limiting on phone verification (3 attempts/hour)
+- ✅ CAPTCHA protection for anonymous auth flows (Supabase Auth + Cloudflare Turnstile)
 - ✅ Cron endpoint protected by secret header
 - ✅ Phone verification via Twilio Verify API
 - ✅ SMS opt-out support (STOP keyword compliance)

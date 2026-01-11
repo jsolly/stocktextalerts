@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { getSiteUrl } from "../../../../lib/env";
 import { createSupabaseServerClient } from "../../../../lib/supabase";
 import { parseWithSchema } from "../../form-utils";
 
@@ -8,6 +9,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
 		email: { type: "string", required: true },
+		captcha_token: { type: "string", required: true },
 	} as const);
 
 	if (!parsed.ok) {
@@ -18,10 +20,22 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	}
 
 	const email = parsed.data.email;
+	const captchaToken = parsed.data.captcha_token?.trim();
+	if (!captchaToken) {
+		return redirect(
+			`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=captcha_required`,
+		);
+	}
+
+	const origin = getSiteUrl();
+	const emailRedirectTo = `${origin}/auth/verified`;
 
 	const { error } = await supabase.auth.resend({
 		type: "signup",
 		email,
+		options: {
+			emailRedirectTo,
+		},
 	});
 
 	if (error) {

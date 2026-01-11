@@ -1,5 +1,6 @@
 ---
 import Navigation from "../../components/layout/Navigation.astro";
+import Turnstile from "../../components/Turnstile.astro";
 import Layout from "../../layouts/Layout.astro";
 
 const search = Astro.url.searchParams;
@@ -18,12 +19,6 @@ if (success === "true") {
 } else if (error) {
 	messageType = "error";
 	switch (error) {
-		case "email_required":
-			message = "Email is required";
-			break;
-		case "server_error":
-			message = "Server configuration error. Please try again later.";
-			break;
 		case "rate_limit":
 			message = seconds
 				? `For security purposes, you must wait ${seconds} more seconds before requesting to reset your password`
@@ -38,7 +33,7 @@ if (success === "true") {
 }
 ---
 
-<Layout title="Forgot Password">
+<Layout title="Forgot Password" description="Request a password reset email.">
   <div class="min-h-screen bg-gray-50">
     <Navigation />
 
@@ -65,7 +60,7 @@ if (success === "true") {
           </div>
         )}
 
-        <form class="space-y-4" action="/api/auth/email/forgot-password" method="post">
+        <form class="space-y-4" action="/api/auth/email/forgot-password" method="post" id="forgot-form">
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input 
@@ -78,6 +73,12 @@ if (success === "true") {
               placeholder="you@example.com"
             />
           </div>
+					<div>
+						<Turnstile
+							tokenInputId="forgot_captcha_token"
+							callbackName="onForgotTurnstileSuccess"
+						/>
+					</div>
           <button 
             type="submit"
             class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium transition-colors cursor-pointer"
@@ -89,4 +90,18 @@ if (success === "true") {
     </div>
   </div>
 </Layout>
+
+<script>
+	import {
+		initializeTurnstileForm,
+		setupTurnstileCallback,
+	} from "../../lib/turnstile-utils";
+
+	initializeTurnstileForm("forgot-form", "forgot_captcha_token");
+	setupTurnstileCallback(
+		"onForgotTurnstileSuccess",
+		"forgot_captcha_token",
+		"forgot-form",
+	);
+</script>
 

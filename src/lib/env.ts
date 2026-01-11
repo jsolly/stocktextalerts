@@ -5,6 +5,7 @@ Environment Validation
 interface RequiredEnvVars {
 	PUBLIC_SUPABASE_URL: string;
 	PUBLIC_SUPABASE_ANON_KEY: string;
+	PUBLIC_TURNSTILE_SITE_KEY: string;
 	SUPABASE_SERVICE_ROLE_KEY: string;
 	TWILIO_ACCOUNT_SID: string;
 	TWILIO_AUTH_TOKEN: string;
@@ -18,6 +19,7 @@ interface RequiredEnvVars {
 const REQUIRED_ENV_VARS: (keyof RequiredEnvVars)[] = [
 	"PUBLIC_SUPABASE_URL",
 	"PUBLIC_SUPABASE_ANON_KEY",
+	"PUBLIC_TURNSTILE_SITE_KEY",
 	"SUPABASE_SERVICE_ROLE_KEY",
 	"TWILIO_ACCOUNT_SID",
 	"TWILIO_AUTH_TOKEN",

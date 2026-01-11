@@ -71,10 +71,6 @@ export const POST: APIRoute = async ({ request }) => {
 			timezone,
 			daily_digest_enabled,
 			daily_digest_notification_time,
-			breaking_news_enabled,
-			stock_trends_enabled,
-			price_threshold_alerts_enabled,
-			volume_spike_alerts_enabled,
 			email_notifications_enabled,
 			sms_notifications_enabled
 		`,

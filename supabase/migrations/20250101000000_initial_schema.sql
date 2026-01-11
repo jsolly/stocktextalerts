@@ -157,11 +157,7 @@ CREATE TABLE IF NOT EXISTS users (
   sms_opted_out BOOLEAN DEFAULT false NOT NULL,
   timezone TEXT DEFAULT 'America/New_York' REFERENCES timezones(value) NOT NULL,
   daily_digest_enabled BOOLEAN DEFAULT true NOT NULL,
-  daily_digest_notification_time INTEGER DEFAULT 540 NOT NULL CHECK (daily_digest_notification_time >= 0 AND daily_digest_notification_time <= 1439),
-  breaking_news_enabled BOOLEAN DEFAULT false NOT NULL,
-  stock_trends_enabled BOOLEAN DEFAULT false NOT NULL,
-  price_threshold_alerts_enabled BOOLEAN DEFAULT false NOT NULL,
-  volume_spike_alerts_enabled BOOLEAN DEFAULT false NOT NULL,
+  daily_digest_notification_time INTEGER DEFAULT 540 NOT NULL CHECK (daily_digest_notification_time >= 0 AND daily_digest_notification_time <= 1439 AND daily_digest_notification_time % 15 = 0),
   email_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   sms_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
@@ -253,7 +249,7 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.replace_user_stocks(uuid, text[]) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.validate_stock_symbols(text[]) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.validate_stock_symbols(text[]) TO authenticated, service_role;
 
 /* =============
 Notification Log
@@ -349,78 +345,3 @@ CREATE TRIGGER update_notification_log_updated_at
   BEFORE UPDATE ON notification_log
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
-/* =============
-Rate Limits
-============= */
-
-CREATE TABLE IF NOT EXISTS rate_limits (
-  key TEXT PRIMARY KEY,
-  window_start TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  count INTEGER DEFAULT 1 NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
-ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
-
--- Trigger to update updated_at
-CREATE TRIGGER update_rate_limits_updated_at
-  BEFORE UPDATE ON rate_limits
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
-/* =============
-Rate Limit Function
-============= */
-
-CREATE OR REPLACE FUNCTION public.check_rate_limit(
-  p_key text,
-  p_window_seconds integer,
-  p_limit integer
-)
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-AS $$
-DECLARE
-  v_window_start timestamptz;
-  v_count integer;
-  v_now timestamptz := now();
-  v_reset_time timestamptz;
-BEGIN
-  IF p_window_seconds <= 0 OR p_limit <= 0 THEN
-    RAISE EXCEPTION 'window_seconds and limit must be positive integers'
-      USING ERRCODE = '22023';
-  END IF;
-
-  INSERT INTO rate_limits (key, window_start, count)
-  VALUES (p_key, v_now, 1)
-  ON CONFLICT (key) DO UPDATE
-  SET count = CASE
-      WHEN rate_limits.window_start + (p_window_seconds || ' seconds')::interval <= v_now
-      THEN 1
-      ELSE rate_limits.count + 1
-    END,
-    window_start = CASE
-      WHEN rate_limits.window_start + (p_window_seconds || ' seconds')::interval <= v_now
-      THEN v_now
-      ELSE rate_limits.window_start
-    END
-  RETURNING window_start, count INTO v_window_start, v_count;
-
-  v_reset_time := v_window_start + (p_window_seconds || ' seconds')::interval;
-
-  RETURN json_build_object(
-    'allowed', v_count <= p_limit,
-    'remaining', GREATEST(p_limit - v_count, 0),
-    'reset_time', v_reset_time
-  );
-END;
-$$;
-
--- Grant permissions explicitly
-GRANT EXECUTE ON FUNCTION public.check_rate_limit(text, integer, integer) TO anon, authenticated, service_role;
-
-
-

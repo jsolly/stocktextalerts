@@ -12,10 +12,6 @@ export interface User {
 	timezone: string;
 	daily_digest_enabled: boolean;
 	daily_digest_notification_time: number;
-	breaking_news_enabled: boolean;
-	stock_trends_enabled: boolean;
-	price_threshold_alerts_enabled: boolean;
-	volume_spike_alerts_enabled: boolean;
 	email_notifications_enabled: boolean;
 	sms_notifications_enabled: boolean;
 	created_at: string;
@@ -32,10 +28,6 @@ type UserUpdateInput = Partial<
 		| "timezone"
 		| "daily_digest_enabled"
 		| "daily_digest_notification_time"
-		| "breaking_news_enabled"
-		| "stock_trends_enabled"
-		| "price_threshold_alerts_enabled"
-		| "volume_spike_alerts_enabled"
 		| "email_notifications_enabled"
 		| "sms_notifications_enabled"
 	>

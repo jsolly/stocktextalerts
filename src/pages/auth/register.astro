@@ -1,29 +1,15 @@
 ---
 import Navigation from "../../components/layout/Navigation.astro";
+import Turnstile from "../../components/Turnstile.astro";
 import Layout from "../../layouts/Layout.astro";
 import { createSupabaseServerClient } from "../../lib/supabase";
 import { getTimezoneOptions } from "../../lib/timezones";
 
 const search = Astro.url.searchParams;
 const error = search.get("error");
-const resetSecondsStr = search.get("reset_seconds");
-const resetSecondsParsed = resetSecondsStr
-	? parseInt(resetSecondsStr, 10)
-	: undefined;
-const resetSeconds = Number.isNaN(resetSecondsParsed)
-	? undefined
-	: resetSecondsParsed;
-const remainingStr = search.get("remaining");
-const remainingAttemptsParsed = remainingStr
-	? parseInt(remainingStr, 10)
-	: undefined;
-const remainingAttempts = Number.isNaN(remainingAttemptsParsed)
-	? undefined
-	: remainingAttemptsParsed;
 
 let message = "";
 let showSignInLink = false;
-const isRateLimited = error === "rate_limit";
 
 const supabase = createSupabaseServerClient();
 const timezones = await getTimezoneOptions(supabase);
@@ -44,9 +30,8 @@ if (error) {
 			message =
 				"Failed to create user profile. Please try again or contact support.";
 			break;
-		case "rate_limit":
-			message =
-				"Too many registration attempts. Please wait before trying again.";
+		case "captcha_required":
+			message = "Please complete the CAPTCHA and try again.";
 			break;
 		default:
 			message = "An unexpected error occurred. Please try again.";
@@ -89,14 +74,6 @@ if (error) {
                     <> <a href="/signin" class="font-bold underline hover:text-red-900">Sign in</a>.</>
                   )}
                 </h3>
-                {isRateLimited && resetSeconds !== undefined && (
-                  <p class="text-sm text-red-700 mt-2" id="rate-limit-countdown"></p>
-                )}
-                {remainingAttempts !== undefined && remainingAttempts <= 3 && !isRateLimited && (
-                  <p class="text-sm text-red-700 mt-2">
-                    You have {remainingAttempts} attempt{remainingAttempts === 1 ? "" : "s"} remaining.
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -112,7 +89,6 @@ if (error) {
                 id="email" 
                 required 
                 autocomplete="email"
-                disabled={isRateLimited}
                 class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
                 placeholder="Email address"
               />
@@ -125,7 +101,6 @@ if (error) {
                 id="password" 
                 required 
                 autocomplete="new-password"
-                disabled={isRateLimited}
                 class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
                 placeholder="Password"
               />
@@ -142,7 +117,6 @@ if (error) {
 						<select
 							id="timezone"
 							name="timezone"
-							disabled={isRateLimited}
 							class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
 						>
 							<option value="">
@@ -160,14 +134,18 @@ if (error) {
             id="utc_offset_minutes"
             value=""
           />
+
+					<div>
+						<Turnstile
+							tokenInputId="register_captcha_token"
+							callbackName="onRegisterTurnstileSuccess"
+						/>
+					</div>
           <div>
             <button 
               type="submit" 
-              disabled={isRateLimited}
               class={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                isRateLimited
-                  ? "text-white bg-gray-400 cursor-not-allowed"
-                  : "text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                "text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
               }`}
             >
               Register
@@ -182,13 +160,10 @@ if (error) {
 <script>
 	import { setupDetectedTimezoneOption } from "../../lib/timezone-select";
 
-	let interval: ReturnType<typeof setInterval> | undefined;
-
 	document.addEventListener('DOMContentLoaded', () => {
 		const form = document.getElementById('register-form');
 		const timezoneInputElement = document.getElementById('timezone');
 		const offsetInputElement = document.getElementById('utc_offset_minutes');
-		const countdownElement = document.getElementById('rate-limit-countdown');
 		
 		if (!(form instanceof HTMLFormElement) 
 			|| !(timezoneInputElement instanceof HTMLSelectElement)
@@ -235,75 +210,19 @@ if (error) {
 			}
 		});
 
-		// Rate limit countdown timer
-		if (countdownElement) {
-			const resetSecondsParam = new URLSearchParams(window.location.search).get('reset_seconds');
-			if (resetSecondsParam) {
-				const parsedSeconds = parseInt(resetSecondsParam, 10);
-				if (Number.isNaN(parsedSeconds)) {
-					return;
-				}
-				let remainingSeconds = parsedSeconds;
-
-				// Clear any existing interval to prevent race conditions
-				if (interval) {
-					clearInterval(interval);
-					interval = undefined;
-				}
-				
-				function formatDuration(seconds: number): string {
-					if (seconds <= 0) return 'now';
-					
-					const hours = Math.floor(seconds / 3600);
-					const minutes = Math.floor((seconds % 3600) / 60);
-					const secs = seconds % 60;
-					
-					if (hours > 0) {
-						if (minutes === 0) {
-							return `${hours} hour${hours === 1 ? '' : 's'}`;
-						}
-						return `${hours} hour${hours === 1 ? '' : 's'} and ${minutes} minute${minutes === 1 ? '' : 's'}`;
-					}
-					if (minutes > 0) {
-						if (secs === 0) {
-							return `${minutes} minute${minutes === 1 ? '' : 's'}`;
-						}
-						return `${minutes} minute${minutes === 1 ? '' : 's'} and ${secs} second${secs === 1 ? '' : 's'}`;
-					}
-					return `${secs} second${secs === 1 ? '' : 's'}`;
-				}
-				
-				function updateCountdown() {
-					if (!countdownElement) return;
-					
-					if (remainingSeconds <= 0) {
-						if (interval) {
-							clearInterval(interval);
-							interval = undefined;
-						}
-						countdownElement.textContent = 'Rate limit has expired. You can try again now.';
-						// Reload page to clear rate limit state
-						setTimeout(() => {
-							window.location.href = '/auth/register';
-						}, 2000);
-						return;
-					}
-					
-					countdownElement.textContent = `Please try again in ${formatDuration(remainingSeconds)}.`;
-					remainingSeconds--;
-				}
-				
-				updateCountdown();
-				interval = setInterval(updateCountdown, 1000);
-				
-				// Cleanup on page unload
-				window.addEventListener('beforeunload', () => {
-					if (interval) {
-						clearInterval(interval);
-						interval = undefined;
-					}
-				});
-			}
-		}
 	});
+</script>
+
+<script>
+	import {
+		initializeTurnstileForm,
+		setupTurnstileCallback,
+	} from "../../lib/turnstile-utils";
+
+	initializeTurnstileForm("register-form", "register_captcha_token");
+	setupTurnstileCallback(
+		"onRegisterTurnstileSuccess",
+		"register_captcha_token",
+		"register-form",
+	);
 </script>
