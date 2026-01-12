@@ -3,14 +3,12 @@ import Turnstile from "../Turnstile.astro";
 
 interface Props {
 	emailPrefill?: string;
-	errorCode?: string | null;
 	errorMessage?: string | null;
 	successMessage?: string | null;
 }
 
 const {
 	emailPrefill = "",
-	errorCode = null,
 	errorMessage = null,
 	successMessage = null,
 } = Astro.props;

@@ -54,6 +54,7 @@ export function setupTurnstileErrorCallback(
 export function setupTurnstileExpiredCallback(
 	callbackName: string,
 	tokenInputId: string,
+	handler?: () => void,
 ) {
 	const typedWindow = window as unknown as Window & {
 		[key: string]: (() => void) | undefined;
@@ -65,11 +66,13 @@ export function setupTurnstileExpiredCallback(
 			input.value = "";
 			input.dispatchEvent(new Event("input", { bubbles: true }));
 		}
+
+		handler?.();
 	};
 }
 
 export function initializeTurnstileForm(formId: string, tokenInputId: string) {
-	document.addEventListener("DOMContentLoaded", () => {
+	const setup = () => {
 		const form = document.getElementById(formId);
 		if (!(form instanceof HTMLFormElement)) {
 			return;
@@ -91,6 +94,36 @@ export function initializeTurnstileForm(formId: string, tokenInputId: string) {
 		};
 
 		updateDisabledState();
+
 		captchaTokenInput.addEventListener("input", updateDisabledState);
-	});
+	};
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", setup);
+	} else {
+		setup();
+	}
+}
+
+export function createCaptchaStatusHelpers(statusElementId: string) {
+	const statusElement = document.getElementById(statusElementId);
+
+	return {
+		show: (message: string) => {
+			if (!(statusElement instanceof HTMLElement)) {
+				return;
+			}
+
+			statusElement.textContent = message;
+			statusElement.classList.remove("hidden");
+		},
+		hide: () => {
+			if (!(statusElement instanceof HTMLElement)) {
+				return;
+			}
+
+			statusElement.textContent = "";
+			statusElement.classList.add("hidden");
+		},
+	};
 }

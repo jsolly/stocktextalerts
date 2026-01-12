@@ -15,13 +15,13 @@
 - **Clean imports**: Use relative paths (not '@' style); delete unused imports; no re-exports for compatibility.
 - **Self-documenting code**: Write clear, descriptive names and structure; avoid TSDoc/JSDoc comments.
 - **DRY principle**: Check for similar code in other files before implementing; extract shared logic to utilities.
+- **Error handling**: Let errors propagate naturally; avoid defensive programming (unnecessary null checks, try-catch blocks that swallow errors). Handle errors at boundaries (API endpoints, user-facing code) where appropriate.
+- **Validation**: Prefer validating input in the database. Two quality guards: strict front-end forms/inputs and database constraints. Only validate untrusted external input.
 
 ## Technology Constraints
 - **Testing**: Vitest only; happy path coverage only. Do not use Jest.
 - **Linting/Formatting**: Biome only (No Prettier or ESLint)
 - **Styling**: Tailwind utilities preferred over custom CSS
-- **Error handling**: Let errors propagate; avoid defensive programming
-- **Validation**: Only for untrusted external input
 
 ## Export Pattern
 - Functions: `export function name(...)` directly where defined

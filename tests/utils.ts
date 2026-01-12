@@ -63,6 +63,8 @@ export async function createTestUser(
 		0,
 		Math.min(1439, rawNotificationTime),
 	);
+	const alignedDailyDigestNotificationTime =
+		Math.floor(dailyDigestNotificationTime / 15) * 15;
 
 	const { error: profileError } = await adminClient.from("users").upsert(
 		{
@@ -72,7 +74,7 @@ export async function createTestUser(
 			email_notifications_enabled: options.emailNotificationsEnabled ?? false,
 			sms_notifications_enabled: options.smsNotificationsEnabled ?? false,
 			daily_digest_enabled: options.dailyDigestEnabled ?? true,
-			daily_digest_notification_time: dailyDigestNotificationTime,
+			daily_digest_notification_time: alignedDailyDigestNotificationTime,
 		},
 		{ onConflict: "id" },
 	);

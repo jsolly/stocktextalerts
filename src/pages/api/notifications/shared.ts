@@ -69,7 +69,14 @@ export function shouldNotifyUser(
 		return false;
 	}
 
-	return currentMinutes === storedTime;
+	// We allow a small lateness tolerance for scheduled delivery attempts.
+	// Deduplication and retry limits are enforced in the database.
+	const digestAttemptWindowMinutes = 45;
+	const minutesPerDay = 24 * 60;
+	const deltaMinutes =
+		(currentMinutes - storedTime + minutesPerDay) % minutesPerDay;
+
+	return deltaMinutes <= digestAttemptWindowMinutes;
 }
 
 export function getCurrentMinutesInTimezone(

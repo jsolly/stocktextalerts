@@ -4,6 +4,7 @@ const MESSAGE_ALLOWLIST: Record<string, string> = {
 	stocks_updated: "Tracked stocks updated successfully",
 	phone_verified: "Phone number verified successfully",
 	settings_updated: "Settings updated successfully",
+	timezone_updated: "Timezone updated successfully",
 	invalid_form:
 		"There was a problem with your submission. Please check the form and try again.",
 	verification_sent: "Verification code sent",

@@ -87,7 +87,15 @@ if (success === "true") {
 							tokenInputId="unconfirmed_captcha_token"
 							callbackName="onUnconfirmedTurnstileSuccess"
 							widgetClasses="mb-4"
+							errorCallback="onUnconfirmedTurnstileError"
+							expiredCallback="onUnconfirmedTurnstileExpired"
 						/>
+						<div
+							id="unconfirmed-captcha-status"
+							class="mt-2 hidden rounded-md bg-red-50 p-3 text-sm text-red-700"
+							role="alert"
+							aria-live="polite"
+						></div>
             <button
               id="resend-btn"
               type="submit"
@@ -112,93 +120,123 @@ if (success === "true") {
 </Layout>
 
 <script>
-  const resendBtn = document.getElementById('resend-btn') as HTMLButtonElement;
-  const resendForm = document.getElementById('resend-form') as HTMLFormElement;
-  const captchaTokenInput = document.getElementById('unconfirmed_captcha_token') as HTMLInputElement;
-  const email = new URLSearchParams(window.location.search).get('email');
-  let cooldownTimer: ReturnType<typeof setInterval> | null = null;
+	import {
+		createCaptchaStatusHelpers,
+		setupTurnstileCallback,
+		setupTurnstileErrorCallback,
+		setupTurnstileExpiredCallback,
+	} from "../../lib/turnstile-utils";
 
-  const COOLDOWN_KEY = 'resend-verification-cooldown';
-  const COOLDOWN_DURATION = 30;
+	(function setupResendVerification() {
+		const resendBtn = document.getElementById('resend-btn');
+		const resendForm = document.getElementById('resend-form');
+		const captchaTokenInput = document.getElementById('unconfirmed_captcha_token');
+		
+		if (!resendBtn || !resendForm || !captchaTokenInput) {
+			return;
+		}
+		
+		const resendBtnElement = resendBtn as HTMLButtonElement;
+		const resendFormElement = resendForm as HTMLFormElement;
+		const captchaTokenInputElement = captchaTokenInput as HTMLInputElement;
+		
+		const captchaStatus = createCaptchaStatusHelpers("unconfirmed-captcha-status");
+		let cooldownTimer: ReturnType<typeof setInterval> | null = null;
 
-  function getRemainingCooldownSeconds(): number {
-    try {
-      const lastSentStr = localStorage.getItem(COOLDOWN_KEY);
-      if (!lastSentStr) return 0;
-      const elapsed = Math.floor((Date.now() - Number.parseInt(lastSentStr, 10)) / 1000);
-      return Math.max(0, COOLDOWN_DURATION - elapsed);
-    } catch {
-      return 0;
-    }
-  }
+		const COOLDOWN_KEY = 'resend-verification-cooldown';
+		const COOLDOWN_DURATION = 30;
 
-	function canResendNow(): boolean {
-		return getRemainingCooldownSeconds() === 0;
-	}
+		function getRemainingCooldownSeconds(): number {
+			try {
+				const lastSentStr = localStorage.getItem(COOLDOWN_KEY);
+				if (!lastSentStr) return 0;
+				const elapsed = Math.floor((Date.now() - Number.parseInt(lastSentStr, 10)) / 1000);
+				return Math.max(0, COOLDOWN_DURATION - elapsed);
+			} catch {
+				return 0;
+			}
+		}
 
-	function updateResendDisabledState() {
-		if (!captchaTokenInput) return;
-		const hasCaptchaToken = captchaTokenInput.value.trim().length > 0;
-		resendBtn.disabled = !hasCaptchaToken || !canResendNow();
-	}
+		function canResendNow(): boolean {
+			return getRemainingCooldownSeconds() === 0;
+		}
 
-  function initializeCooldown() {
-    const remaining = getRemainingCooldownSeconds();
-    
-    if (remaining > 0) {
-      setButtonCooldown(remaining);
-      return;
-    }
+		function updateResendDisabledState() {
+			const hasCaptchaToken = captchaTokenInputElement.value.trim().length > 0;
+			resendBtnElement.disabled = !hasCaptchaToken || !canResendNow();
+		}
 
-    updateResendDisabledState();
-  }
+		function initializeCooldown() {
+			const remaining = getRemainingCooldownSeconds();
+			
+			if (remaining > 0) {
+				setButtonCooldown(remaining);
+				return;
+			}
 
-  resendForm?.addEventListener('submit', () => {
-    try {
-      localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
-    } catch (err) {
-      console.error('Failed to save cooldown timestamp to localStorage:', err);
-    }
-  });
+			updateResendDisabledState();
+		}
 
-  function setButtonCooldown(seconds: number) {
-    if (cooldownTimer) {
-      clearInterval(cooldownTimer);
-    }
+		resendFormElement.addEventListener('submit', () => {
+			try {
+				localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
+			} catch (err) {
+				console.error('Failed to save cooldown timestamp to localStorage:', err);
+			}
+		});
 
-    resendBtn.disabled = true;
-    let remaining = seconds;
+		function setButtonCooldown(seconds: number) {
+			if (cooldownTimer) {
+				clearInterval(cooldownTimer);
+			}
 
-    const updateButton = () => {
-      if (remaining > 0) {
-        resendBtn.textContent = `Resend verification email (${remaining}s)`;
-        remaining--;
-      } else {
-        updateResendDisabledState();
-        resendBtn.textContent = 'Resend verification email';
-        if (cooldownTimer) {
-          clearInterval(cooldownTimer);
-          cooldownTimer = null;
-        }
-      }
-    };
+			resendBtnElement.disabled = true;
+			let remaining = seconds;
 
-    updateButton();
-    cooldownTimer = setInterval(updateButton, 1000);
-  }
+			const updateButton = () => {
+				if (remaining > 0) {
+					resendBtnElement.textContent = `Resend verification email (${remaining}s)`;
+					remaining--;
+				} else {
+					updateResendDisabledState();
+					resendBtnElement.textContent = 'Resend verification email';
+					if (cooldownTimer) {
+						clearInterval(cooldownTimer);
+						cooldownTimer = null;
+					}
+				}
+			};
 
-  initializeCooldown();
+			updateButton();
+			cooldownTimer = setInterval(updateButton, 1000);
+		}
 
-	updateResendDisabledState();
-	captchaTokenInput?.addEventListener("input", updateResendDisabledState);
-</script>
+		setupTurnstileCallback(
+			"onUnconfirmedTurnstileSuccess",
+			"unconfirmed_captcha_token",
+		);
 
-<script>
-	import { setupTurnstileCallback } from "../../lib/turnstile-utils";
+		setupTurnstileErrorCallback("onUnconfirmedTurnstileError", (errorCode) => {
+			console.error("Turnstile error:", errorCode);
+			captchaStatus.show("CAPTCHA failed to load. Please refresh and try again.");
+		});
 
-	setupTurnstileCallback(
-		"onUnconfirmedTurnstileSuccess",
-		"unconfirmed_captcha_token",
-	);
+		setupTurnstileExpiredCallback(
+			"onUnconfirmedTurnstileExpired",
+			"unconfirmed_captcha_token",
+			() => {
+				captchaStatus.show("CAPTCHA expired. Please complete it again.");
+			},
+		);
+
+		captchaTokenInputElement.addEventListener("input", () => {
+			updateResendDisabledState();
+			if (captchaTokenInputElement.value.trim().length > 0) {
+				captchaStatus.hide();
+			}
+		});
+
+		initializeCooldown();
+	})();
 </script>
 

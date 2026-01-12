@@ -69,7 +69,7 @@ const { user, isEditingPhone } = Astro.props as Props;
 							<>
 								<!-- PhoneInput sets a hidden phone_is_valid input used by updateSendButtonState -->
 								<PhoneInput
-									client:only="vue"
+									client:load
 									required={user.sms_notifications_enabled}
 									disabled={!user.sms_notifications_enabled}
 									initialNationalNumber={user.phone_number}

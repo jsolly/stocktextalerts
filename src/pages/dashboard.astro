@@ -98,6 +98,7 @@ const isSmsFullyConfigured =
 		<SetupRequiredBanner user={user} />
 
 		<!-- Section 2: Preferences form (stocks + notification settings) -->
+		<div id="dashboard-initial-symbols" data-initial-symbols={JSON.stringify(initialSymbols)} class="hidden"></div>
 		<form
 			id="dashboard-preferences-form"
 			method="POST"
@@ -136,7 +137,39 @@ const isSmsFullyConfigured =
 	</div>
 </Layout>
 
-<script define:vars={{ initialSymbols }}>
+<script>
+	import {
+		readFormValues,
+		setupFormNavigationWarning,
+	} from "../lib/form-navigation-warning";
+
+	function diffChangedKeys(
+		initial: Map<string, string | boolean | null>,
+		current: Map<string, string | boolean | null>,
+	): string[] {
+		const keys = new Set([...initial.keys(), ...current.keys()]);
+		const changed: string[] = [];
+		for (const key of keys) {
+			if (initial.get(key) !== current.get(key)) {
+				changed.push(key);
+			}
+		}
+		return changed;
+	}
+
+	function areSymbolsSetsEqual(left: string[], right: string[]): boolean {
+		if (left.length !== right.length) {
+			return false;
+		}
+
+		const leftSet = new Set(left);
+		if (leftSet.size !== right.length) {
+			return false;
+		}
+
+		return right.every((symbol: string) => leftSet.has(symbol));
+	}
+
 	function setupDashboardPreferencesDirtyCheck() {
 		const formElement = document.getElementById("dashboard-preferences-form");
 		if (!(formElement instanceof HTMLFormElement)) {
@@ -144,64 +177,13 @@ const isSmsFullyConfigured =
 		}
 		const form = formElement;
 
-		const saveButtonElement = document.getElementById("save-button");
-		if (!(saveButtonElement instanceof HTMLButtonElement)) {
-			return;
-		}
-		const saveButton = saveButtonElement;
+		let initialPreferences = readFormValues(form);
 
-		let isSubmitting = false;
-
-		function readFormValues() {
-			const values = new Map();
-			const elements = form.querySelectorAll("[name]");
-			
-			for (const element of elements) {
-				const name = element.getAttribute("name");
-				if (!name) continue;
-				
-				if (element instanceof HTMLInputElement) {
-					if (element.type === "checkbox") {
-						values.set(name, element.checked);
-					} else if (element.type === "radio") {
-						if (element.checked) {
-							values.set(name, element.value);
-						}
-					} else {
-						values.set(name, element.value);
-					}
-				} else if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
-					values.set(name, element.value);
-				}
-			}
-			
-			return values;
-		}
-
-		const initialPreferences = readFormValues();
-
-		function normalizeSymbols(value) {
-			if (!Array.isArray(value)) {
-				return [];
-			}
-
-			return value.filter((entry) => typeof entry === "string");
-		}
-
-		function areSymbolsSetsEqual(left, right) {
-			if (left.length !== right.length) {
-				return false;
-			}
-
-			const leftSet = new Set(left);
-			if (leftSet.size !== right.length) {
-				return false;
-			}
-
-			return right.every((symbol) => leftSet.has(symbol));
-		}
-
-		let initialTrackedSymbols = normalizeSymbols(initialSymbols);
+		const symbolsElement = document.getElementById("dashboard-initial-symbols");
+		const initialSymbols = symbolsElement instanceof HTMLElement && symbolsElement.dataset.initialSymbols
+			? JSON.parse(symbolsElement.dataset.initialSymbols)
+			: [];
+		let initialTrackedSymbols = initialSymbols as string[];
 		let currentTrackedSymbols = [...initialTrackedSymbols];
 
 		function isStocksDirty() {
@@ -209,36 +191,20 @@ const isSmsFullyConfigured =
 		}
 
 		function isPreferencesDirty() {
-			const currentPreferences = readFormValues();
-			return Array.from(initialPreferences.entries()).some(([key, value]) => {
-				return value !== currentPreferences.get(key);
-			});
+			const currentPreferences = readFormValues(form);
+			return diffChangedKeys(initialPreferences, currentPreferences).length > 0;
 		}
 
 		function hasUnsavedChanges() {
 			return isPreferencesDirty() || isStocksDirty();
 		}
 
-		// Save button only considers preferences, not stocks.
-		// Stocks are saved separately via TrackedStocksPanel's own save button.
-		// Navigation warnings (hasUnsavedChanges) include both to warn about any unsaved changes.
-		const updateSaveButtonState = () => {
-			saveButton.disabled = !isPreferencesDirty();
-		};
-
-		const onFormChange = () => {
-			updateSaveButtonState();
-		};
-
-		form.addEventListener("input", onFormChange);
-		form.addEventListener("change", onFormChange);
-
 		window.addEventListener("tracked-stocks-changed", (event) => {
 			if (!(event instanceof CustomEvent)) {
 				return;
 			}
 
-			const symbols = normalizeSymbols(event.detail?.symbols);
+			const symbols = event.detail?.symbols as string[];
 			currentTrackedSymbols = symbols;
 		});
 
@@ -247,51 +213,17 @@ const isSmsFullyConfigured =
 				return;
 			}
 
-			const symbols = normalizeSymbols(event.detail?.symbols);
-			initialTrackedSymbols = symbols;
-			currentTrackedSymbols = symbols;
+			const symbols = event.detail?.symbols as string[];
+			initialTrackedSymbols = [...symbols];
+			currentTrackedSymbols = [...symbols];
 		});
 
-		form.addEventListener("submit", () => {
-			isSubmitting = true;
+		setupFormNavigationWarning({
+			formId: "dashboard-preferences-form",
+			saveButtonId: "save-button",
+			customDirtyCheck: hasUnsavedChanges,
+			customSaveButtonCheck: isPreferencesDirty,
 		});
-
-		window.addEventListener("beforeunload", (event) => {
-			if (isSubmitting) {
-				return;
-			}
-			if (hasUnsavedChanges()) {
-				event.preventDefault();
-			}
-		});
-
-		document.addEventListener("click", (event) => {
-			const target = event.target;
-			if (!(target instanceof HTMLElement)) {
-				return;
-			}
-
-			const link = target.closest("a");
-
-			if (!link || !hasUnsavedChanges()) {
-				return;
-			}
-
-			const href = link.getAttribute("href");
-			if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
-				return;
-			}
-
-			if (href.startsWith("/") || href.startsWith("http")) {
-				if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
-					event.preventDefault();
-					event.stopPropagation();
-					return;
-				}
-			}
-		}, true);
-
-		updateSaveButtonState();
 	}
 
 	if (document.readyState === "loading") {

@@ -29,6 +29,7 @@ export const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
 });
 
 const PRESERVED_USER_ID = "00000000-0000-0000-0000-000000000000";
+const TEST_USER_EMAIL = "test@jsolly.com";
 
 export async function resetDatabase() {
 	const client = new Client({ connectionString: databaseUrl });
@@ -38,7 +39,7 @@ export async function resetDatabase() {
 		// Find the test user by email to preserve them
 		const { rows: testUserRows } = await client.query(
 			"SELECT id FROM auth.users WHERE email = $1",
-			["test@jsolly.com"],
+			[TEST_USER_EMAIL],
 		);
 		const testUserId = testUserRows[0]?.id;
 

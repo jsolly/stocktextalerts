@@ -139,7 +139,15 @@ if (error) {
 						<Turnstile
 							tokenInputId="register_captcha_token"
 							callbackName="onRegisterTurnstileSuccess"
+							errorCallback="onRegisterTurnstileError"
+							expiredCallback="onRegisterTurnstileExpired"
 						/>
+						<div
+							id="register-captcha-status"
+							class="mt-2 hidden rounded-md bg-red-50 p-3 text-sm text-red-700"
+							role="alert"
+							aria-live="polite"
+						></div>
 					</div>
           <div>
             <button 
@@ -175,7 +183,7 @@ if (error) {
 		const timezoneSelect = timezoneInputElement;
 		const offsetInput = offsetInputElement;
 
-		function getDetectedTimezone(): string {
+		function detectTimezone(): string {
 			try {
 				return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
 			} catch {
@@ -183,30 +191,32 @@ if (error) {
 			}
 		}
 
-		function setUtcOffsetMinutes() {
+		function detectUtcOffsetMinutes(): string {
 			try {
-				offsetInput.value = String(new Date().getTimezoneOffset());
+				return String(new Date().getTimezoneOffset());
 			} catch (error) {
 				console.error('UTC offset detection failed:', error);
+				return "";
 			}
 		}
 
 		setupDetectedTimezoneOption();
 
-		const detectedTimezone = getDetectedTimezone().trim();
+		const detectedTimezone = detectTimezone().trim();
 		if (detectedTimezone) {
 			timezoneSelect.value = detectedTimezone;
 		}
-		setUtcOffsetMinutes();
+		const detectedUtcOffsetMinutes = detectUtcOffsetMinutes();
+		if (detectedUtcOffsetMinutes) {
+			offsetInput.value = detectedUtcOffsetMinutes;
+		}
 
 		form.addEventListener('submit', () => {
-			const detectedAtSubmit = getDetectedTimezone().trim();
-			if (!timezoneSelect.value && detectedAtSubmit) {
-				setupDetectedTimezoneOption();
-				timezoneSelect.value = detectedAtSubmit;
+			if (!timezoneSelect.value && detectedTimezone) {
+				timezoneSelect.value = detectedTimezone;
 			}
-			if (!offsetInput.value) {
-				setUtcOffsetMinutes();
+			if (!offsetInput.value && detectedUtcOffsetMinutes) {
+				offsetInput.value = detectedUtcOffsetMinutes;
 			}
 		});
 
@@ -215,9 +225,14 @@ if (error) {
 
 <script>
 	import {
+		createCaptchaStatusHelpers,
 		initializeTurnstileForm,
 		setupTurnstileCallback,
+		setupTurnstileErrorCallback,
+		setupTurnstileExpiredCallback,
 	} from "../../lib/turnstile-utils";
+
+	const captchaStatus = createCaptchaStatusHelpers("register-captcha-status");
 
 	initializeTurnstileForm("register-form", "register_captcha_token");
 	setupTurnstileCallback(
@@ -225,4 +240,26 @@ if (error) {
 		"register_captcha_token",
 		"register-form",
 	);
+
+	setupTurnstileErrorCallback("onRegisterTurnstileError", (errorCode) => {
+		console.error("Turnstile error:", errorCode);
+		captchaStatus.show("CAPTCHA failed to load. Please refresh and try again.");
+	});
+
+	setupTurnstileExpiredCallback(
+		"onRegisterTurnstileExpired",
+		"register_captcha_token",
+		() => {
+			captchaStatus.show("CAPTCHA expired. Please complete it again.");
+		},
+	);
+
+	const captchaTokenInput = document.getElementById("register_captcha_token");
+	if (captchaTokenInput instanceof HTMLInputElement) {
+		captchaTokenInput.addEventListener("input", () => {
+			if (captchaTokenInput.value.trim().length > 0) {
+				captchaStatus.hide();
+			}
+		});
+	}
 </script>

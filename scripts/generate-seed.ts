@@ -207,6 +207,38 @@ ${sections.join('\n\n')}
 }
 
 main().catch((error) => {
+  console.error('\n❌ Error generating seed file:');
   console.error(error);
+
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  // Check for common issues and provide hints
+  if (errorMessage.includes('PUBLIC_SUPABASE_URL') || errorMessage.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+    console.error('\n💡 Hint: Missing environment variables.');
+    console.error('   - Ensure .env.local exists in the project root');
+    console.error('   - Verify PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set');
+    console.error('   - For local development, run: supabase start');
+  } else if (errorMessage.includes('DEFAULT_PASSWORD')) {
+    console.error('\n💡 Hint: DEFAULT_PASSWORD is required in .env.local');
+    console.error('   - Add DEFAULT_PASSWORD=your-password to .env.local');
+  } else if (errorMessage.includes('Failed to read') || errorMessage.includes('Failed to parse')) {
+    console.error('\n💡 Hint: File read error.');
+    console.error('   - Check that us-stocks.json exists in scripts/');
+    console.error('   - Verify file permissions and JSON format');
+  } else if (errorMessage.includes('fetch') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('network')) {
+    console.error('\n💡 Hint: Supabase connection issue.');
+    console.error('   - Ensure Supabase is running: supabase start');
+    console.error('   - Verify PUBLIC_SUPABASE_URL points to a running instance');
+    console.error('   - Check network connectivity');
+  } else if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('Unauthorized')) {
+    console.error('\n💡 Hint: Authentication error.');
+    console.error('   - Verify SUPABASE_SERVICE_ROLE_KEY is correct');
+    console.error('   - Check that the service role key matches your Supabase instance');
+  } else if (errorMessage.includes('listAllAuthUsers')) {
+    console.error('\n💡 Hint: Error fetching users from Supabase.');
+    console.error('   - Check Supabase connection and service role key');
+    console.error('   - Verify auth schema is properly set up');
+  }
+
   process.exitCode = 1;
 });

@@ -77,7 +77,15 @@ if (success === "true") {
 						<Turnstile
 							tokenInputId="forgot_captcha_token"
 							callbackName="onForgotTurnstileSuccess"
+							errorCallback="onForgotTurnstileError"
+							expiredCallback="onForgotTurnstileExpired"
 						/>
+						<div
+							id="forgot-captcha-status"
+							class="mt-2 hidden rounded-md bg-red-50 p-3 text-sm text-red-700"
+							role="alert"
+							aria-live="polite"
+						></div>
 					</div>
           <button 
             type="submit"
@@ -93,9 +101,14 @@ if (success === "true") {
 
 <script>
 	import {
+		createCaptchaStatusHelpers,
 		initializeTurnstileForm,
 		setupTurnstileCallback,
+		setupTurnstileErrorCallback,
+		setupTurnstileExpiredCallback,
 	} from "../../lib/turnstile-utils";
+
+	const captchaStatus = createCaptchaStatusHelpers("forgot-captcha-status");
 
 	initializeTurnstileForm("forgot-form", "forgot_captcha_token");
 	setupTurnstileCallback(
@@ -103,5 +116,27 @@ if (success === "true") {
 		"forgot_captcha_token",
 		"forgot-form",
 	);
+
+	setupTurnstileErrorCallback("onForgotTurnstileError", (errorCode) => {
+		console.error("Turnstile error:", errorCode);
+		captchaStatus.show("CAPTCHA failed to load. Please refresh and try again.");
+	});
+
+	setupTurnstileExpiredCallback(
+		"onForgotTurnstileExpired",
+		"forgot_captcha_token",
+		() => {
+			captchaStatus.show("CAPTCHA expired. Please complete it again.");
+		},
+	);
+
+	const captchaTokenInput = document.getElementById("forgot_captcha_token");
+	if (captchaTokenInput instanceof HTMLInputElement) {
+		captchaTokenInput.addEventListener("input", () => {
+			if (captchaTokenInput.value.trim().length > 0) {
+				captchaStatus.hide();
+			}
+		});
+	}
 </script>
 

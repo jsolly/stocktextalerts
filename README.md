@@ -251,7 +251,7 @@ The cron job:
 
 ## Project Structure
 
-```
+```text
 .
 ├── src/
 │   ├── components/

@@ -49,7 +49,8 @@ export function createPreferencesHandler(
 
 		const baseUpdates = omitUndefined({
 			...parsed.data,
-			timezone: parsed.data.timezone ?? undefined,
+			timezone:
+				parsed.data.timezone === null ? undefined : parsed.data.timezone,
 		});
 
 		const safePreferenceUpdates = {

@@ -127,11 +127,16 @@ const saveStocks = async () => {
 
 		const data = await response.json();
 
+		if (abortController?.signal.aborted) {
+			return;
+		}
+
 		if (!data.success) {
 			saveError.value = "Failed to save. Please try again.";
 			return;
 		}
 
+		savedSymbols.value = [...draftSymbols.value];
 		dispatchTrackedStocksEvent("tracked-stocks-saved", [...draftSymbols.value]);
 
 		const url = new URL(window.location.href);

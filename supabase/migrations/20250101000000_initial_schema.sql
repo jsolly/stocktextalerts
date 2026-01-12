@@ -115,10 +115,9 @@ INSERT INTO timezones (value, label, display_order, active) VALUES
   ('Asia/Manila', 'Philippine Time (PHT)', 97, true),
   ('Asia/Hong_Kong', 'Hong Kong Time (HKT)', 98, true),
   ('Asia/Shanghai', 'China Standard Time (CST)', 99, true),
-  ('Asia/Beijing', 'China Standard Time - Beijing (CST)', 100, true),
-  ('Asia/Taipei', 'Taipei Time (TST)', 101, true),
-  ('Asia/Seoul', 'Korea Standard Time (KST)', 102, true),
-  ('Asia/Tokyo', 'Japan Standard Time (JST)', 103, true),
+  ('Asia/Taipei', 'Taipei Time (TST)', 100, true),
+  ('Asia/Seoul', 'Korea Standard Time (KST)', 101, true),
+  ('Asia/Tokyo', 'Japan Standard Time (JST)', 102, true),
   ('Australia/Sydney', 'Australian Eastern Time (AET)', 110, true),
   ('Australia/Melbourne', 'Australian Eastern Time - Melbourne (AET)', 111, true),
   ('Australia/Brisbane', 'Australian Eastern Time - Brisbane (AET)', 112, true),
@@ -221,35 +220,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.validate_stock_symbols(
-  symbols text[]
-)
-RETURNS text[]
-LANGUAGE plpgsql
-SET search_path = public, pg_temp
-AS $$
-DECLARE
-  valid_symbols text[];
-BEGIN
-  IF symbols IS NULL OR array_length(symbols, 1) IS NULL THEN
-    RETURN ARRAY[]::text[];
-  END IF;
-
-  SELECT ARRAY_AGG(DISTINCT s.symbol)
-  INTO valid_symbols
-  FROM (
-    SELECT UPPER(TRIM(BOTH FROM entry)) AS symbol
-    FROM unnest(symbols) AS raw(entry)
-    WHERE TRIM(BOTH FROM entry) <> ''
-  ) AS normalized
-  INNER JOIN stocks s ON s.symbol = normalized.symbol;
-
-  RETURN COALESCE(valid_symbols, ARRAY[]::text[]);
-END;
-$$;
-
 GRANT EXECUTE ON FUNCTION public.replace_user_stocks(uuid, text[]) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.validate_stock_symbols(text[]) TO authenticated, service_role;
 
 /* =============
 Notification Log
@@ -267,6 +238,87 @@ CREATE TABLE IF NOT EXISTS notification_log (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
+
+/* =============
+Scheduled Notifications
+============= */
+
+CREATE TABLE IF NOT EXISTS scheduled_notifications (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  notification_type TEXT NOT NULL CHECK (notification_type IN ('daily_digest')),
+  scheduled_date DATE NOT NULL,
+  channel VARCHAR(10) NOT NULL CHECK (channel IN ('email', 'sms')),
+  status VARCHAR(10) NOT NULL CHECK (status IN ('sending', 'sent', 'failed')),
+  attempt_count INTEGER DEFAULT 0 NOT NULL CHECK (attempt_count >= 0),
+  last_attempt_at TIMESTAMP WITH TIME ZONE,
+  sent_at TIMESTAMP WITH TIME ZONE,
+  error TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  PRIMARY KEY (user_id, notification_type, scheduled_date, channel)
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_user_type_date
+  ON scheduled_notifications (user_id, notification_type, scheduled_date);
+
+/* =============
+Scheduled Notifications Claim
+============= */
+
+CREATE OR REPLACE FUNCTION public.claim_scheduled_notification(
+  p_user_id uuid,
+  p_notification_type text,
+  p_scheduled_date date,
+  p_channel text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  claimed boolean;
+BEGIN
+  INSERT INTO scheduled_notifications (
+    user_id,
+    notification_type,
+    scheduled_date,
+    channel,
+    status,
+    attempt_count,
+    last_attempt_at,
+    error
+  )
+  VALUES (
+    p_user_id,
+    p_notification_type,
+    p_scheduled_date,
+    p_channel,
+    'sending',
+    1,
+    pg_catalog.now(),
+    NULL
+  )
+  ON CONFLICT (user_id, notification_type, scheduled_date, channel) DO UPDATE
+    SET status = 'sending',
+        attempt_count = scheduled_notifications.attempt_count + 1,
+        last_attempt_at = pg_catalog.now(),
+        error = NULL
+    WHERE scheduled_notifications.status <> 'sent'
+      AND scheduled_notifications.attempt_count < 3
+      AND (
+        scheduled_notifications.status = 'failed'
+        OR (
+          scheduled_notifications.status = 'sending'
+          AND scheduled_notifications.last_attempt_at < pg_catalog.now() - interval '10 minutes'
+        )
+      )
+  RETURNING true INTO claimed;
+
+  RETURN COALESCE(claimed, false);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.claim_scheduled_notification(uuid, text, date, text) TO service_role;
 
 /* =============
 Row Level Security - Users
@@ -322,6 +374,12 @@ CREATE POLICY "Users can view own notifications" ON notification_log
   FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 /* =============
+Row Level Security - Scheduled Notifications
+============= */
+
+ALTER TABLE scheduled_notifications ENABLE ROW LEVEL SECURITY;
+
+/* =============
 Timestamp Functions
 ============= */
 
@@ -343,5 +401,10 @@ CREATE TRIGGER update_users_updated_at
 
 CREATE TRIGGER update_notification_log_updated_at
   BEFORE UPDATE ON notification_log
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_scheduled_notifications_updated_at
+  BEFORE UPDATE ON scheduled_notifications
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();

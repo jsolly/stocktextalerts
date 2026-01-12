@@ -82,8 +82,54 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			? "You don't have any tracked stocks"
 			: userStocks.map((stock) => `${stock.symbol} - ${stock.name}`).join(", ");
 
+	/* =============
+	Validate UserRecord Fields
+	============= */
+	if (type === "email") {
+		if (
+			typeof user.email !== "string" ||
+			user.email.trim() === "" ||
+			typeof user.email_notifications_enabled !== "boolean"
+		) {
+			return new Response(
+				JSON.stringify({
+					success: false,
+					error: "User record missing required email notification fields",
+				}),
+				{
+					status: 400,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
+		}
+	} else {
+		if (
+			user.phone_country_code === null ||
+			typeof user.phone_country_code !== "string" ||
+			user.phone_country_code === "" ||
+			user.phone_number === null ||
+			typeof user.phone_number !== "string" ||
+			user.phone_number === "" ||
+			typeof user.phone_verified !== "boolean" ||
+			typeof user.sms_notifications_enabled !== "boolean" ||
+			typeof user.sms_opted_out !== "boolean"
+		) {
+			return new Response(
+				JSON.stringify({
+					success: false,
+					error: "User record missing required SMS notification fields",
+				}),
+				{
+					status: 400,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
+		}
+	}
+
+	const userRecord = user as UserRecord;
+
 	try {
-		const userRecord = user as UserRecord;
 		let sent = false;
 		let logged = false;
 

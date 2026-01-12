@@ -11,12 +11,12 @@ type BooleanFieldSpec = {
 	type: "boolean";
 	required?: boolean;
 	/**
-	 * Accepted truthy string values (normalized to lowercase + trimmed).
+	 * Accepted truthy string values.
 	 * Defaults to ["on", "true", "1"].
 	 */
 	truthyValues?: readonly string[];
 	/**
-	 * Accepted falsy string values (normalized to lowercase + trimmed).
+	 * Accepted falsy string values.
 	 * Defaults to ["off", "false", "0"].
 	 */
 	falsyValues?: readonly string[];
@@ -209,15 +209,10 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 
 		switch (spec.type) {
 			case "boolean": {
-				const normalized = raw.trim().toLowerCase();
-				const truthyValues =
-					spec.truthyValues?.map((value) => value.trim().toLowerCase()) ??
-					defaultTruthyValues;
-				const falsyValues =
-					spec.falsyValues?.map((value) => value.trim().toLowerCase()) ??
-					defaultFalsyValues;
+				const truthyValues = spec.truthyValues ?? defaultTruthyValues;
+				const falsyValues = spec.falsyValues ?? defaultFalsyValues;
 
-				if (normalized === "") {
+				if (raw === "") {
 					if (spec.required) {
 						errors.push({ reason: "missing_field", key });
 					} else {
@@ -226,12 +221,12 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 					break;
 				}
 
-				if (truthyValues.includes(normalized)) {
+				if (truthyValues.includes(raw)) {
 					output[key] = true;
 					break;
 				}
 
-				if (falsyValues.includes(normalized)) {
+				if (falsyValues.includes(raw)) {
 					output[key] = false;
 					break;
 				}

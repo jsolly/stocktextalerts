@@ -76,7 +76,6 @@ const props = defineProps<{
 	initialNationalNumber?: string | null;
 }>();
 
-const phoneNumber = ref("");
 const country = ref<Country>("US");
 const showError = ref(false);
 const touched = ref(false);
@@ -89,7 +88,13 @@ function formatPhone(digits: string): string {
 	return new AsYouType(country.value).input(digits);
 }
 
-const lastDigits = ref("");
+const initialDigits =
+	typeof props.initialNationalNumber === "string"
+		? props.initialNationalNumber.replace(/\D/g, "")
+		: "";
+
+const lastDigits = ref(initialDigits);
+const phoneNumber = ref(initialDigits ? formatPhone(initialDigits) : "");
 const validField = ref<HTMLInputElement | null>(null);
 let fieldsetObserver: MutationObserver | null = null;
 
@@ -172,14 +177,6 @@ watch(
 );
 
 onMounted(() => {
-	if (props.initialNationalNumber && !phoneNumber.value) {
-		const digits = props.initialNationalNumber.replace(/\D/g, "");
-		if (digits) {
-			lastDigits.value = digits;
-			phoneNumber.value = formatPhone(digits);
-		}
-	}
-
 	const fieldset = document.getElementById(
 		"phone-verification-fieldset",
 	) as HTMLFieldSetElement | null;

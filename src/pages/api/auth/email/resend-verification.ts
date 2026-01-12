@@ -19,8 +19,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		return redirect("/auth/unconfirmed?error=invalid_form");
 	}
 
-	const email = parsed.data.email;
-	const captchaToken = parsed.data.captcha_token?.trim();
+	const email = parsed.data.email.trim();
+	const captchaToken = parsed.data.captcha_token.trim();
 	if (!captchaToken) {
 		return redirect(
 			`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=captcha_required`,
@@ -34,6 +34,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		type: "signup",
 		email,
 		options: {
+			captchaToken,
 			emailRedirectTo,
 		},
 	});

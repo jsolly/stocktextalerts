@@ -98,138 +98,7 @@ const successMessage = formatMessage(success);
 
 <script>
 	import { setupTimezoneMismatchBanner } from "../lib/timezone-banner";
-
-	function setupProfilePreferencesNavigationWarning() {
-		const formElement = document.getElementById("profile-preferences-form");
-		if (!(formElement instanceof HTMLFormElement)) {
-			return;
-		}
-		const form = formElement;
-
-		const saveButtonElement = document.getElementById("save-profile-preferences-button");
-		if (!(saveButtonElement instanceof HTMLButtonElement)) {
-			return;
-		}
-		const saveButton = saveButtonElement;
-
-		let isDirty = false;
-		let isSubmitting = false;
-
-		function readFormValues() {
-			const values = new Map();
-			const elements = form.querySelectorAll("[name]");
-			
-			for (const element of elements) {
-				const name = element.getAttribute("name");
-				if (!name) continue;
-				
-				if (element instanceof HTMLInputElement) {
-					if (element.type === "checkbox") {
-						values.set(name, element.checked);
-					} else if (element.type === "radio") {
-						if (element.checked) {
-							values.set(name, element.value);
-						}
-					} else {
-						values.set(name, element.value);
-					}
-				} else if (element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
-					values.set(name, element.value);
-				}
-			}
-			
-			return values;
-		}
-
-		const initialValues = readFormValues();
-
-		function checkIfDirty() {
-			const currentValues = readFormValues();
-			isDirty = Array.from(initialValues.entries()).some(([key, value]) => {
-				return value !== currentValues.get(key);
-			});
-			return isDirty;
-		}
-
-		function updateSaveButtonState() {
-			saveButton.disabled = !checkIfDirty();
-		}
-
-		function handleFormChange() {
-			updateSaveButtonState();
-		}
-
-		form.addEventListener("input", handleFormChange);
-		form.addEventListener("change", handleFormChange);
-
-		form.addEventListener("submit", () => {
-			isSubmitting = true;
-			isDirty = false;
-		});
-
-		window.addEventListener("beforeunload", (event) => {
-			if (isSubmitting) {
-				return;
-			}
-			if (checkIfDirty()) {
-				event.preventDefault();
-				event.returnValue = "";
-				return "";
-			}
-		});
-
-		function shouldWarnOnLinkClick(link: HTMLAnchorElement): boolean {
-			if (!checkIfDirty()) {
-				return false;
-			}
-
-			if (link.target === "_blank") {
-				return false;
-			}
-
-			const href = link.getAttribute("href");
-			if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
-				return false;
-			}
-
-			try {
-				const destination = new URL(link.href, window.location.href);
-				const current = new URL(window.location.href);
-
-				const isSamePage =
-					destination.origin === current.origin &&
-					destination.pathname === current.pathname &&
-					destination.search === current.search;
-
-				if (isSamePage) {
-					return false;
-				}
-			} catch {
-				return false;
-			}
-
-			return href.startsWith("/") || href.startsWith("http");
-		}
-
-		document.addEventListener("click", (event) => {
-			const target = event.target;
-			if (!(target instanceof Element)) {
-				return;
-			}
-
-			const link = target.closest("a");
-			if (!link || !shouldWarnOnLinkClick(link)) {
-				return;
-			}
-
-			if (!confirm("You have unsaved changes. Are you sure you want to leave this page?")) {
-				event.preventDefault();
-				event.stopPropagation();
-			}
-		}, true);
-
-		updateSaveButtonState();
-	}
+	import { setupFormNavigationWarning } from "../lib/form-navigation-warning";
 
 	function setupProfileTimezoneMismatchBanner() {
 		const banner = document.getElementById("timezone-mismatch-banner");
@@ -244,10 +113,16 @@ const successMessage = formatMessage(success);
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", () => {
 			setupProfileTimezoneMismatchBanner();
-			setupProfilePreferencesNavigationWarning();
+			setupFormNavigationWarning({
+				formId: "profile-preferences-form",
+				saveButtonId: "save-profile-preferences-button",
+			});
 		});
 	} else {
 		setupProfileTimezoneMismatchBanner();
-		setupProfilePreferencesNavigationWarning();
+		setupFormNavigationWarning({
+			formId: "profile-preferences-form",
+			saveButtonId: "save-profile-preferences-button",
+		});
 	}
 </script>

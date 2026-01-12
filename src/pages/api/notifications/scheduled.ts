@@ -18,6 +18,99 @@ import {
 	readTwilioConfig,
 } from "./sms/twilio-utils";
 
+const MAX_NOTIFICATION_RETRIES = 3;
+
+function getLocalDateString(timezone: string, date: Date): string | null {
+	try {
+		const formatter = new Intl.DateTimeFormat("en-CA", {
+			timeZone: timezone,
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+		});
+		return formatter.format(date);
+	} catch {
+		console.error("Failed to format local date for timezone", { timezone });
+		return null;
+	}
+}
+
+async function updateScheduledNotificationRow(options: {
+	supabase: ReturnType<typeof createSupabaseAdminClient>;
+	userId: string;
+	notificationType: string;
+	scheduledDate: string;
+	channel: DeliveryMethod;
+	status: "sent" | "failed";
+	error?: string;
+}) {
+	const update =
+		options.status === "sent"
+			? { status: "sent", sent_at: new Date().toISOString(), error: null }
+			: { status: "failed", error: options.error ?? "Unknown error" };
+
+	const { error } = await options.supabase
+		.from("scheduled_notifications")
+		.update(update)
+		.eq("user_id", options.userId)
+		.eq("notification_type", options.notificationType)
+		.eq("scheduled_date", options.scheduledDate)
+		.eq("channel", options.channel);
+
+	if (error) {
+		console.error("Failed to update scheduled_notifications row", {
+			userId: options.userId,
+			channel: options.channel,
+			error,
+		});
+	}
+}
+
+async function logRetriesExhausted(options: {
+	supabase: ReturnType<typeof createSupabaseAdminClient>;
+	userId: string;
+	notificationType: string;
+	scheduledDate: string;
+	channel: DeliveryMethod;
+}) {
+	const { data, error } = await options.supabase
+		.from("scheduled_notifications")
+		.select("attempt_count,status")
+		.eq("user_id", options.userId)
+		.eq("notification_type", options.notificationType)
+		.eq("scheduled_date", options.scheduledDate)
+		.eq("channel", options.channel)
+		.maybeSingle();
+
+	if (error) {
+		console.error("Failed to fetch scheduled_notifications row", {
+			userId: options.userId,
+			channel: options.channel,
+			error,
+		});
+		return;
+	}
+
+	if (!data || data.status === "sent") {
+		return;
+	}
+
+	if (data.attempt_count >= MAX_NOTIFICATION_RETRIES) {
+		console.warn(
+			`Retries exhausted for user ${options.userId} (${options.channel}); will retry next local day`,
+		);
+
+		await recordNotification(options.supabase, {
+			userId: options.userId,
+			type: "scheduled_update",
+			deliveryMethod: options.channel,
+			messageDelivered: false,
+			message: "Retries exhausted; will retry next local day",
+			error: `scheduled_notifications attempt_count >= ${MAX_NOTIFICATION_RETRIES}`,
+		});
+	}
+}
+
 export const POST: APIRoute = async ({ request }) => {
 	const authHeader = request.headers.get("authorization");
 	const envCronSecret = import.meta.env.CRON_SECRET;
@@ -131,6 +224,14 @@ export const POST: APIRoute = async ({ request }) => {
 					return stats;
 				}
 
+				const scheduledDate = user.timezone
+					? getLocalDateString(user.timezone, currentTime)
+					: null;
+				if (!scheduledDate) {
+					stats.skipped++;
+					return stats;
+				}
+
 				const userStocks = await loadUserStocks(supabase, user.id);
 				if (userStocks === null) {
 					stats.skipped++;
@@ -147,50 +248,133 @@ export const POST: APIRoute = async ({ request }) => {
 				// Process Email
 				if (user.email_notifications_enabled) {
 					attemptedDeliveryMethod = "email";
-					const { sent, logged } = await processEmailUpdate(
-						supabase,
-						user,
-						userStocks,
-						stocksList,
-						sendEmail,
+					const { data: claimed, error: claimError } = await supabase.rpc(
+						"claim_scheduled_notification",
+						{
+							p_user_id: user.id,
+							p_notification_type: "daily_digest",
+							p_scheduled_date: scheduledDate,
+							p_channel: "email",
+						},
 					);
 
-					if (sent) stats.emailsSent++;
-					else stats.emailsFailed++;
+					if (claimError) {
+						throw new Error(
+							`Failed to claim scheduled notification (email): ${claimError.message}`,
+						);
+					}
 
-					if (!logged) stats.logFailures++;
+					if (!claimed) {
+						await logRetriesExhausted({
+							supabase,
+							userId: user.id,
+							notificationType: "daily_digest",
+							scheduledDate,
+							channel: "email",
+						});
+						stats.skipped++;
+					} else {
+						const { sent, logged, error } = await processEmailUpdate(
+							supabase,
+							user,
+							userStocks,
+							stocksList,
+							sendEmail,
+						);
+
+						if (sent) stats.emailsSent++;
+						else stats.emailsFailed++;
+
+						if (!logged) stats.logFailures++;
+
+						await updateScheduledNotificationRow({
+							supabase,
+							userId: user.id,
+							notificationType: "daily_digest",
+							scheduledDate,
+							channel: "email",
+							status: sent ? "sent" : "failed",
+							error,
+						});
+					}
 				}
 
 				// Process SMS
 				if (shouldSendSms(user)) {
 					attemptedDeliveryMethod = "sms";
-					const { sender: smsSender, error: smsError } = getSmsSender();
-					if (!smsSender) {
-						stats.smsFailed++;
-						const logged = await recordNotification(supabase, {
-							userId: user.id,
-							type: "scheduled_update",
-							deliveryMethod: "sms",
-							messageDelivered: false,
-							message: "SMS service unavailable",
-							error: smsError || "Twilio client not initialized",
-						});
-						if (!logged) stats.logFailures++;
-						return stats;
-					}
-
-					const { sent, logged } = await processSmsUpdate(
-						supabase,
-						user,
-						userStocks,
-						stocksList,
-						smsSender,
+					const { data: claimed, error: claimError } = await supabase.rpc(
+						"claim_scheduled_notification",
+						{
+							p_user_id: user.id,
+							p_notification_type: "daily_digest",
+							p_scheduled_date: scheduledDate,
+							p_channel: "sms",
+						},
 					);
 
-					if (sent) stats.smsSent++;
-					else stats.smsFailed++;
+					if (claimError) {
+						throw new Error(
+							`Failed to claim scheduled notification (sms): ${claimError.message}`,
+						);
+					}
 
-					if (!logged) stats.logFailures++;
+					if (!claimed) {
+						await logRetriesExhausted({
+							supabase,
+							userId: user.id,
+							notificationType: "daily_digest",
+							scheduledDate,
+							channel: "sms",
+						});
+						stats.skipped++;
+					} else {
+						const { sender: smsSender, error: smsError } = getSmsSender();
+						if (!smsSender) {
+							stats.smsFailed++;
+							await updateScheduledNotificationRow({
+								supabase,
+								userId: user.id,
+								notificationType: "daily_digest",
+								scheduledDate,
+								channel: "sms",
+								status: "failed",
+								error: smsError || "Twilio client not initialized",
+							});
+							const logged = await recordNotification(supabase, {
+								userId: user.id,
+								type: "scheduled_update",
+								deliveryMethod: "sms",
+								messageDelivered: false,
+								message: "SMS service unavailable",
+								error: smsError || "Twilio client not initialized",
+							});
+							if (!logged) stats.logFailures++;
+							return stats;
+						}
+
+						const { sent, logged, error } = await processSmsUpdate(
+							supabase,
+							user,
+							userStocks,
+							stocksList,
+							smsSender,
+						);
+
+						if (sent) stats.smsSent++;
+						else stats.smsFailed++;
+
+						if (!logged) stats.logFailures++;
+
+						await updateScheduledNotificationRow({
+							supabase,
+							userId: user.id,
+							notificationType: "daily_digest",
+							scheduledDate,
+							channel: "sms",
+							status: sent ? "sent" : "failed",
+							error,
+						});
+					}
 				}
 				return stats;
 			} catch (error) {

@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { truncateSms } from "../../../lib/format";
 import { sendUserEmail } from "./email";
 import { type EmailSender, formatEmailMessage } from "./email/utils";
 import {
@@ -13,6 +12,8 @@ import type { SmsSender } from "./sms/twilio-utils";
 interface ProcessingStats {
 	sent: boolean;
 	logged: boolean;
+	error?: string;
+	errorCode?: string;
 }
 
 export async function processEmailUpdate(
@@ -43,6 +44,8 @@ export async function processEmailUpdate(
 	return {
 		sent: result.success,
 		logged,
+		error: result.success ? undefined : result.error,
+		errorCode: result.success ? undefined : result.errorCode,
 	};
 }
 
@@ -54,8 +57,13 @@ export async function processSmsUpdate(
 	sendSms: SmsSender,
 ): Promise<ProcessingStats> {
 	const messagePrefix = userStocks.length > 0 ? "Tracked: " : "";
-	const fullMessage = `${messagePrefix}${stocksList}. Reply STOP to opt out.`;
-	const smsMessage = truncateSms(fullMessage);
+	const optOutSuffix = ". Reply STOP to opt out.";
+	const maxStocksListLength = 160 - messagePrefix.length - optOutSuffix.length;
+	const truncatedStocksList =
+		stocksList.length > maxStocksListLength
+			? `${stocksList.substring(0, maxStocksListLength - 3)}...`
+			: stocksList;
+	const smsMessage = `${messagePrefix}${truncatedStocksList}${optOutSuffix}`;
 
 	const result = await sendUserSms(user, smsMessage, sendSms);
 
@@ -72,5 +80,7 @@ export async function processSmsUpdate(
 	return {
 		sent: result.success,
 		logged,
+		error: result.success ? undefined : result.error,
+		errorCode: result.success ? undefined : result.errorCode,
 	};
 }

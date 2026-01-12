@@ -95,8 +95,13 @@ describe("POST /api/auth/email/register", () => {
 		// Should have matched a Pacific timezone, not the fake one or default
 		expect(user.timezone).not.toBe(payload.timezone);
 		expect(user.timezone).not.toBe("America/New_York");
-		// Should match a timezone in the database (likely America/Los_Angeles for Pacific offset)
-		expect(user.timezone).toMatch(/^America\//);
+		// Should match a Pacific timezone in the database (UTC-8 offset)
+		const pacificTimezones = [
+			"America/Los_Angeles",
+			"America/Vancouver",
+			"America/Tijuana",
+		];
+		expect(pacificTimezones).toContain(user.timezone);
 	});
 
 	it("fallback timezone is used if a detected timezone does not exist in the database and no valid offset is provided", async () => {

@@ -1,10 +1,19 @@
 import type { APIContext } from "astro";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../../../../src/pages/api/notifications/scheduled";
 import { adminClient } from "../../../setup";
 import { createTestUser } from "../../../utils";
 
 describe("Scheduled Notifications Integration", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-01-12T15:00:00.000Z"));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	it("sends email notifications to eligible users via Resend", async () => {
 		const timezone = "America/New_York";
 		const formatter = new Intl.DateTimeFormat("en-US", {
@@ -54,28 +63,47 @@ describe("Scheduled Notifications Integration", () => {
 		);
 
 		const response = await POST({ request } as APIContext);
+		const response2 = await POST({ request } as APIContext);
 
 		// 3. Assertions
 		// Check Status
 		expect(response.status).toBe(200);
+		expect(response2.status).toBe(200);
 
 		const json = await response.json();
 
 		expect(json.success).toBe(true);
 
-		// Verify Database Log - notification was attempted
+		// Verify Database Log - notification was attempted once (deduped by DB)
 		const { data: logs, error: logError } = await adminClient
 			.from("notification_log")
 			.select("*")
 			.eq("user_id", id)
 			.eq("delivery_method", "email")
+			.eq("type", "scheduled_update")
 			.order("created_at", { ascending: false })
-			.limit(1);
+			.limit(10);
 
 		expect(logError).toBeNull();
 		expect(logs).toHaveLength(1);
 		const log = logs?.[0];
 		if (!log) throw new Error("Expected log entry not found");
+
+		// Verify scheduled_notifications row exists and only attempted once
+		const { data: scheduled, error: scheduledError } = await adminClient
+			.from("scheduled_notifications")
+			.select("status,attempt_count")
+			.eq("user_id", id)
+			.eq("notification_type", "daily_digest")
+			.eq("channel", "email")
+			.maybeSingle();
+
+		expect(scheduledError).toBeNull();
+		expect(scheduled).toBeTruthy();
+		if (!scheduled)
+			throw new Error("Expected scheduled_notifications row not found");
+		expect(scheduled.attempt_count).toBe(1);
+		expect(["sent", "failed"]).toContain(scheduled.status);
 
 		// Verify notification was attempted and logged
 		// Note: Email delivery may fail due to invalid API key or rate limits

@@ -9,4 +9,5 @@ interface ImportMetaEnv {
 	readonly RESEND_API_KEY: string;
 	readonly EMAIL_FROM: string;
 	readonly CRON_SECRET: string;
+	readonly TIMEZONE_CACHE_BUSTER?: string;
 }
