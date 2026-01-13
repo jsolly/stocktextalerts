@@ -56,10 +56,14 @@ export function setupTimezoneMismatchBanner(options: {
 	savedSpan.textContent = savedTimezoneTrimmed;
 	timezoneInput.value = detectedTimezone;
 
-	dismissButton.addEventListener("click", () => {
-		sessionStorage.setItem(dismissalKey, "1");
-		banner.classList.add("hidden");
-	});
+	dismissButton.addEventListener(
+		"click",
+		() => {
+			sessionStorage.setItem(dismissalKey, "1");
+			banner.classList.add("hidden");
+		},
+		{ once: true },
+	);
 
 	banner.classList.remove("hidden");
 }

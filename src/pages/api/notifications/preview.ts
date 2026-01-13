@@ -78,6 +78,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 	try {
 		let sent = false;
 		let logged = false;
+		let errorDetails: string | undefined;
+		let errorCode: string | undefined;
 
 		if (type === "email") {
 			const { data: user, error: userError } = await adminSupabase
@@ -133,6 +135,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			);
 			sent = result.sent;
 			logged = result.logged;
+			errorDetails = result.error;
+			errorCode = result.errorCode;
 		} else {
 			const { data: user, error: userError } = await adminSupabase
 				.from("users")
@@ -198,19 +202,32 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			);
 			sent = result.sent;
 			logged = result.logged;
+			errorDetails = result.error;
+			errorCode = result.errorCode;
 		}
 
 		if (!sent) {
-			return new Response(
-				JSON.stringify({
-					success: false,
-					error: `Failed to send ${type === "email" ? "email" : "SMS"}`,
-				}),
-				{
-					status: 500,
-					headers: { "Content-Type": "application/json" },
-				},
-			);
+			const response: {
+				success: false;
+				error: string;
+				errorDetails?: string;
+				errorCode?: string;
+			} = {
+				success: false,
+				error: `Failed to send ${type === "email" ? "email" : "SMS"}`,
+			};
+
+			if (errorDetails) {
+				response.errorDetails = errorDetails;
+			}
+			if (errorCode) {
+				response.errorCode = errorCode;
+			}
+
+			return new Response(JSON.stringify(response), {
+				status: 500,
+				headers: { "Content-Type": "application/json" },
+			});
 		}
 
 		return new Response(JSON.stringify({ success: true, logged }), {

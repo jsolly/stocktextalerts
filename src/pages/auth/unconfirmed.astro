@@ -132,13 +132,17 @@ if (success === "true") {
 		const resendForm = document.getElementById('resend-form');
 		const captchaTokenInput = document.getElementById('unconfirmed_captcha_token');
 		
-		if (!resendBtn || !resendForm || !captchaTokenInput) {
+		if (
+			!(resendBtn instanceof HTMLButtonElement) ||
+			!(resendForm instanceof HTMLFormElement) ||
+			!(captchaTokenInput instanceof HTMLInputElement)
+		) {
 			return;
 		}
-		
-		const resendBtnElement = resendBtn as HTMLButtonElement;
-		const resendFormElement = resendForm as HTMLFormElement;
-		const captchaTokenInputElement = captchaTokenInput as HTMLInputElement;
+	
+		const resendBtnElement = resendBtn;
+		const resendFormElement = resendForm;
+		const captchaTokenInputElement = captchaTokenInput;
 		
 		const captchaStatus = createCaptchaStatusHelpers("unconfirmed-captcha-status");
 		let cooldownTimer: ReturnType<typeof setInterval> | null = null;

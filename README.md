@@ -131,7 +131,15 @@ Then generate the seed file (this uses your `DEFAULT_PASSWORD` from `.env.local`
 npm run db:generate-seed
 ```
 
-This creates `supabase/seed.sql` with test user data. **Note:** This file is gitignored (generated locally) and must not be committed.
+This creates `supabase/seed.sql` with test user data.
+
+**Important Notes:**
+- `supabase/seed.sql` is **auto-generated** by `scripts/generate-seed.ts` and is **gitignored** (not committed to source control)
+- The seed file includes test user passwords that are generated from the `DEFAULT_PASSWORD` environment variable
+- SQL files cannot access environment variables directly, which is why we use the generation script
+- Always regenerate `seed.sql` using `npm run db:generate-seed` after updating `scripts/users.json` or `scripts/us-stocks.json`
+- Each developer should generate their own `seed.sql` using their local `DEFAULT_PASSWORD` from `.env.local`
+- To add test users, copy `scripts/sample-users.json` to `scripts/users.json` and update with your test data (do not include passwords - they will use `DEFAULT_PASSWORD` from `.env.local`)
 
 ### 5. Start Local Development
 
@@ -178,14 +186,6 @@ The database is pre-seeded with stock data. If you need to update the list of av
    npx supabase db reset
    ```
 
-**Important Notes:**
-- `supabase/seed.sql` is **auto-generated** by `scripts/generate-seed.ts` and is **gitignored** (not committed to source control)
-- The seed file includes test user passwords that are generated from the `DEFAULT_PASSWORD` environment variable
-- SQL files cannot access environment variables directly, which is why we use the generation script
-- Always regenerate `seed.sql` using `npm run db:generate-seed` after updating `scripts/users.json` or `scripts/us-stocks.json`
-- Each developer should generate their own `seed.sql` using their local `DEFAULT_PASSWORD` from `.env.local`
-- To add test users, copy `scripts/sample-users.json` to `scripts/users.json` and update with your test data (do not include passwords - they will use `DEFAULT_PASSWORD` from `.env.local`)
-
 ## Usage
 
 ### User Flow
@@ -202,8 +202,8 @@ The database is pre-seeded with stock data. If you need to update the list of av
 - `POST /api/auth/email/register` - User registration
 - `POST /api/auth/email/forgot-password` - Request password reset
 - `POST /api/auth/email/resend-verification` - Resend verification email
-- `POST /api/auth/signin` - User sign-in
-- `POST /api/auth/signout` - User sign-out
+- `POST /api/auth/signin` - User signin
+- `POST /api/auth/signout` - User signout
 - `POST /api/auth/delete-account` - Delete user account
 - `POST /api/auth/sms/send-verification` - Send SMS verification code
 - `POST /api/auth/sms/verify-code` - Verify SMS code
@@ -247,7 +247,7 @@ Push to your main branch or click "Redeploy" in Vercel. The application will aut
 After deployment, configure the Twilio webhook for incoming SMS:
 1. Go to Twilio Console → Phone Numbers → Manage → Active numbers
 2. Select your phone number
-3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/notifications/inbound-sms`
+3. Under "Messaging", set the webhook URL to: `https://yourdomain.com/api/notifications/sms/inbound`
 4. Save changes
 
 ### 4. Verify Cron Job

@@ -271,12 +271,12 @@ export const POST: APIRoute = async ({ request }) => {
 					);
 
 					if (claimError) {
-						throw new Error(
-							`Failed to claim scheduled notification (email): ${claimError.message}`,
-						);
-					}
-
-					if (!claimed) {
+						console.error("Failed to claim scheduled notification (email)", {
+							userId: user.id,
+							error: claimError.message,
+						});
+						stats.emailsFailed++;
+					} else if (!claimed) {
 						await logRetriesExhausted({
 							supabase,
 							userId: user.id,
@@ -325,12 +325,12 @@ export const POST: APIRoute = async ({ request }) => {
 					);
 
 					if (claimError) {
-						throw new Error(
-							`Failed to claim scheduled notification (sms): ${claimError.message}`,
-						);
-					}
-
-					if (!claimed) {
+						console.error("Failed to claim scheduled notification (sms)", {
+							userId: user.id,
+							error: claimError.message,
+						});
+						stats.smsFailed++;
+					} else if (!claimed) {
 						await logRetriesExhausted({
 							supabase,
 							userId: user.id,

@@ -2,14 +2,18 @@
 Turnstile Utility Functions
 ============= */
 
+type CallbackWindow<T> = Window & {
+	[key: string]: T | undefined;
+};
+
 export function setupTurnstileCallback(
 	callbackName: string,
 	tokenInputId: string,
 	formId?: string,
 ) {
-	const typedWindow = window as unknown as Window & {
-		[key: string]: ((token: string) => void) | undefined;
-	};
+	const typedWindow = window as unknown as CallbackWindow<
+		(token: string) => void
+	>;
 
 	typedWindow[callbackName] = (token: string) => {
 		const input = document.getElementById(tokenInputId);
@@ -40,9 +44,9 @@ export function setupTurnstileErrorCallback(
 	callbackName: string,
 	handler?: (errorCode: string) => void,
 ) {
-	const typedWindow = window as unknown as Window & {
-		[key: string]: ((errorCode: string) => void) | undefined;
-	};
+	const typedWindow = window as unknown as CallbackWindow<
+		(errorCode: string) => void
+	>;
 
 	typedWindow[callbackName] =
 		handler ||
@@ -56,9 +60,7 @@ export function setupTurnstileExpiredCallback(
 	tokenInputId: string,
 	handler?: () => void,
 ) {
-	const typedWindow = window as unknown as Window & {
-		[key: string]: (() => void) | undefined;
-	};
+	const typedWindow = window as unknown as CallbackWindow<() => void>;
 
 	typedWindow[callbackName] = () => {
 		const input = document.getElementById(tokenInputId);

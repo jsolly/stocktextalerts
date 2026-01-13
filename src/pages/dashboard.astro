@@ -249,6 +249,7 @@ const isSmsFullyConfigured =
 		try {
 			allowedTimezones = JSON.parse(banner.dataset.allowedTimezones ?? "[]");
 		} catch {
+			console.warn("Failed to parse allowedTimezones from banner dataset");
 			allowedTimezones = [];
 		}
 

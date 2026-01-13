@@ -4,7 +4,7 @@ interface Props {
 	smsEnabled: boolean;
 }
 
-const { emailEnabled, smsEnabled } = Astro.props as Props;
+const { emailEnabled, smsEnabled } = Astro.props;
 
 const showSection = emailEnabled || smsEnabled;
 ---
@@ -49,20 +49,25 @@ const showSection = emailEnabled || smsEnabled;
 
 <script>
 	function setAllButtonsDisabled(disabled: boolean) {
-		const emailBtn = document.getElementById("preview-email-btn") as HTMLButtonElement | null;
-		const smsBtn = document.getElementById("preview-sms-btn") as HTMLButtonElement | null;
-		if (emailBtn) emailBtn.disabled = disabled;
-		if (smsBtn) smsBtn.disabled = disabled;
+		const emailBtn = document.getElementById("preview-email-btn");
+		const smsBtn = document.getElementById("preview-sms-btn");
+
+		if (emailBtn instanceof HTMLButtonElement) {
+			emailBtn.disabled = disabled;
+		}
+		if (smsBtn instanceof HTMLButtonElement) {
+			smsBtn.disabled = disabled;
+		}
 	}
 
 	function setupPreviewButton(
 		btnId: string,
 		type: import("../../lib/database.types").Enums<"delivery_method">,
 	) {
-		const btn = document.getElementById(btnId) as HTMLButtonElement;
+		const btn = document.getElementById(btnId);
 		const feedback = document.getElementById("preview-notification-feedback");
 
-		if (!btn || !feedback) return;
+		if (!btn || !feedback || !(btn instanceof HTMLButtonElement)) return;
 
 		btn.addEventListener("click", async () => {
 			const originalText = btn.textContent;

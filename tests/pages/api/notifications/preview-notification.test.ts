@@ -181,7 +181,7 @@ describe("Preview Notifications Endpoint", () => {
 		});
 
 		try {
-			await adminClient
+			const { error: updateError } = await adminClient
 				.from("users")
 				.update({
 					phone_country_code: "+1",
@@ -191,6 +191,12 @@ describe("Preview Notifications Endpoint", () => {
 					sms_opted_out: false,
 				})
 				.eq("id", id);
+
+			if (updateError) {
+				throw new Error(
+					`Failed to set up test user phone: ${updateError.message}`,
+				);
+			}
 
 			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 

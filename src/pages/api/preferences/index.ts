@@ -64,7 +64,7 @@ export function createPreferencesHandler(
 		const dbUser = await userService.getById(user.id);
 		if (!dbUser) {
 			console.error("User not found", { userId: user.id });
-			return redirect("/dashboard?error=user_not_found");
+			return redirect("/signin?error=user_not_found");
 		}
 
 		if (safePreferenceUpdates.sms_notifications_enabled) {

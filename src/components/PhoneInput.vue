@@ -113,8 +113,15 @@ const computedPlaceholder = computed(() => {
 
 function handlePhoneInput(e: Event) {
 	touched.value = true;
-	const input = e.target as HTMLInputElement;
-	const ev = e as InputEvent;
+	if (!(e.target instanceof HTMLInputElement)) {
+		return;
+	}
+	if (!(e instanceof InputEvent)) {
+		return;
+	}
+
+	const input = e.target;
+	const ev = e;
 	const previousDigits = lastDigits.value;
 	const previousFormatted = formatPhone(previousDigits);
 
@@ -177,11 +184,9 @@ watch(
 );
 
 onMounted(() => {
-	const fieldset = document.getElementById(
-		"phone-verification-fieldset",
-	) as HTMLFieldSetElement | null;
+	const fieldset = document.getElementById("phone-verification-fieldset");
 
-	if (fieldset) {
+	if (fieldset instanceof HTMLFieldSetElement) {
 		actualDisabled.value = fieldset.disabled;
 
 		fieldsetObserver = new MutationObserver(() => {

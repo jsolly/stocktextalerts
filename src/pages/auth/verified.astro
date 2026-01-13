@@ -9,7 +9,15 @@ const userService = createUserService(supabase, Astro.cookies);
 
 // Check for token_hash in query params (PKCE flow for SSR)
 const tokenHash = Astro.url.searchParams.get("token_hash");
-const type = Astro.url.searchParams.get("type") as EmailOtpType | null;
+const typeParam = Astro.url.searchParams.get("type");
+const type: EmailOtpType | null =
+	typeParam === "signup" ||
+	typeParam === "invite" ||
+	typeParam === "magiclink" ||
+	typeParam === "recovery" ||
+	typeParam === "email_change"
+		? typeParam
+		: null;
 
 // If token_hash is provided, verify it
 if (tokenHash && type) {

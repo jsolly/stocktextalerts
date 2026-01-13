@@ -5,7 +5,7 @@ interface Props {
 	user: User;
 }
 
-const { user } = Astro.props as Props;
+const { user } = Astro.props;
 
 function minutesToTimeInputValue(minutes: number): string {
 	const hours = Math.floor(minutes / 60);

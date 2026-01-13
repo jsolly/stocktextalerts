@@ -3,7 +3,7 @@ interface Props {
 	action?: string;
 }
 
-const { action = "/api/auth/delete-account" } = Astro.props as Props;
+const { action = "/api/auth/delete-account" } = Astro.props;
 ---
 
 <div class="bg-white rounded-lg shadow-sm border border-red-200 p-8">
@@ -23,11 +23,12 @@ const { action = "/api/auth/delete-account" } = Astro.props as Props;
 </div>
 
 <script>
-	const form = document.querySelector(
-		'[data-profile-delete-form]',
-	) as HTMLFormElement | null;
+	const form = document.querySelector('[data-profile-delete-form]');
+	if (!(form instanceof HTMLFormElement)) {
+		throw new Error("Delete account form not found");
+	}
 
-	form?.addEventListener('submit', (event) => {
+	form.addEventListener("submit", (event) => {
 		const confirmed = confirm(
 			"Are you sure you want to delete your account? This action cannot be undone.",
 		);

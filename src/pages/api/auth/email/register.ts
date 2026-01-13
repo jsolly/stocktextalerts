@@ -14,7 +14,7 @@ export const POST: APIRoute = async ({ request }) => {
 	const parsed = parseWithSchema(formData, {
 		email: { type: "string", required: true },
 		password: { type: "string", required: true },
-		captcha_token: { type: "string" },
+		captcha_token: { type: "string", required: true },
 		timezone: { type: "timezone" },
 	} as const);
 
@@ -26,11 +26,7 @@ export const POST: APIRoute = async ({ request }) => {
 	}
 
 	const { email, password, timezone, captcha_token } = parsed.data;
-
 	const captchaToken = captcha_token;
-	if (!captchaToken) {
-		return redirect("/auth/register?error=captcha_required");
-	}
 
 	const userTimezone = await resolveTimezone({
 		supabase,

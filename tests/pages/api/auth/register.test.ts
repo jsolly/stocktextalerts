@@ -1,5 +1,6 @@
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_TIMEZONE } from "../../../../src/lib/timezones/timezone-constants";
 import { POST } from "../../../../src/pages/api/auth/email/register";
 import { adminClient } from "../../../setup";
 
@@ -87,7 +88,7 @@ describe("POST /api/auth/email/register", () => {
 
 		const user = users[0];
 		expect(user.email).toBe(payload.email);
-		expect(user.timezone).toBe("America/New_York");
+		expect(user.timezone).toBe(DEFAULT_TIMEZONE);
 	});
 
 	it("correctly matches a user with a timezone in the database", async () => {

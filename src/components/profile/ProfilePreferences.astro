@@ -6,7 +6,7 @@ interface Props {
 	timezones: TimezoneOption[];
 }
 
-const { timezone, timezones } = Astro.props as Props;
+const { timezone, timezones } = Astro.props;
 ---
 
 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -59,12 +59,66 @@ const { timezone, timezones } = Astro.props as Props;
 	import { setupDetectedTimezoneOption } from "../../lib/timezones/timezone-select";
 	import { DEFAULT_TIMEZONE } from "../../lib/timezones/timezone-constants";
 
+	function initializeFormState() {
+		const formElement = document.getElementById("profile-preferences-form");
+		const saveButtonElement = document.getElementById("save-profile-preferences-button");
+		
+		if (!(formElement instanceof HTMLFormElement) || !(saveButtonElement instanceof HTMLButtonElement)) {
+			return;
+		}
+
+		const form = formElement;
+		const saveButton = saveButtonElement;
+
+		const formData = new FormData(form);
+		const initialValues = new Map<string, string>();
+		
+		for (const [name, value] of formData.entries()) {
+			initialValues.set(name, String(value));
+		}
+
+		function checkFormChanged() {
+			const currentFormData = new FormData(form);
+			let hasChanges = false;
+			
+			for (const [name, value] of currentFormData.entries()) {
+				const initialValue = initialValues.get(name);
+				if (String(value) !== initialValue) {
+					hasChanges = true;
+					break;
+				}
+			}
+			
+			saveButton.disabled = !hasChanges;
+		}
+
+		form.addEventListener("change", checkFormChanged);
+		form.addEventListener("input", checkFormChanged);
+
+		form.addEventListener("submit", () => {
+			saveButton.disabled = true;
+		});
+
+		form.addEventListener("reset", () => {
+			setTimeout(() => {
+				initialValues.clear();
+				const resetFormData = new FormData(form);
+				for (const [name, value] of resetFormData.entries()) {
+					initialValues.set(name, String(value));
+				}
+				checkFormChanged();
+			}, 0);
+		});
+	}
+
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", () => {
 			setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
+			initializeFormState();
 		});
 	} else {
 		setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
+		initializeFormState();
 	}
 </script>
 

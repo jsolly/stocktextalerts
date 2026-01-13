@@ -3,7 +3,7 @@ import Navigation from "../../components/layout/Navigation.astro";
 import Layout from "../../layouts/Layout.astro";
 ---
 
-<Layout title="Reset Password">
+<Layout title="Reset Password" description="Set a new password for your account.">
   <div class="min-h-screen bg-gray-50">
     <Navigation />
 
@@ -76,8 +76,15 @@ import Layout from "../../layouts/Layout.astro";
   );
 
   // Get DOM elements first
-  const form = document.getElementById('reset-form') as HTMLFormElement;
-  const messageDiv = document.getElementById('message') as HTMLDivElement;
+  const form = document.getElementById("reset-form");
+  if (!(form instanceof HTMLFormElement)) {
+    throw new Error("Reset form not found");
+  }
+
+  const messageDiv = document.getElementById("message");
+  if (!(messageDiv instanceof HTMLDivElement)) {
+    throw new Error("Reset message container not found");
+  }
 
   // Check for error parameters in URL hash (from Supabase redirect)
   const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -99,23 +106,22 @@ import Layout from "../../layouts/Layout.astro";
     if (token && type === 'recovery') {
       (async () => {
         // Disable form and controls before verification
-        const passwordInput = document.getElementById('password') as HTMLInputElement;
-        const confirmInput = document.getElementById('confirm') as HTMLInputElement;
-        const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement;
+        const passwordInput = document.getElementById("password");
+        const confirmInput = document.getElementById("confirm");
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (
+          !(passwordInput instanceof HTMLInputElement) ||
+          !(confirmInput instanceof HTMLInputElement) ||
+          !(submitButton instanceof HTMLButtonElement)
+        ) {
+          throw new Error("Reset form inputs not found");
+        }
         
-        if (form) {
-          form.classList.add('busy');
-          form.setAttribute('aria-busy', 'true');
-        }
-        if (passwordInput) {
-          passwordInput.disabled = true;
-        }
-        if (confirmInput) {
-          confirmInput.disabled = true;
-        }
-        if (submitButton) {
-          submitButton.disabled = true;
-        }
+        form.classList.add("busy");
+        form.setAttribute("aria-busy", "true");
+        passwordInput.disabled = true;
+        confirmInput.disabled = true;
+        submitButton.disabled = true;
 
         const { error } = await supabase.auth.verifyOtp({
           token_hash: token,
@@ -126,25 +132,15 @@ import Layout from "../../layouts/Layout.astro";
           console.error('Token verification failed:', error);
           showMessage('Invalid or expired reset link.', 'error', true);
           // Hide the form since the token is invalid (form remains disabled)
-          if (form) {
-            form.style.display = 'none';
-            form.removeAttribute('aria-busy');
-          }
+          form.style.display = "none";
+          form.removeAttribute("aria-busy");
         } else {
           // Re-enable form and controls on success
-          if (form) {
-            form.classList.remove('busy');
-            form.removeAttribute('aria-busy');
-          }
-          if (passwordInput) {
-            passwordInput.disabled = false;
-          }
-          if (confirmInput) {
-            confirmInput.disabled = false;
-          }
-          if (submitButton) {
-            submitButton.disabled = false;
-          }
+          form.classList.remove("busy");
+          form.removeAttribute("aria-busy");
+          passwordInput.disabled = false;
+          confirmInput.disabled = false;
+          submitButton.disabled = false;
         }
       })();
     }
@@ -152,9 +148,16 @@ import Layout from "../../layouts/Layout.astro";
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-    const passwordInput = document.getElementById('password') as HTMLInputElement;
-    const confirmInput = document.getElementById('confirm') as HTMLInputElement;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const passwordInput = document.getElementById("password");
+    const confirmInput = document.getElementById("confirm");
+    if (
+      !(submitButton instanceof HTMLButtonElement) ||
+      !(passwordInput instanceof HTMLInputElement) ||
+      !(confirmInput instanceof HTMLInputElement)
+    ) {
+      throw new Error("Reset form inputs not found");
+    }
 
     if (passwordInput.value !== confirmInput.value) {
       showMessage('Passwords do not match', 'error');

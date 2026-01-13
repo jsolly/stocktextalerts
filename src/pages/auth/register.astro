@@ -189,12 +189,6 @@ if (error) {
 
 		setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
 
-		form.addEventListener('submit', () => {
-			if (!timezoneSelect.value) {
-				setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
-			}
-		});
-
 	});
 </script>
 

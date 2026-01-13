@@ -7,7 +7,7 @@ interface Props {
 	isEditingPhone: boolean;
 }
 
-const { user, isEditingPhone } = Astro.props as Props;
+const { user, isEditingPhone } = Astro.props;
 ---
 
 <div class="space-y-4">
@@ -208,12 +208,10 @@ const { user, isEditingPhone } = Astro.props as Props;
 				return;
 			}
 
-			const validField = form.querySelector(
-				'input[name="phone_is_valid"]',
-			) as HTMLInputElement | null;
+			const validField = form.querySelector('input[name="phone_is_valid"]');
 			
 			// Ensure the hidden input exists (Vue component has hydrated) before enabling
-			if (!validField) {
+			if (!(validField instanceof HTMLInputElement)) {
 				sendButton.disabled = true;
 				return;
 			}

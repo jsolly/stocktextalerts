@@ -104,7 +104,7 @@ INSERT INTO timezones (value, label, display_order, active) VALUES
   ('Europe/Bucharest', 'Eastern European Time - Bucharest (EET)', 69, true),
   ('Europe/Istanbul', 'Turkey Time (TRT)', 70, true),
   ('Europe/Moscow', 'Moscow Time (MSK)', 71, true),
-  ('Europe/Kiev', 'Eastern European Time - Kyiv (EET)', 72, true),
+  ('Europe/Kyiv', 'Eastern European Time - Kyiv (EET)', 72, true),
   ('Asia/Dubai', 'Gulf Standard Time (GST)', 80, true),
   ('Asia/Riyadh', 'Arabia Standard Time (AST)', 81, true),
   ('Asia/Kuwait', 'Arabia Standard Time - Kuwait (AST)', 82, true),
@@ -400,6 +400,7 @@ CREATE POLICY "Users can view own notifications" ON notification_log
 Row Level Security - Scheduled Notifications
 ============= */
 
+/* Service-role only: notification scheduler tasks, no user-level access needed */
 ALTER TABLE scheduled_notifications ENABLE ROW LEVEL SECURITY;
 
 /* =============

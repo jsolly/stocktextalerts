@@ -24,6 +24,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const captchaToken = parsed.data.captcha_token;
 
 	if (!captchaToken) {
+		console.error("Sign-in attempt rejected due to missing captcha token", {
+			email,
+		});
 		return redirect(
 			`/signin?error=captcha_required&email=${encodeURIComponent(email)}`,
 		);
@@ -58,9 +61,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const { access_token, refresh_token } = data.session;
 	cookies.set("sb-access-token", access_token, {
 		path: "/",
+		httpOnly: true,
+		secure: import.meta.env.PROD,
+		sameSite: "lax",
 	});
 	cookies.set("sb-refresh-token", refresh_token, {
 		path: "/",
+		httpOnly: true,
+		secure: import.meta.env.PROD,
+		sameSite: "lax",
 	});
 	return redirect("/dashboard");
 };

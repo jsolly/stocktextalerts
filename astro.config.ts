@@ -42,7 +42,7 @@ export default defineConfig({
 	],
 
 	vite: {
-		plugins: [tailwindcss()] as unknown as any,
+		plugins: [tailwindcss()],
 		optimizeDeps: {
 			include: ['vue', '@vueuse/core', 'fuse.js', 'libphonenumber-js'],
 		},
