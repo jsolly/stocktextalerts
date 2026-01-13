@@ -1,14 +1,16 @@
 ---
 interface Props {
 	savedTimezone: string;
+	allowedTimezones: string[];
 }
 
-const { savedTimezone } = Astro.props as Props;
+const { savedTimezone, allowedTimezones } = Astro.props as Props;
 ---
 
 <div
 	id="timezone-mismatch-banner"
 	data-saved-timezone={savedTimezone}
+	data-allowed-timezones={JSON.stringify(allowedTimezones)}
 	class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 hidden"
 	role="alert"
 >
@@ -27,12 +29,6 @@ const { savedTimezone } = Astro.props as Props;
 		<div class="shrink-0 flex items-center gap-2">
 			<form method="POST" action="/api/timezone">
 				<input type="hidden" name="timezone" id="timezone-update-value" value="" />
-				<input
-					type="hidden"
-					name="utc_offset_minutes"
-					id="timezone-update-offset"
-					value=""
-				/>
 				<button
 					type="submit"
 					class="px-3 py-1.5 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors cursor-pointer"

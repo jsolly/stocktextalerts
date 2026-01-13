@@ -1,40 +1,16 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AstroCookies } from "astro";
+import type { Database } from "./database.types";
+import type { AppSupabaseClient } from "./supabase";
 
-export interface User {
-	id: string;
-	email: string;
-	phone_country_code: string | null;
-	phone_number: string | null;
-	full_phone: string | null;
-	phone_verified: boolean;
-	sms_opted_out: boolean;
-	timezone: string;
-	daily_digest_enabled: boolean;
-	daily_digest_notification_time: number;
-	email_notifications_enabled: boolean;
-	sms_notifications_enabled: boolean;
-	created_at: string;
-	updated_at: string;
-}
+type DbUserRow = Database["public"]["Tables"]["users"]["Row"];
+type DbUserUpdate = Database["public"]["Tables"]["users"]["Update"];
 
-type UserUpdateInput = Partial<
-	Pick<
-		User,
-		| "phone_country_code"
-		| "phone_number"
-		| "phone_verified"
-		| "sms_opted_out"
-		| "timezone"
-		| "daily_digest_enabled"
-		| "daily_digest_notification_time"
-		| "email_notifications_enabled"
-		| "sms_notifications_enabled"
-	>
->;
+export type User = DbUserRow;
+
+type UserUpdateInput = DbUserUpdate;
 
 export function createUserService(
-	supabase: SupabaseClient,
+	supabase: AppSupabaseClient,
 	cookies: AstroCookies,
 ) {
 	return {
@@ -62,7 +38,7 @@ export function createUserService(
 			}
 		},
 
-		async getById(id: string) {
+		async getById(id: string): Promise<User | null> {
 			const { data, error } = await supabase
 				.from("users")
 				.select("*")
@@ -73,7 +49,7 @@ export function createUserService(
 			return data;
 		},
 
-		async update(id: string, updates: UserUpdateInput) {
+		async update(id: string, updates: UserUpdateInput): Promise<User> {
 			const { data, error } = await supabase
 				.from("users")
 				.update(updates)

@@ -1,10 +1,12 @@
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
-import { POST } from "../../../../src/pages/api/notifications/test";
+import { POST } from "../../../../src/pages/api/notifications/preview";
 import { adminClient } from "../../../setup";
 import { createAuthenticatedCookies, createTestUser } from "../../../utils";
 
-describe("Test Notifications Endpoint", () => {
+const TEST_PASSWORD = "TestPassword123!";
+
+describe("Preview Notifications Endpoint", () => {
 	const toAstroCookies = (
 		cookies: Map<string, string>,
 	): APIContext["cookies"] =>
@@ -17,7 +19,7 @@ describe("Test Notifications Endpoint", () => {
 		}) as unknown as APIContext["cookies"];
 
 	it("returns 401 when user is not authenticated", async () => {
-		const request = new Request("http://localhost/api/notifications/test", {
+		const request = new Request("http://localhost/api/notifications/preview", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ type: "email" }),
@@ -40,14 +42,16 @@ describe("Test Notifications Endpoint", () => {
 			confirmed: true,
 		});
 		try {
-			const password = "TestPassword123!";
-			const cookies = await createAuthenticatedCookies(email, password);
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request("http://localhost/api/notifications/test", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ type: "invalid" }),
-			});
+			const request = new Request(
+				"http://localhost/api/notifications/preview",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type: "invalid" }),
+				},
+			);
 
 			const response = await POST({
 				request,
@@ -71,16 +75,16 @@ describe("Test Notifications Endpoint", () => {
 		});
 
 		try {
-			await adminClient.from("users").update({ email: "" }).eq("id", id);
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const password = "TestPassword123!";
-			const cookies = await createAuthenticatedCookies(email, password);
-
-			const request = new Request("http://localhost/api/notifications/test", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ type: "email" }),
-			});
+			const request = new Request(
+				"http://localhost/api/notifications/preview",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type: "email" }),
+				},
+			);
 
 			const response = await POST({
 				request,
@@ -106,25 +110,16 @@ describe("Test Notifications Endpoint", () => {
 		});
 
 		try {
-			await adminClient
-				.from("users")
-				.update({
-					phone_country_code: null,
-					phone_number: null,
-					phone_verified: null,
-					sms_notifications_enabled: null,
-					sms_opted_out: null,
-				})
-				.eq("id", id);
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const password = "TestPassword123!";
-			const cookies = await createAuthenticatedCookies(email, password);
-
-			const request = new Request("http://localhost/api/notifications/test", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ type: "sms" }),
-			});
+			const request = new Request(
+				"http://localhost/api/notifications/preview",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type: "sms" }),
+				},
+			);
 
 			const response = await POST({
 				request,
@@ -142,7 +137,7 @@ describe("Test Notifications Endpoint", () => {
 		}
 	});
 
-	it("sends test email notification when user has valid email fields", async () => {
+	it("sends preview email notification when user has valid email fields", async () => {
 		const { id, email } = await createTestUser({
 			email:
 				process.env.TEST_EMAIL_RECIPIENT || `test-${Date.now()}@resend.dev`,
@@ -152,14 +147,16 @@ describe("Test Notifications Endpoint", () => {
 		});
 
 		try {
-			const password = "TestPassword123!";
-			const cookies = await createAuthenticatedCookies(email, password);
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request("http://localhost/api/notifications/test", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ type: "email" }),
-			});
+			const request = new Request(
+				"http://localhost/api/notifications/preview",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type: "email" }),
+				},
+			);
 
 			const response = await POST({
 				request,
@@ -175,7 +172,7 @@ describe("Test Notifications Endpoint", () => {
 		}
 	});
 
-	it("sends test SMS notification when user has valid SMS fields", async () => {
+	it("sends preview SMS notification when user has valid SMS fields", async () => {
 		const { id, email } = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			confirmed: true,
@@ -195,14 +192,16 @@ describe("Test Notifications Endpoint", () => {
 				})
 				.eq("id", id);
 
-			const password = "TestPassword123!";
-			const cookies = await createAuthenticatedCookies(email, password);
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request("http://localhost/api/notifications/test", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ type: "sms" }),
-			});
+			const request = new Request(
+				"http://localhost/api/notifications/preview",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type: "sms" }),
+				},
+			);
 
 			const response = await POST({
 				request,

@@ -91,6 +91,19 @@ const {
 			return;
 		}
 
+		const emailInput = document.getElementById("email");
+		if (emailInput instanceof HTMLInputElement) {
+			emailInput.addEventListener("keydown", (e) => {
+				if (e.key === " ") {
+					e.preventDefault();
+				}
+			});
+			// Strip spaces from pasted content
+			emailInput.addEventListener("input", () => {
+				emailInput.value = emailInput.value.replace(/\s/g, "");
+			});
+		}
+
 		const captchaTokenInput = document.getElementById("signin_captcha_token");
 		if (!(captchaTokenInput instanceof HTMLInputElement)) {
 			return;

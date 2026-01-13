@@ -20,7 +20,6 @@ describe("POST /api/timezone", () => {
 
 		const formData = new FormData();
 		formData.append("timezone", "Etc/UTC");
-		formData.append("utc_offset_minutes", "0");
 
 		const request = new Request("http://localhost/api/timezone", {
 			method: "POST",

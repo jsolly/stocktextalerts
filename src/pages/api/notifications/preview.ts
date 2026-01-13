@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import type { Enums } from "../../../lib/database.types";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
@@ -6,7 +7,7 @@ import {
 import { createUserService } from "../../../lib/users";
 import { createEmailSender } from "./email/utils";
 import { processEmailUpdate, processSmsUpdate } from "./processing";
-import { loadUserStocks, type UserRecord } from "./shared";
+import { loadUserStocks, type UserStockRow } from "./shared";
 import {
 	createSmsSender,
 	createTwilioClient,
@@ -28,18 +29,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 		);
 	}
 
-	const user = await userService.getById(authUser.id);
-	if (!user) {
-		return new Response(
-			JSON.stringify({ success: false, error: "User not found" }),
-			{
-				status: 404,
-				headers: { "Content-Type": "application/json" },
-			},
-		);
-	}
-
-	let body: { type?: string };
+	let body: { type?: Enums<"delivery_method"> };
 	try {
 		body = await request.json();
 	} catch {
@@ -66,8 +56,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 	// Use admin client for processing to bypass RLS on notification_log
 	const adminSupabase = createSupabaseAdminClient();
 
-	const userStocks = await loadUserStocks(adminSupabase, user.id);
-	if (userStocks === null) {
+	let userStocks: UserStockRow[];
+	try {
+		userStocks = await loadUserStocks(adminSupabase, authUser.id);
+	} catch (error) {
+		console.error("Failed to load user stocks", { userId: authUser.id, error });
 		return new Response(
 			JSON.stringify({ success: false, error: "Failed to load stocks" }),
 			{
@@ -82,62 +75,58 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			? "You don't have any tracked stocks"
 			: userStocks.map((stock) => `${stock.symbol} - ${stock.name}`).join(", ");
 
-	/* =============
-	Validate UserRecord Fields
-	============= */
-	if (type === "email") {
-		if (
-			typeof user.email !== "string" ||
-			user.email.trim() === "" ||
-			typeof user.email_notifications_enabled !== "boolean"
-		) {
-			return new Response(
-				JSON.stringify({
-					success: false,
-					error: "User record missing required email notification fields",
-				}),
-				{
-					status: 400,
-					headers: { "Content-Type": "application/json" },
-				},
-			);
-		}
-	} else {
-		if (
-			user.phone_country_code === null ||
-			typeof user.phone_country_code !== "string" ||
-			user.phone_country_code === "" ||
-			user.phone_number === null ||
-			typeof user.phone_number !== "string" ||
-			user.phone_number === "" ||
-			typeof user.phone_verified !== "boolean" ||
-			typeof user.sms_notifications_enabled !== "boolean" ||
-			typeof user.sms_opted_out !== "boolean"
-		) {
-			return new Response(
-				JSON.stringify({
-					success: false,
-					error: "User record missing required SMS notification fields",
-				}),
-				{
-					status: 400,
-					headers: { "Content-Type": "application/json" },
-				},
-			);
-		}
-	}
-
-	const userRecord = user as UserRecord;
-
 	try {
 		let sent = false;
 		let logged = false;
 
 		if (type === "email") {
+			const { data: user, error: userError } = await adminSupabase
+				.from("users")
+				.select("id,email,email_notifications_enabled")
+				.eq("id", authUser.id)
+				.maybeSingle();
+
+			if (userError) {
+				console.error("Failed to load user for email preview", {
+					userId: authUser.id,
+					error: userError,
+				});
+				return new Response(
+					JSON.stringify({ success: false, error: "Failed to load user" }),
+					{
+						status: 500,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+
+			if (!user) {
+				return new Response(
+					JSON.stringify({ success: false, error: "User not found" }),
+					{
+						status: 404,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+
+			if (!user.email_notifications_enabled) {
+				return new Response(
+					JSON.stringify({
+						success: false,
+						error: "User record missing required email notification fields",
+					}),
+					{
+						status: 400,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+
 			const sendEmail = createEmailSender();
 			const result = await processEmailUpdate(
 				adminSupabase,
-				userRecord,
+				user,
 				userStocks,
 				stocksList,
 				sendEmail,
@@ -145,13 +134,64 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			sent = result.sent;
 			logged = result.logged;
 		} else {
+			const { data: user, error: userError } = await adminSupabase
+				.from("users")
+				.select(
+					"id,phone_country_code,phone_number,phone_verified,sms_notifications_enabled,sms_opted_out",
+				)
+				.eq("id", authUser.id)
+				.maybeSingle();
+
+			if (userError) {
+				console.error("Failed to load user for SMS preview", {
+					userId: authUser.id,
+					error: userError,
+				});
+				return new Response(
+					JSON.stringify({ success: false, error: "Failed to load user" }),
+					{
+						status: 500,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+
+			if (!user) {
+				return new Response(
+					JSON.stringify({ success: false, error: "User not found" }),
+					{
+						status: 404,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+
+			if (
+				!user.sms_notifications_enabled ||
+				user.sms_opted_out ||
+				!user.phone_verified ||
+				!user.phone_country_code?.trim() ||
+				!user.phone_number?.trim()
+			) {
+				return new Response(
+					JSON.stringify({
+						success: false,
+						error: "User record missing required SMS notification fields",
+					}),
+					{
+						status: 400,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+
 			const twilioConfig = readTwilioConfig();
 			const twilioClient = createTwilioClient(twilioConfig);
 			const sendSms = createSmsSender(twilioClient, twilioConfig.phoneNumber);
 
 			const result = await processSmsUpdate(
 				adminSupabase,
-				userRecord,
+				user,
 				userStocks,
 				stocksList,
 				sendSms,
@@ -178,7 +218,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 			headers: { "Content-Type": "application/json" },
 		});
 	} catch (error) {
-		console.error("Test notification error:", error);
+		console.error("Notification preview error:", error);
 		return new Response(
 			JSON.stringify({
 				success: false,

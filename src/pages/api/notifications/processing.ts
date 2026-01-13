@@ -1,9 +1,10 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AppSupabaseClient } from "../../../lib/supabase";
 import { sendUserEmail } from "./email";
 import { type EmailSender, formatEmailMessage } from "./email/utils";
 import {
+	type EmailUser,
 	recordNotification,
-	type UserRecord,
+	type SmsUser,
 	type UserStockRow,
 } from "./shared";
 import { sendUserSms } from "./sms";
@@ -17,8 +18,8 @@ interface ProcessingStats {
 }
 
 export async function processEmailUpdate(
-	supabase: SupabaseClient,
-	user: UserRecord,
+	supabase: AppSupabaseClient,
+	user: EmailUser,
 	userStocks: UserStockRow[],
 	stocksList: string,
 	sendEmail: EmailSender,
@@ -50,8 +51,8 @@ export async function processEmailUpdate(
 }
 
 export async function processSmsUpdate(
-	supabase: SupabaseClient,
-	user: UserRecord,
+	supabase: AppSupabaseClient,
+	user: SmsUser,
 	userStocks: UserStockRow[],
 	stocksList: string,
 	sendSms: SmsSender,
@@ -59,10 +60,16 @@ export async function processSmsUpdate(
 	const messagePrefix = userStocks.length > 0 ? "Tracked: " : "";
 	const optOutSuffix = ". Reply STOP to opt out.";
 	const maxStocksListLength = 160 - messagePrefix.length - optOutSuffix.length;
-	const truncatedStocksList =
-		stocksList.length > maxStocksListLength
-			? `${stocksList.substring(0, maxStocksListLength - 3)}...`
-			: stocksList;
+	let truncatedStocksList = stocksList;
+	if (stocksList.length > maxStocksListLength) {
+		// Truncate at the last comma boundary to avoid cutting mid-word or mid-symbol
+		// (e.g., "AAPL - Apple Inc" should not become "AAPL - App...")
+		const cutoff = stocksList.lastIndexOf(", ", maxStocksListLength - 3);
+		truncatedStocksList =
+			cutoff > 0
+				? `${stocksList.substring(0, cutoff)}...`
+				: `${stocksList.substring(0, maxStocksListLength - 3)}...`;
+	}
 	const smsMessage = `${messagePrefix}${truncatedStocksList}${optOutSuffix}`;
 
 	const result = await sendUserSms(user, smsMessage, sendSms);

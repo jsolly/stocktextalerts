@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { TablesInsert } from "../src/lib/database.types";
 import { adminClient } from "./setup";
 
 export interface CreateTestUserOptions {
@@ -17,6 +18,9 @@ export interface TestUser {
 	id: string;
 	email: string;
 }
+
+type DbUserInsert = TablesInsert<"users">;
+type DbUserStockInsert = TablesInsert<"user_stocks">;
 
 export async function createTestUser(
 	options: CreateTestUserOptions = {},
@@ -65,19 +69,23 @@ export async function createTestUser(
 	);
 	const alignedDailyDigestNotificationTime =
 		Math.floor(dailyDigestNotificationTime / 15) * 15;
+	const dailyDigestEnabled = options.dailyDigestEnabled ?? true;
+	const nextSendAt = dailyDigestEnabled ? new Date().toISOString() : null;
 
-	const { error: profileError } = await adminClient.from("users").upsert(
-		{
-			id: userId,
-			email,
-			timezone,
-			email_notifications_enabled: options.emailNotificationsEnabled ?? false,
-			sms_notifications_enabled: options.smsNotificationsEnabled ?? false,
-			daily_digest_enabled: options.dailyDigestEnabled ?? true,
-			daily_digest_notification_time: alignedDailyDigestNotificationTime,
-		},
-		{ onConflict: "id" },
-	);
+	const profile: DbUserInsert = {
+		id: userId,
+		email,
+		timezone,
+		email_notifications_enabled: options.emailNotificationsEnabled ?? false,
+		sms_notifications_enabled: options.smsNotificationsEnabled ?? false,
+		daily_digest_enabled: dailyDigestEnabled,
+		daily_digest_notification_time: alignedDailyDigestNotificationTime,
+		next_send_at: nextSendAt,
+	};
+
+	const { error: profileError } = await adminClient
+		.from("users")
+		.upsert(profile, { onConflict: "id" });
 
 	if (profileError) {
 		throw new Error(`Profile setup failed: ${profileError.message}`);
@@ -85,10 +93,12 @@ export async function createTestUser(
 
 	// Add Tracked Stocks if provided
 	if (options.trackedStocks && options.trackedStocks.length > 0) {
-		const stockInserts = options.trackedStocks.map((symbol) => ({
-			user_id: userId,
-			symbol,
-		}));
+		const stockInserts: DbUserStockInsert[] = options.trackedStocks.map(
+			(symbol) => ({
+				user_id: userId,
+				symbol,
+			}),
+		);
 
 		const { error: stockError } = await adminClient
 			.from("user_stocks")

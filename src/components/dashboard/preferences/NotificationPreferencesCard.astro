@@ -1,5 +1,5 @@
 ---
-import type { TimezoneOption } from "../../../lib/timezones";
+import type { TimezoneOption } from "../../../lib/timezones/timezones";
 import type { User } from "../../../lib/users";
 import NotificationChannelsSection from "./NotificationChannelsSection.astro";
 
@@ -45,12 +45,15 @@ const { user, timezones, isEditingPhone } = Astro.props as Props;
 </div>
 
 <script>
-	import { setupDetectedTimezoneOption } from "../../../lib/timezone-select";
+	import { setupDetectedTimezoneOption } from "../../../lib/timezones/timezone-select";
+	import { DEFAULT_TIMEZONE } from "../../../lib/timezones/timezone-constants";
 
 	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", setupDetectedTimezoneOption);
+		document.addEventListener("DOMContentLoaded", () => {
+			setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
+		});
 	} else {
-		setupDetectedTimezoneOption();
+		setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
 	}
 </script>
 

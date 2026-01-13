@@ -52,58 +52,6 @@ describe("POST /api/auth/email/register", () => {
 		expect(authUserData.user.email).toBe(payload.email);
 	});
 
-	it("correctly matches a timezone based on user's current time offset when browser timezone isn't in the database", async () => {
-		// Pacific Time is typically UTC-8, which is -480 minutes from UTC
-		// JavaScript-style offset (opposite) is +480 minutes
-		const pacificOffsetMinutes = 480;
-		const payload = {
-			email: `test-offset-match-${Date.now()}@example.com`,
-			password: "TestPassword123!",
-			captcha_token: "test-captcha-token",
-			timezone: "Fake/Pacific_Zone",
-			utc_offset_minutes: String(pacificOffsetMinutes),
-		};
-
-		const request = new Request("http://localhost/api/auth/email/register", {
-			method: "POST",
-			body: new URLSearchParams(payload),
-		});
-
-		const response = await POST({
-			request,
-		} as APIContext);
-
-		// Verify redirect to unconfirmed email page
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toContain("/auth/unconfirmed");
-		expect(response.headers.get("Location")).toContain(
-			encodeURIComponent(payload.email),
-		);
-
-		// Verify user was created with a matching timezone from the database
-		// (should match a Pacific timezone like America/Los_Angeles based on offset)
-		const { data: users, error: usersError } = await adminClient
-			.from("users")
-			.select("*")
-			.eq("email", payload.email);
-		expect(usersError).toBeNull();
-		if (!users) throw new Error("No users found");
-		expect(users).toHaveLength(1);
-
-		const user = users[0];
-		expect(user.email).toBe(payload.email);
-		// Should have matched a Pacific timezone, not the fake one or default
-		expect(user.timezone).not.toBe(payload.timezone);
-		expect(user.timezone).not.toBe("America/New_York");
-		// Should match a Pacific timezone in the database (UTC-8 offset)
-		const pacificTimezones = [
-			"America/Los_Angeles",
-			"America/Vancouver",
-			"America/Tijuana",
-		];
-		expect(pacificTimezones).toContain(user.timezone);
-	});
-
 	it("fallback timezone is used if a detected timezone does not exist in the database and no valid offset is provided", async () => {
 		const payload = {
 			email: `test-fallback-${Date.now()}@example.com`,

@@ -11,35 +11,35 @@ const showSection = emailEnabled || smsEnabled;
 
 {showSection && (
 	<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-8">
-		<h2 class="text-2xl font-bold text-gray-900 mb-4">Test Notifications</h2>
+		<h2 class="text-2xl font-bold text-gray-900 mb-4">Preview Notifications</h2>
 		<p class="text-gray-600 mb-6">
-			Send a test notification to verify your settings. These will be sent
+			Send a preview notification to verify your settings. These will be sent
 			immediately, regardless of your time window preferences.
 		</p>
 
 		<div class="flex gap-4">
 			{emailEnabled && (
 				<button
-					id="test-email-btn"
+					id="preview-email-btn"
 					type="button"
 					class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 				>
-					Send Test Email
+					Send Preview Email
 				</button>
 			)}
 			{smsEnabled && (
 				<button
-					id="test-sms-btn"
+					id="preview-sms-btn"
 					type="button"
 					class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 				>
-					Send Test SMS
+					Send Preview SMS
 				</button>
 			)}
 		</div>
 
 		<div
-			id="test-notification-feedback"
+			id="preview-notification-feedback"
 			class="mt-4 hidden p-3 rounded-lg text-sm"
 			role="alert"
 		>
@@ -48,22 +48,31 @@ const showSection = emailEnabled || smsEnabled;
 )}
 
 <script>
-	function setupTestButton(btnId: string, type: "email" | "sms") {
+	function setAllButtonsDisabled(disabled: boolean) {
+		const emailBtn = document.getElementById("preview-email-btn") as HTMLButtonElement | null;
+		const smsBtn = document.getElementById("preview-sms-btn") as HTMLButtonElement | null;
+		if (emailBtn) emailBtn.disabled = disabled;
+		if (smsBtn) smsBtn.disabled = disabled;
+	}
+
+	function setupPreviewButton(
+		btnId: string,
+		type: import("../../lib/database.types").Enums<"delivery_method">,
+	) {
 		const btn = document.getElementById(btnId) as HTMLButtonElement;
-		const feedback = document.getElementById("test-notification-feedback");
+		const feedback = document.getElementById("preview-notification-feedback");
 
 		if (!btn || !feedback) return;
 
 		btn.addEventListener("click", async () => {
-			// Reset state
 			const originalText = btn.textContent;
-			btn.disabled = true;
+			setAllButtonsDisabled(true);
 			btn.textContent = "Sending...";
 			feedback.classList.add("hidden");
 			feedback.className = "mt-4 hidden p-3 rounded-lg text-sm";
 
 			try {
-				const res = await fetch("/api/notifications/test", {
+				const res = await fetch("/api/notifications/preview", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ type }),
@@ -72,7 +81,7 @@ const showSection = emailEnabled || smsEnabled;
 				const data = await res.json();
 
 				if (res.ok && data.success) {
-					feedback.textContent = `Test ${type === "email" ? "email" : "SMS"} sent successfully!`;
+					feedback.textContent = `Preview ${type === "email" ? "email" : "SMS"} sent successfully!`;
 					feedback.classList.remove("hidden");
 					feedback.classList.add("bg-green-50", "text-green-800");
 				} else {
@@ -84,20 +93,20 @@ const showSection = emailEnabled || smsEnabled;
 				feedback.classList.remove("hidden");
 				feedback.classList.add("bg-red-50", "text-red-800");
 			} finally {
-				btn.disabled = false;
+				setAllButtonsDisabled(false);
 				btn.textContent = originalText;
 			}
 		});
 	}
 
-	const emailBtn = document.getElementById("test-email-btn");
-	const smsBtn = document.getElementById("test-sms-btn");
+	const emailBtn = document.getElementById("preview-email-btn");
+	const smsBtn = document.getElementById("preview-sms-btn");
 
 	if (emailBtn) {
-		setupTestButton("test-email-btn", "email");
+		setupPreviewButton("preview-email-btn", "email");
 	}
 	if (smsBtn) {
-		setupTestButton("test-sms-btn", "sms");
+		setupPreviewButton("preview-sms-btn", "sms");
 	}
 </script>
 

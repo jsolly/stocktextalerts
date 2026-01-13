@@ -3,7 +3,7 @@ import Navigation from "../../components/layout/Navigation.astro";
 import Turnstile from "../../components/Turnstile.astro";
 import Layout from "../../layouts/Layout.astro";
 import { createSupabaseServerClient } from "../../lib/supabase";
-import { getTimezoneOptions } from "../../lib/timezones";
+import { getTimezoneOptions } from "../../lib/timezones/timezones";
 
 const search = Astro.url.searchParams;
 const error = search.get("error");
@@ -128,13 +128,6 @@ if (error) {
 						</select>
 					</div>
 
-          <input
-            type="hidden"
-            name="utc_offset_minutes"
-            id="utc_offset_minutes"
-            value=""
-          />
-
 					<div>
 						<Turnstile
 							tokenInputId="register_captcha_token"
@@ -166,57 +159,39 @@ if (error) {
 </Layout>
 
 <script>
-	import { setupDetectedTimezoneOption } from "../../lib/timezone-select";
+	import { setupDetectedTimezoneOption } from "../../lib/timezones/timezone-select";
+	import { DEFAULT_TIMEZONE } from "../../lib/timezones/timezone-constants";
 
 	document.addEventListener('DOMContentLoaded', () => {
 		const form = document.getElementById('register-form');
+		const emailInputElement = document.getElementById('email');
 		const timezoneInputElement = document.getElementById('timezone');
-		const offsetInputElement = document.getElementById('utc_offset_minutes');
 		
 		if (!(form instanceof HTMLFormElement) 
-			|| !(timezoneInputElement instanceof HTMLSelectElement)
-			|| !(offsetInputElement instanceof HTMLInputElement)) {
+			|| !(emailInputElement instanceof HTMLInputElement)
+			|| !(timezoneInputElement instanceof HTMLSelectElement)) {
 			console.error('Registration form elements not found');
 			return;
 		}
 
+		const emailInput = emailInputElement;
 		const timezoneSelect = timezoneInputElement;
-		const offsetInput = offsetInputElement;
 
-		function detectTimezone(): string {
-			try {
-				return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-			} catch {
-				return "";
+		emailInput.addEventListener('keydown', (e) => {
+			if (e.key === ' ') {
+				e.preventDefault();
 			}
-		}
+		});
+		// Strip spaces from pasted content
+		emailInput.addEventListener('input', () => {
+			emailInput.value = emailInput.value.replace(/\s/g, '');
+		});
 
-		function detectUtcOffsetMinutes(): string {
-			try {
-				return String(new Date().getTimezoneOffset());
-			} catch (error) {
-				console.error('UTC offset detection failed:', error);
-				return "";
-			}
-		}
-
-		setupDetectedTimezoneOption();
-
-		const detectedTimezone = detectTimezone().trim();
-		if (detectedTimezone) {
-			timezoneSelect.value = detectedTimezone;
-		}
-		const detectedUtcOffsetMinutes = detectUtcOffsetMinutes();
-		if (detectedUtcOffsetMinutes) {
-			offsetInput.value = detectedUtcOffsetMinutes;
-		}
+		setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
 
 		form.addEventListener('submit', () => {
-			if (!timezoneSelect.value && detectedTimezone) {
-				timezoneSelect.value = detectedTimezone;
-			}
-			if (!offsetInput.value && detectedUtcOffsetMinutes) {
-				offsetInput.value = detectedUtcOffsetMinutes;
+			if (!timezoneSelect.value) {
+				setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });
 			}
 		});
 

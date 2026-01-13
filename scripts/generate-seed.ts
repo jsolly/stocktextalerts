@@ -22,6 +22,17 @@ const STOCKS_FILE = path.join(__dirname, 'us-stocks.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
 const SEED_FILE = path.join(projectRoot, 'supabase', 'seed.sql');
 
+function isProbablyEmail(email: string): boolean {
+  if (!email) return false;
+  if (/\s/.test(email)) return false;
+
+  const parts = email.split('@');
+  if (parts.length !== 2) return false;
+
+  const [local, domain] = parts;
+  return Boolean(local && domain);
+}
+
 function generateStocksSql(stocks: Stock[]): string {
   if (stocks.length === 0) return '';
 
@@ -92,9 +103,13 @@ async function generateUsersSql(
     if (!userEmailRaw) {
       throw new Error(`Invalid seed user: email cannot be empty. User data: ${JSON.stringify(user)}`);
     }
+    if (!isProbablyEmail(userEmailRaw)) {
+      throw new Error(`Invalid seed user: email is not a valid format: "${userEmailRaw}". User data: ${JSON.stringify(user)}`);
+    }
+
     const userEmailLookup = userEmailRaw.toLowerCase();
-    const userEmail = escapeSql(userEmailRaw);
-    const userPassword = escapeSql(user.password || defaultPassword);
+    const userPasswordRaw = user.password || defaultPassword;
+
     const trackedStocks = Array.isArray(user.tracked_stocks)
       ? user.tracked_stocks
           .map((stock) => (typeof stock === 'string' ? stock.trim() : ''))
@@ -107,8 +122,8 @@ async function generateUsersSql(
 
     sql += `-- User: ${escapeSql(userEmailRaw)} (ID: ${userId})\n`;
 
-    sql += buildAuthUserSql(userId, userEmail, userPassword);
-    sql += buildAuthIdentitySql(userId, userEmail);
+    sql += buildAuthUserSql(userId, userEmailRaw, userPasswordRaw);
+    sql += buildAuthIdentitySql(userId, userEmailRaw);
     sql += buildPublicUserSql(userId, user);
     sql += buildUserStocksSql(userId, trackedStocks);
   }

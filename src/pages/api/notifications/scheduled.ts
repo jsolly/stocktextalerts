@@ -1,14 +1,15 @@
 import { timingSafeEqual } from "node:crypto";
 import type { APIRoute } from "astro";
-
+import type { Database } from "../../../lib/database.types";
 import { createSupabaseAdminClient } from "../../../lib/supabase";
 import { createEmailSender } from "./email/utils";
 import { processEmailUpdate, processSmsUpdate } from "./processing";
 import {
+	calculateNextSendAt,
 	type DeliveryMethod,
 	loadUserStocks,
 	recordNotification,
-	shouldNotifyUser,
+	type ScheduledNotificationType,
 	type UserRecord,
 } from "./shared";
 import { shouldSendSms } from "./sms";
@@ -38,13 +39,16 @@ function getLocalDateString(timezone: string, date: Date): string | null {
 async function updateScheduledNotificationRow(options: {
 	supabase: ReturnType<typeof createSupabaseAdminClient>;
 	userId: string;
-	notificationType: string;
+	notificationType: ScheduledNotificationType;
 	scheduledDate: string;
 	channel: DeliveryMethod;
-	status: "sent" | "failed";
+	status: Extract<
+		Database["public"]["Enums"]["scheduled_notification_status"],
+		"sent" | "failed"
+	>;
 	error?: string;
 }) {
-	const update =
+	const update: Database["public"]["Tables"]["scheduled_notifications"]["Update"] =
 		options.status === "sent"
 			? { status: "sent", sent_at: new Date().toISOString(), error: null }
 			: { status: "failed", error: options.error ?? "Unknown error" };
@@ -69,7 +73,7 @@ async function updateScheduledNotificationRow(options: {
 async function logRetriesExhausted(options: {
 	supabase: ReturnType<typeof createSupabaseAdminClient>;
 	userId: string;
-	notificationType: string;
+	notificationType: ScheduledNotificationType;
 	scheduledDate: string;
 	channel: DeliveryMethod;
 }) {
@@ -164,10 +168,14 @@ export const POST: APIRoute = async ({ request }) => {
 			timezone,
 			daily_digest_enabled,
 			daily_digest_notification_time,
+			next_send_at,
 			email_notifications_enabled,
 			sms_notifications_enabled
 		`,
 			)
+			.eq("daily_digest_enabled", true)
+			.not("next_send_at", "is", null)
+			.lte("next_send_at", currentTime.toISOString())
 			.or(
 				"email_notifications_enabled.eq.true,sms_notifications_enabled.eq.true",
 			);
@@ -219,24 +227,28 @@ export const POST: APIRoute = async ({ request }) => {
 			let attemptedDeliveryMethod: DeliveryMethod | null = null;
 
 			try {
-				if (!shouldNotifyUser(user, getCurrentTime)) {
+				if (!user.timezone) {
 					stats.skipped++;
 					return stats;
 				}
 
-				const scheduledDate = user.timezone
-					? getLocalDateString(user.timezone, currentTime)
-					: null;
+				const dueAt = user.next_send_at ? new Date(user.next_send_at) : null;
+				if (!dueAt || Number.isNaN(dueAt.getTime())) {
+					console.warn("Invalid next_send_at for user; skipping notification", {
+						userId: user.id,
+						next_send_at: user.next_send_at,
+					});
+					stats.skipped++;
+					return stats;
+				}
+
+				const scheduledDate = getLocalDateString(user.timezone, dueAt);
 				if (!scheduledDate) {
 					stats.skipped++;
 					return stats;
 				}
 
 				const userStocks = await loadUserStocks(supabase, user.id);
-				if (userStocks === null) {
-					stats.skipped++;
-					return stats;
-				}
 
 				const stocksList =
 					userStocks.length === 0
@@ -376,6 +388,45 @@ export const POST: APIRoute = async ({ request }) => {
 						});
 					}
 				}
+
+				const nextSendAt = calculateNextSendAt(
+					user.daily_digest_notification_time,
+					user.timezone,
+					getCurrentTime,
+				);
+				if (nextSendAt) {
+					const { error: updateError } = await supabase
+						.from("users")
+						.update({ next_send_at: nextSendAt.toISOString() })
+						.eq("id", user.id);
+
+					if (updateError) {
+						console.error("Failed to update users.next_send_at", {
+							userId: user.id,
+							nextSendAt: nextSendAt.toISOString(),
+							error: updateError,
+						});
+					}
+				} else {
+					console.warn("calculateNextSendAt returned null", {
+						userId: user.id,
+						daily_digest_notification_time: user.daily_digest_notification_time,
+						timezone: user.timezone,
+					});
+
+					const { error: updateError } = await supabase
+						.from("users")
+						.update({ next_send_at: null })
+						.eq("id", user.id);
+
+					if (updateError) {
+						console.error("Failed to clear users.next_send_at", {
+							userId: user.id,
+							error: updateError,
+						});
+					}
+				}
+
 				return stats;
 			} catch (error) {
 				stats.skipped++;

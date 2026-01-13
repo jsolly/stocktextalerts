@@ -27,6 +27,7 @@ A stock notification application that sends scheduled SMS and email updates abou
 ## Prerequisites
 
 - Node.js 18+
+- Docker (Docker Desktop or Docker Engine)
 - Supabase account
 - Twilio account with Verify API enabled
 - Vercel account (for deployment and cron jobs)
@@ -94,8 +95,9 @@ CRON_SECRET=your-random-secret-string
 RESEND_API_KEY=re_123456789
 EMAIL_FROM=notifications@updates.example.com
 
-# Cloudflare Turnstile (Sitekey is public)
-PUBLIC_TURNSTILE_SITE_KEY=0x0000000000000000000000000000000AA
+# Cloudflare Turnstile (site key is public; secret key is server-only)
+PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAAABBBBBBBBBBBBBB
+TURNSTILE_SECRET_KEY=0x4AAAAAAABBBBBBBBBBBBBB_secret
 
 # Seed Data (Local Development)
 DEFAULT_PASSWORD=your-strong-local-seed-password
@@ -108,35 +110,47 @@ DEFAULT_PASSWORD=your-strong-local-seed-password
 - Twilio credentials: Twilio Console → Account Dashboard
 - `CRON_SECRET`: Generate a random string (e.g., `openssl rand -hex 32`)
 - Resend credentials: Resend Dashboard → API Keys
+- Turnstile secret: Cloudflare Dashboard → Turnstile → your site → **Secret key**
 
 **Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. The `.env.local` file (and all `.env*` files) are already excluded from version control via `.gitignore`; keep secrets only in environment files or your deployment platform, not in committed code.
 
 ### 4. Generate Seed File
 
-Before starting Supabase, generate the seed file (this uses your `DEFAULT_PASSWORD` from `.env.local`):
+The `db:generate-seed` script requires a running Supabase instance because `scripts/generate-seed.ts` calls `supabase.auth.admin.listUsers()`.
+
+Start Supabase first:
+
+```bash
+# Start Supabase (requires Docker)
+npx supabase start
+```
+
+Then generate the seed file (this uses your `DEFAULT_PASSWORD` from `.env.local`):
 
 ```bash
 npm run db:generate-seed
 ```
 
-This creates `supabase/seed.sql` with test user data. **Note:** This file is gitignored and should not be committed.
+This creates `supabase/seed.sql` with test user data. **Note:** This file is gitignored (generated locally) and must not be committed.
 
 ### 5. Start Local Development
 
-Start the local Supabase instance and the Astro development server:
+After generating `supabase/seed.sql`, reset Supabase to load the seed:
 
 ```bash
-# Start Supabase (requires Docker)
-npx supabase start
+npx supabase db reset
+```
 
+Start the Astro development server:
+
+```bash
 # Start Astro dev server
 npm run dev
 ```
 
-`supabase start` will automatically:
-1. Spin up local Supabase services (Postgres, Auth, etc.)
-2. Apply database migrations from `supabase/migrations`
-3. Seed the database with stock data from `supabase/seed.sql`
+`supabase db reset` will:
+1. Re-apply database migrations from `supabase/migrations`
+2. Re-seed the database from `supabase/seed.sql`
 
 Visit <http://localhost:4321> to see the application.
 
@@ -188,8 +202,8 @@ The database is pre-seeded with stock data. If you need to update the list of av
 - `POST /api/auth/email/register` - User registration
 - `POST /api/auth/email/forgot-password` - Request password reset
 - `POST /api/auth/email/resend-verification` - Resend verification email
-- `POST /api/auth/signin` - User sign in
-- `POST /api/auth/signout` - User sign out
+- `POST /api/auth/signin` - User sign-in
+- `POST /api/auth/signout` - User sign-out
 - `POST /api/auth/delete-account` - Delete user account
 - `POST /api/auth/sms/send-verification` - Send SMS verification code
 - `POST /api/auth/sms/verify-code` - Verify SMS code

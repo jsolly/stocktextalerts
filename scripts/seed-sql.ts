@@ -1,17 +1,12 @@
-export interface SeedUser {
-  email: string;
+import type { TablesInsert } from "../src/lib/database.types";
+
+type DbUserInsert = TablesInsert<"users">;
+
+export type SeedUser = Omit<Partial<DbUserInsert>, "email"> & {
+  email: DbUserInsert["email"];
   password?: string;
-  timezone?: string;
-  phone_country_code?: string | null;
-  phone_number?: string | null;
-  phone_verified?: boolean;
-  sms_opted_out?: boolean;
-  daily_digest_enabled?: boolean;
-  daily_digest_notification_time?: number;
-  email_notifications_enabled?: boolean;
-  sms_notifications_enabled?: boolean;
   tracked_stocks?: string[];
-}
+};
 
 /**
  * Escapes single quotes for SQL string literals.
@@ -30,6 +25,9 @@ function sqlNullableString(value: string | null | undefined): string {
 }
 
 export function buildAuthUserSql(userId: string, email: string, password: string): string {
+  const escapedEmail = escapeSql(email);
+  const escapedPassword = escapeSql(password);
+
   return `
 DO $$
 BEGIN
@@ -57,8 +55,8 @@ BEGIN
       '${userId}'::uuid,
       'authenticated',
       'authenticated',
-      '${email}',
-      crypt('${password}', gen_salt('bf')),
+      '${escapedEmail}',
+      crypt('${escapedPassword}', gen_salt('bf')),
       now(),
       now(),
       now(),
@@ -77,6 +75,8 @@ END $$;
 }
 
 export function buildAuthIdentitySql(userId: string, email: string): string {
+  const escapedEmail = escapeSql(email);
+
   return `
 INSERT INTO auth.identities (
   id,
@@ -91,7 +91,7 @@ INSERT INTO auth.identities (
 SELECT
   gen_random_uuid(),
   '${userId}'::uuid,
-  jsonb_build_object('sub', '${userId}', 'email', '${email}')::jsonb,
+  jsonb_build_object('sub', '${userId}', 'email', '${escapedEmail}')::jsonb,
   'email',
   '${userId}',
   now(),

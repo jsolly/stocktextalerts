@@ -16,7 +16,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
 		timezone: { type: "timezone", required: true },
-		utc_offset_minutes: { type: "integer" },
 	} as const);
 
 	if (!parsed.ok) {

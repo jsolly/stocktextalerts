@@ -6,6 +6,16 @@ Domains and Extensions
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 /* =============
+Enums for Stronger DB Types
+============= */
+
+CREATE TYPE public.delivery_method AS ENUM ('email', 'sms');
+
+CREATE TYPE public.scheduled_notification_type AS ENUM ('daily_digest');
+
+CREATE TYPE public.scheduled_notification_status AS ENUM ('sending', 'sent', 'failed');
+
+/* =============
 Timezones
 ============= */
 
@@ -157,6 +167,7 @@ CREATE TABLE IF NOT EXISTS users (
   timezone TEXT DEFAULT 'America/New_York' REFERENCES timezones(value) NOT NULL,
   daily_digest_enabled BOOLEAN DEFAULT true NOT NULL,
   daily_digest_notification_time INTEGER DEFAULT 540 NOT NULL CHECK (daily_digest_notification_time >= 0 AND daily_digest_notification_time <= 1439 AND daily_digest_notification_time % 15 = 0),
+  next_send_at TIMESTAMP WITH TIME ZONE,
   email_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   sms_notifications_enabled BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
@@ -167,7 +178,9 @@ CREATE TABLE IF NOT EXISTS users (
   CONSTRAINT phone_fields_together CHECK (
     (phone_country_code IS NULL AND phone_number IS NULL) OR
     (phone_country_code IS NOT NULL AND phone_number IS NOT NULL)
-  )
+  ),
+  CONSTRAINT users_email_no_whitespace CHECK (email = btrim(email) AND email !~ E'\\s'),
+  CONSTRAINT users_email_non_empty CHECK (email <> '')
 );
 
 /* =============
@@ -220,7 +233,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.replace_user_stocks(uuid, text[]) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.replace_user_stocks(uuid, text[]) TO authenticated, service_role;
 
 /* =============
 Notification Log
@@ -230,7 +243,7 @@ CREATE TABLE IF NOT EXISTS notification_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type VARCHAR(50) NOT NULL,
-  delivery_method VARCHAR(10) NOT NULL CHECK (delivery_method IN ('email', 'sms')),
+  delivery_method public.delivery_method NOT NULL,
   message_delivered BOOLEAN DEFAULT true NOT NULL,
   message TEXT,
   error TEXT,
@@ -245,10 +258,10 @@ Scheduled Notifications
 
 CREATE TABLE IF NOT EXISTS scheduled_notifications (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  notification_type TEXT NOT NULL CHECK (notification_type IN ('daily_digest')),
+  notification_type public.scheduled_notification_type NOT NULL,
   scheduled_date DATE NOT NULL,
-  channel VARCHAR(10) NOT NULL CHECK (channel IN ('email', 'sms')),
-  status VARCHAR(10) NOT NULL CHECK (status IN ('sending', 'sent', 'failed')),
+  channel public.delivery_method NOT NULL,
+  status public.scheduled_notification_status NOT NULL,
   attempt_count INTEGER DEFAULT 0 NOT NULL CHECK (attempt_count >= 0),
   last_attempt_at TIMESTAMP WITH TIME ZONE,
   sent_at TIMESTAMP WITH TIME ZONE,
@@ -261,15 +274,20 @@ CREATE TABLE IF NOT EXISTS scheduled_notifications (
 CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_user_type_date
   ON scheduled_notifications (user_id, notification_type, scheduled_date);
 
+CREATE INDEX IF NOT EXISTS idx_users_next_send_at
+  ON users (next_send_at)
+  WHERE daily_digest_enabled = true
+    AND next_send_at IS NOT NULL;
+
 /* =============
 Scheduled Notifications Claim
 ============= */
 
 CREATE OR REPLACE FUNCTION public.claim_scheduled_notification(
   p_user_id uuid,
-  p_notification_type text,
+  p_notification_type public.scheduled_notification_type,
   p_scheduled_date date,
-  p_channel text
+  p_channel public.delivery_method
 )
 RETURNS boolean
 LANGUAGE plpgsql
@@ -318,7 +336,12 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.claim_scheduled_notification(uuid, text, date, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_scheduled_notification(
+  uuid,
+  public.scheduled_notification_type,
+  date,
+  public.delivery_method
+) TO service_role;
 
 /* =============
 Row Level Security - Users

@@ -28,8 +28,8 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
 	class={`cf-turnstile ${widgetClasses}`}
 	data-sitekey={turnstileSiteKey}
 	data-callback={callbackName}
-	data-error-callback={errorCallback}
-	data-expired-callback={expiredCallback}
+	{...(errorCallback ? { "data-error-callback": errorCallback } : {})}
+	{...(expiredCallback ? { "data-expired-callback": expiredCallback } : {})}
 ></div>
 
 <script

@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
 import { type FormSchema, omitUndefined, parseWithSchema } from "../form-utils";
+import { calculateNextSendAt } from "../notifications/shared";
 
 interface PreferencesDependencies {
 	createSupabaseServerClient: typeof createSupabaseServerClient;
@@ -53,17 +54,21 @@ export function createPreferencesHandler(
 				parsed.data.timezone === null ? undefined : parsed.data.timezone,
 		});
 
-		const safePreferenceUpdates = {
+		const safePreferenceUpdates: Parameters<typeof userService.update>[1] = {
 			...baseUpdates,
 			email_notifications_enabled:
 				baseUpdates.email_notifications_enabled ?? false,
 			sms_notifications_enabled: baseUpdates.sms_notifications_enabled ?? false,
 		};
 
-		if (safePreferenceUpdates.sms_notifications_enabled) {
-			const dbUser = await userService.getById(user.id);
+		const dbUser = await userService.getById(user.id);
+		if (!dbUser) {
+			console.error("User not found", { userId: user.id });
+			return redirect("/dashboard?error=user_not_found");
+		}
 
-			if (!dbUser || !dbUser.phone_country_code || !dbUser.phone_number) {
+		if (safePreferenceUpdates.sms_notifications_enabled) {
+			if (!dbUser.phone_country_code || !dbUser.phone_number) {
 				console.error(
 					"Preferences update rejected: SMS enabled without phone number",
 					{
@@ -72,6 +77,50 @@ export function createPreferencesHandler(
 				);
 				return redirect("/dashboard?error=phone_not_set");
 			}
+		}
+
+		const timezoneChanged =
+			safePreferenceUpdates.timezone !== undefined &&
+			safePreferenceUpdates.timezone !== dbUser.timezone;
+		const timeChanged =
+			safePreferenceUpdates.daily_digest_notification_time !== undefined &&
+			safePreferenceUpdates.daily_digest_notification_time !==
+				dbUser.daily_digest_notification_time;
+		const enabledChanged =
+			safePreferenceUpdates.daily_digest_enabled !== undefined &&
+			safePreferenceUpdates.daily_digest_enabled !==
+				dbUser.daily_digest_enabled;
+
+		const finalTimezone = safePreferenceUpdates.timezone ?? dbUser.timezone;
+		const finalTime =
+			safePreferenceUpdates.daily_digest_notification_time ??
+			dbUser.daily_digest_notification_time;
+		const finalEnabled =
+			safePreferenceUpdates.daily_digest_enabled ?? dbUser.daily_digest_enabled;
+
+		if (
+			(timezoneChanged || timeChanged || enabledChanged) &&
+			finalEnabled &&
+			finalTimezone &&
+			typeof finalTime === "number"
+		) {
+			const nextSendAt = calculateNextSendAt(
+				finalTime,
+				finalTimezone,
+				() => new Date(),
+			);
+			if (nextSendAt) {
+				safePreferenceUpdates.next_send_at = nextSendAt.toISOString();
+			} else {
+				console.warn("calculateNextSendAt returned null for valid inputs", {
+					userId: user.id,
+					finalTime,
+					finalTimezone,
+				});
+				safePreferenceUpdates.next_send_at = null;
+			}
+		} else if (enabledChanged && !finalEnabled) {
+			safePreferenceUpdates.next_send_at = null;
 		}
 
 		try {

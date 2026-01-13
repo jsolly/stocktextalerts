@@ -8,7 +8,7 @@ import Layout from "../layouts/Layout.astro";
 import { getAuthErrorMessage } from "../lib/auth";
 import { formatMessage } from "../lib/format";
 import { createSupabaseServerClient } from "../lib/supabase";
-import { getTimezoneOptions } from "../lib/timezones";
+import { getTimezoneOptions } from "../lib/timezones/timezones";
 import { createUserService } from "../lib/users";
 
 const supabase = createSupabaseServerClient();
@@ -74,7 +74,10 @@ const successMessage = formatMessage(success);
           </div>
         )}
 
-				<TimezoneMismatchBanner savedTimezone={user.timezone} />
+				<TimezoneMismatchBanner
+					savedTimezone={user.timezone}
+					allowedTimezones={timezones.map((tz) => tz.value)}
+				/>
 
         <AccountManagement
           email={user.email}
@@ -97,7 +100,7 @@ const successMessage = formatMessage(success);
 </Layout>
 
 <script>
-	import { setupTimezoneMismatchBanner } from "../lib/timezone-banner";
+	import { setupTimezoneMismatchBanner } from "../lib/timezones/timezone-banner";
 	import { setupFormNavigationWarning } from "../lib/form-navigation-warning";
 
 	function setupProfileTimezoneMismatchBanner() {
@@ -107,7 +110,14 @@ const successMessage = formatMessage(success);
 		}
 
 		const savedTimezone = banner.dataset.savedTimezone ?? "";
-		setupTimezoneMismatchBanner(savedTimezone);
+		let allowedTimezones: string[] = [];
+		try {
+			allowedTimezones = JSON.parse(banner.dataset.allowedTimezones ?? "[]");
+		} catch {
+			allowedTimezones = [];
+		}
+
+		setupTimezoneMismatchBanner({ savedTimezone, allowedTimezones });
 	}
 
 	if (document.readyState === "loading") {

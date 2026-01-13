@@ -24,6 +24,8 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Your account data was deleted, but we couldn't fully remove your sign-in. Please sign out and try again.";
 		case "delete_orphaned_auth_failed":
 			return "Failed to complete account deletion. Please try again.";
+		case "update_failed":
+			return "Failed to update preferences. Please try again.";
 		default:
 			return "An unexpected error occurred. Please try again.";
 	}

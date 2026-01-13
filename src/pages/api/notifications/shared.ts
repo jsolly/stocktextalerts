@@ -1,7 +1,11 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { Temporal } from "@js-temporal/polyfill";
+import type { Database } from "../../../lib/database.types";
+import type { AppSupabaseClient } from "../../../lib/supabase";
 import type { User } from "../../../lib/users";
 
-export type DeliveryMethod = "email" | "sms";
+export type DeliveryMethod = Database["public"]["Enums"]["delivery_method"];
+export type ScheduledNotificationType =
+	Database["public"]["Enums"]["scheduled_notification_type"];
 
 export type DeliveryResult =
 	| { success: true; messageSid?: string }
@@ -28,8 +32,15 @@ export type UserRecord = Pick<
 	| "timezone"
 	| "daily_digest_enabled"
 	| "daily_digest_notification_time"
+	| "next_send_at"
 	| "email_notifications_enabled"
 	| "sms_notifications_enabled"
+>;
+
+export type EmailUser = Pick<UserRecord, "id" | "email">;
+export type SmsUser = Pick<
+	UserRecord,
+	"id" | "phone_country_code" | "phone_number"
 >;
 
 export interface UserStockRow {
@@ -37,114 +48,83 @@ export interface UserStockRow {
 	name: string;
 }
 
-type UserStockQueryResult = {
-	symbol: string;
-	stocks: { name: string } | null;
-};
-
-export function shouldNotifyUser(
-	user: UserRecord,
-	getCurrentTime: () => Date,
-): boolean {
-	if (!user.daily_digest_enabled) {
-		return false;
-	}
-
-	if (!user.timezone) {
-		return false;
-	}
-
-	const storedTime = user.daily_digest_notification_time;
-
-	const currentMinutes = getCurrentMinutesInTimezone(
-		user.timezone,
-		getCurrentTime,
-	);
-
-	if (currentMinutes === null) {
-		console.error("Unable to determine current time for user timezone", {
-			userId: user.id,
-			timezone: user.timezone,
-		});
-		return false;
-	}
-
-	// We allow a small lateness tolerance for scheduled delivery attempts.
-	// Deduplication and retry limits are enforced in the database.
-	const digestAttemptWindowMinutes = 45;
-	const minutesPerDay = 24 * 60;
-	const deltaMinutes =
-		(currentMinutes - storedTime + minutesPerDay) % minutesPerDay;
-
-	return deltaMinutes <= digestAttemptWindowMinutes;
-}
-
-export function getCurrentMinutesInTimezone(
+export function calculateNextSendAt(
+	localMinutes: number,
 	timezone: string,
 	getCurrentTime: () => Date,
-): number | null {
+): Date | null {
 	try {
-		const date = getCurrentTime();
-		const formatter = new Intl.DateTimeFormat("en-US", {
-			hour: "numeric",
-			minute: "numeric",
-			hourCycle: "h23",
-			timeZone: timezone,
+		if (!Number.isFinite(localMinutes)) {
+			return null;
+		}
+
+		const hours = Math.floor(localMinutes / 60);
+		const minutes = localMinutes % 60;
+		if (
+			!Number.isInteger(hours) ||
+			!Number.isInteger(minutes) ||
+			hours < 0 ||
+			hours > 23 ||
+			minutes < 0 ||
+			minutes > 59
+		) {
+			return null;
+		}
+
+		const timezoneTrimmed = timezone.trim();
+		if (timezoneTrimmed === "") {
+			return null;
+		}
+
+		const now = getCurrentTime();
+		const nowInstant = Temporal.Instant.from(now.toISOString());
+		const nowZoned = nowInstant.toZonedDateTimeISO(timezoneTrimmed);
+
+		let candidate = nowZoned.with({
+			hour: hours,
+			minute: minutes,
+			second: 0,
+			millisecond: 0,
+			microsecond: 0,
+			nanosecond: 0,
 		});
-		const parts = formatter.formatToParts(date);
-		const hourPart = parts.find((part) => part.type === "hour");
-		const minutePart = parts.find((part) => part.type === "minute");
 
-		if (!hourPart || !minutePart) {
-			return null;
+		if (Temporal.ZonedDateTime.compare(candidate, nowZoned) <= 0) {
+			candidate = candidate.add({ days: 1 });
 		}
 
-		const hours = Number.parseInt(hourPart.value, 10);
-		const minutes = Number.parseInt(minutePart.value, 10);
-
-		if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-			return null;
-		}
-
-		return hours * 60 + minutes;
-	} catch {
-		console.error("Failed to parse time from timezone", { timezone });
+		return new Date(candidate.toInstant().epochMilliseconds);
+	} catch (error) {
+		console.error("Failed to calculate next_send_at", {
+			localMinutes,
+			timezone,
+			error: error instanceof Error ? error.message : String(error),
+		});
 		return null;
 	}
 }
 
 export async function loadUserStocks(
-	supabase: SupabaseClient,
+	supabase: AppSupabaseClient,
 	userId: string,
-): Promise<UserStockRow[] | null> {
+): Promise<UserStockRow[]> {
 	const { data: stocks, error } = await supabase
 		.from("user_stocks")
-		.select("symbol, stocks(name)")
+		.select("symbol, stocks!inner(name)")
 		.eq("user_id", userId);
 
 	if (error) {
-		console.error("Failed to load user stocks", {
-			userId,
-			error,
-		});
-		return null;
+		throw error;
 	}
 
-	if (!stocks || stocks.length === 0) {
-		return [];
-	}
-
-	// Transform the nested structure to flat UserStockRow[]
-	// Type assertion needed because Supabase's inferred types for nested selects
-	// are incorrect without generated Database types
-	return (stocks as unknown as UserStockQueryResult[]).map((stock) => ({
+	return (stocks ?? []).map((stock) => ({
 		symbol: stock.symbol,
-		name: stock.stocks?.name ?? stock.symbol,
+		name: stock.stocks.name,
 	}));
 }
 
 export async function recordNotification(
-	supabase: SupabaseClient,
+	supabase: AppSupabaseClient,
 	entry: NotificationLogEntry,
 ): Promise<boolean> {
 	const { error } = await supabase.from("notification_log").insert({

@@ -6,6 +6,7 @@
 - **Start simple**: Design from first principles; add complexity only as needed.
 - **Clarify ambiguity**: Ask up to 3 targeted questions about scope, constraints, and edge cases.
 - **Offer alternatives**: Provide 2-3 approaches with pros/cons and a recommendation with justification.
+- **Database migrations**: Do NOT create new migration files. Only modify the initial migration in `supabase/migrations`. This is a new app with no users, so destructive schema changes are OK.
 
 ## Coding Standards
 - **No compatibility layers**: Avoid shims, adapters, deprecations, or re-exports for legacy behavior.
@@ -18,7 +19,7 @@
 - **Error handling**: Let errors propagate naturally; avoid defensive programming (unnecessary null checks, try-catch blocks that swallow errors). Handle errors at boundaries (API endpoints, user-facing code) where appropriate.
 - **Validation**: Prefer validating input in the database. Two quality guards: strict front-end forms/inputs and database constraints. Only validate untrusted external input.
 
-## Technology Constraints
+## Tech Stack
 - **Testing**: Vitest only; happy path coverage only. Do not use Jest.
 - **Linting/Formatting**: Biome only (No Prettier or ESLint)
 - **Styling**: Tailwind utilities preferred over custom CSS

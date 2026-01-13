@@ -4,7 +4,7 @@ import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../../lib/supabase";
-import { resolveTimezone } from "../../../../lib/timezones";
+import { resolveTimezone } from "../../../../lib/timezones/timezones";
 import { parseWithSchema, redirect } from "../../form-utils";
 
 export const POST: APIRoute = async ({ request }) => {
@@ -16,7 +16,6 @@ export const POST: APIRoute = async ({ request }) => {
 		password: { type: "string", required: true },
 		captcha_token: { type: "string" },
 		timezone: { type: "timezone" },
-		utc_offset_minutes: { type: "integer" },
 	} as const);
 
 	if (!parsed.ok) {
@@ -26,10 +25,9 @@ export const POST: APIRoute = async ({ request }) => {
 		return redirect("/auth/register?error=invalid_form");
 	}
 
-	const { email, password, timezone, captcha_token, utc_offset_minutes } =
-		parsed.data;
+	const { email, password, timezone, captcha_token } = parsed.data;
 
-	const captchaToken = captcha_token?.trim();
+	const captchaToken = captcha_token;
 	if (!captchaToken) {
 		return redirect("/auth/register?error=captcha_required");
 	}
@@ -37,7 +35,6 @@ export const POST: APIRoute = async ({ request }) => {
 	const userTimezone = await resolveTimezone({
 		supabase,
 		detectedTimezone: timezone ?? null,
-		utcOffsetMinutes: utc_offset_minutes ?? null,
 	});
 
 	const origin = getSiteUrl();

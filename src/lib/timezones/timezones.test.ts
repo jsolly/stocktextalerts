@@ -1,5 +1,5 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
+import type { AppSupabaseClient } from "../supabase";
 
 function createSupabaseTimezonesStub(options: {
 	rows: Array<{
@@ -64,14 +64,12 @@ describe("resolveTimezone caching", () => {
 		});
 
 		const first = await resolveTimezone({
-			supabase: stub.supabase as unknown as SupabaseClient,
-			detectedTimezone: "",
-			utcOffsetMinutes: 0,
+			supabase: stub.supabase as unknown as AppSupabaseClient,
+			detectedTimezone: "Etc/UTC",
 		});
 		const second = await resolveTimezone({
-			supabase: stub.supabase as unknown as SupabaseClient,
-			detectedTimezone: "",
-			utcOffsetMinutes: 0,
+			supabase: stub.supabase as unknown as AppSupabaseClient,
+			detectedTimezone: "Etc/UTC",
 		});
 
 		expect(first).toBe("Etc/UTC");
@@ -90,14 +88,12 @@ describe("resolveTimezone caching", () => {
 
 		const [first, second] = await Promise.all([
 			resolveTimezone({
-				supabase: stub.supabase as unknown as SupabaseClient,
-				detectedTimezone: "",
-				utcOffsetMinutes: 0,
+				supabase: stub.supabase as unknown as AppSupabaseClient,
+				detectedTimezone: "Etc/UTC",
 			}),
 			resolveTimezone({
-				supabase: stub.supabase as unknown as SupabaseClient,
-				detectedTimezone: "",
-				utcOffsetMinutes: 0,
+				supabase: stub.supabase as unknown as AppSupabaseClient,
+				detectedTimezone: "Etc/UTC",
 			}),
 		]);
 
@@ -121,11 +117,11 @@ describe("getTimezoneOptions caching", () => {
 		});
 
 		const first = await getTimezoneOptions(
-			stub.supabase as unknown as SupabaseClient,
+			stub.supabase as unknown as AppSupabaseClient,
 			{ includeValues: ["Etc/UTC"] },
 		);
 		const second = await getTimezoneOptions(
-			stub.supabase as unknown as SupabaseClient,
+			stub.supabase as unknown as AppSupabaseClient,
 			{ includeValues: ["Etc/UTC"] },
 		);
 
@@ -155,8 +151,8 @@ describe("getTimezoneOptions caching", () => {
 		});
 
 		const [first, second] = await Promise.all([
-			getTimezoneOptions(stub.supabase as unknown as SupabaseClient),
-			getTimezoneOptions(stub.supabase as unknown as SupabaseClient),
+			getTimezoneOptions(stub.supabase as unknown as AppSupabaseClient),
+			getTimezoneOptions(stub.supabase as unknown as AppSupabaseClient),
 		]);
 
 		expect(first.map((tz) => tz.value)).toEqual([

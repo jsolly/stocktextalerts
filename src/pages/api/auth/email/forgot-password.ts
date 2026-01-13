@@ -10,7 +10,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		const formData = await request.formData();
 		const parsed = parseWithSchema(formData, {
 			email: { type: "string", required: true },
-			captcha_token: { type: "string", required: true, trim: true },
+			captcha_token: { type: "string", required: true },
 		} as const);
 
 		if (!parsed.ok) {

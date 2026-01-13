@@ -1,10 +1,10 @@
 ---
 import { readFile } from "node:fs/promises";
+import PreviewNotifications from "../components/dashboard/PreviewNotifications.astro";
 import NotificationPreferencesCard from "../components/dashboard/preferences/NotificationPreferencesCard.astro";
 import ScheduledNotificationsCard from "../components/dashboard/preferences/ScheduledNotificationsCard.astro";
 import SetupRequiredBanner from "../components/dashboard/SetupRequiredBanner.astro";
 import TrackedStocksPanel from "../components/dashboard/stocks/TrackedStocksPanel.vue";
-import TestNotifications from "../components/dashboard/TestNotifications.astro";
 import Navigation from "../components/layout/Navigation.astro";
 import TimezoneMismatchBanner from "../components/TimezoneMismatchBanner.astro";
 import Layout from "../layouts/Layout.astro";
@@ -12,7 +12,7 @@ import { formatMessage } from "../lib/format";
 import type { Stock } from "../lib/stocks";
 import { getUserStocks } from "../lib/stocks";
 import { createSupabaseServerClient } from "../lib/supabase";
-import { getTimezoneOptions } from "../lib/timezones";
+import { getTimezoneOptions } from "../lib/timezones/timezones";
 import { createUserService } from "../lib/users";
 
 interface StockOption {
@@ -92,17 +92,20 @@ const isSmsFullyConfigured =
 			</div>
 		)}
 
-		<TimezoneMismatchBanner savedTimezone={user.timezone} />
+		<TimezoneMismatchBanner
+			savedTimezone={user.timezone}
+			allowedTimezones={timezones.map((tz) => tz.value)}
+		/>
 
 		<!-- Section 1: Setup Required Banner -->
 		<SetupRequiredBanner user={user} />
 
 		<!-- Section 2: Preferences form (stocks + notification settings) -->
-		<div id="dashboard-initial-symbols" data-initial-symbols={JSON.stringify(initialSymbols)} class="hidden"></div>
 		<form
 			id="dashboard-preferences-form"
 			method="POST"
 			action="/api/preferences"
+			data-initial-symbols={JSON.stringify(initialSymbols)}
 			class="space-y-6"
 		>
 			<TrackedStocksPanel
@@ -128,8 +131,8 @@ const isSmsFullyConfigured =
 				Save Preferences
 			</button>
 		</form>
-		<!-- Section 3: Test Notifications -->
-		<TestNotifications
+		<!-- Section 3: Preview Notifications -->
+		<PreviewNotifications
 			emailEnabled={user.email_notifications_enabled}
 			smsEnabled={isSmsFullyConfigured}
 		/>
@@ -137,37 +140,21 @@ const isSmsFullyConfigured =
 	</div>
 </Layout>
 
-<script>
+<script type="module">
 	import {
 		readFormValues,
 		setupFormNavigationWarning,
 	} from "../lib/form-navigation-warning";
 
-	function diffChangedKeys(
-		initial: Map<string, string | boolean | null>,
-		current: Map<string, string | boolean | null>,
-	): string[] {
+	function diffChangedKeys(initial, current) {
 		const keys = new Set([...initial.keys(), ...current.keys()]);
-		const changed: string[] = [];
+		const changed = [];
 		for (const key of keys) {
 			if (initial.get(key) !== current.get(key)) {
 				changed.push(key);
 			}
 		}
 		return changed;
-	}
-
-	function areSymbolsSetsEqual(left: string[], right: string[]): boolean {
-		if (left.length !== right.length) {
-			return false;
-		}
-
-		const leftSet = new Set(left);
-		if (leftSet.size !== right.length) {
-			return false;
-		}
-
-		return right.every((symbol: string) => leftSet.has(symbol));
 	}
 
 	function setupDashboardPreferencesDirtyCheck() {
@@ -177,17 +164,29 @@ const isSmsFullyConfigured =
 		}
 		const form = formElement;
 
+		const initialSymbolsFromServer = JSON.parse(
+			form.dataset.initialSymbols ?? "[]",
+		);
 		let initialPreferences = readFormValues(form);
 
-		const symbolsElement = document.getElementById("dashboard-initial-symbols");
-		const initialSymbols = symbolsElement instanceof HTMLElement && symbolsElement.dataset.initialSymbols
-			? JSON.parse(symbolsElement.dataset.initialSymbols)
-			: [];
-		let initialTrackedSymbols = initialSymbols as string[];
+		let initialTrackedSymbols = [...initialSymbolsFromServer];
 		let currentTrackedSymbols = [...initialTrackedSymbols];
 
 		function isStocksDirty() {
-			return !areSymbolsSetsEqual(initialTrackedSymbols, currentTrackedSymbols);
+			const leftSet = new Set(initialTrackedSymbols);
+			const rightSet = new Set(currentTrackedSymbols);
+
+			if (leftSet.size !== rightSet.size) {
+				return true;
+			}
+
+			for (const symbol of leftSet) {
+				if (!rightSet.has(symbol)) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		function isPreferencesDirty() {
@@ -204,7 +203,7 @@ const isSmsFullyConfigured =
 				return;
 			}
 
-			const symbols = event.detail?.symbols as string[];
+			const symbols = event.detail?.symbols;
 			currentTrackedSymbols = symbols;
 		});
 
@@ -213,7 +212,7 @@ const isSmsFullyConfigured =
 				return;
 			}
 
-			const symbols = event.detail?.symbols as string[];
+			const symbols = event.detail?.symbols;
 			initialTrackedSymbols = [...symbols];
 			currentTrackedSymbols = [...symbols];
 		});
@@ -237,7 +236,7 @@ const isSmsFullyConfigured =
 </script>
 
 <script>
-	import { setupTimezoneMismatchBanner } from "../lib/timezone-banner";
+	import { setupTimezoneMismatchBanner } from "../lib/timezones/timezone-banner";
 
 	function setupDashboardTimezoneMismatchBanner() {
 		const banner = document.getElementById("timezone-mismatch-banner");
@@ -246,7 +245,14 @@ const isSmsFullyConfigured =
 		}
 
 		const savedTimezone = banner.dataset.savedTimezone ?? "";
-		setupTimezoneMismatchBanner(savedTimezone);
+		let allowedTimezones: string[] = [];
+		try {
+			allowedTimezones = JSON.parse(banner.dataset.allowedTimezones ?? "[]");
+		} catch {
+			allowedTimezones = [];
+		}
+
+		setupTimezoneMismatchBanner({ savedTimezone, allowedTimezones });
 	}
 
 	if (document.readyState === "loading") {

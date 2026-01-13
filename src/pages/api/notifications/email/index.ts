@@ -1,8 +1,8 @@
-import type { DeliveryResult, UserRecord } from "../shared";
+import type { DeliveryResult, EmailUser } from "../shared";
 import type { EmailSender } from "./utils";
 
 export async function sendUserEmail(
-	user: UserRecord,
+	user: EmailUser,
 	subject: string,
 	message: { text: string; html: string },
 	sendEmail: EmailSender,
