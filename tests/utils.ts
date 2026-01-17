@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { TablesInsert } from "../src/lib/database.types";
+import type { TablesInsert } from "../src/lib/generated/database.types";
 import { adminClient } from "./setup";
 
 export interface CreateTestUserOptions {

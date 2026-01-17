@@ -326,6 +326,9 @@ BEGIN
       AND (
         scheduled_notifications.status = 'failed'
         OR (
+          -- Re-claim stale 'sending' records (likely from crashed workers)
+          -- 10 minutes provides a reasonable balance: long enough to avoid premature
+          -- re-claiming during normal processing, short enough to recover quickly
           scheduled_notifications.status = 'sending'
           AND scheduled_notifications.last_attempt_at < pg_catalog.now() - interval '10 minutes'
         )
@@ -342,6 +345,75 @@ GRANT EXECUTE ON FUNCTION public.claim_scheduled_notification(
   date,
   public.delivery_method
 ) TO service_role;
+
+/* =============
+Rate Limiting
+============= */
+
+CREATE TABLE IF NOT EXISTS rate_limit_log (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_log_user_endpoint_created
+  ON rate_limit_log (user_id, endpoint, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.check_rate_limit(
+  p_user_id uuid,
+  p_endpoint text,
+  p_max_requests integer,
+  p_window_minutes integer
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  request_count integer;
+  window_start timestamp with time zone;
+  lock_key bigint;
+BEGIN
+  IF current_setting('request.jwt.claims', true)::json->>'role' = 'authenticated'
+     AND p_user_id <> (SELECT auth.uid()) THEN
+    RAISE EXCEPTION 'Cannot check rate limit for another user';
+  END IF;
+  
+  window_start := pg_catalog.now() - (p_window_minutes || ' minutes')::interval;
+  
+  lock_key := pg_catalog.hashtext(p_user_id::text || '|' || p_endpoint);
+  
+  PERFORM pg_advisory_xact_lock(lock_key);
+  
+  DELETE FROM rate_limit_log
+  WHERE user_id = p_user_id
+    AND endpoint = p_endpoint
+    AND created_at < window_start;
+  
+  INSERT INTO rate_limit_log (user_id, endpoint)
+  SELECT p_user_id, p_endpoint
+  WHERE (SELECT COUNT(*) FROM rate_limit_log
+         WHERE user_id = p_user_id
+           AND endpoint = p_endpoint
+           AND created_at > window_start) < p_max_requests;
+  
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
+  
+  RETURN true;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.check_rate_limit(uuid, text, integer, integer) TO authenticated, service_role;
+
+ALTER TABLE rate_limit_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own rate limit records" ON rate_limit_log
+  FOR ALL
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 
 /* =============
 Row Level Security - Users

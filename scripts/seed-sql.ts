@@ -1,4 +1,4 @@
-import type { TablesInsert } from "../src/lib/database.types";
+import type { TablesInsert } from "../src/lib/generated/database.types";
 
 type DbUserInsert = TablesInsert<"users">;
 

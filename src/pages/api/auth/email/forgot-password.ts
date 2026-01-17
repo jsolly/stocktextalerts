@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { getSiteUrl } from "../../../../lib/env";
+import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../../lib/supabase";
 import { parseWithSchema } from "../../form-utils";
 
@@ -23,6 +24,27 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
 		const email = parsed.data.email;
 		const captchaToken = parsed.data.captcha_token;
+
+		try {
+			const verification = await verifyHCaptchaToken({
+				token: captchaToken,
+				remoteIp: getRequestIp(request),
+			});
+
+			if (!verification.success) {
+				console.error("Password reset rejected due to captcha failure", {
+					email,
+					errorCodes: verification.errorCodes,
+				});
+				return redirect("/auth/forgot?error=captcha_required");
+			}
+		} catch (error) {
+			console.error("Password reset rejected due to captcha error", {
+				email,
+				error,
+			});
+			return redirect("/auth/forgot?error=captcha_required");
+		}
 
 		const redirectTo = new URL("/auth/recover", getSiteUrl()).toString();
 

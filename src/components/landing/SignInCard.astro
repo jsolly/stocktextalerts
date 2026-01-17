@@ -1,5 +1,5 @@
 ---
-import Turnstile from "../Turnstile.astro";
+import HCaptcha from "../HCaptcha.astro";
 
 interface Props {
 	emailPrefill?: string;
@@ -53,11 +53,11 @@ const {
       />
     </div>
 		<div>
-			<Turnstile
+			<HCaptcha
 				tokenInputId="signin_captcha_token"
-				callbackName="onSignInTurnstileSuccess"
-				errorCallback="onSignInTurnstileError"
-				expiredCallback="onSignInTurnstileExpired"
+				callbackName="onSignInHCaptchaSuccess"
+				errorCallback="onSignInHCaptchaError"
+				expiredCallback="onSignInHCaptchaExpired"
 			/>
 		</div>
     <div class="flex items-center justify-between">
@@ -79,11 +79,11 @@ const {
 
 <script>
 	import {
-		initializeTurnstileForm,
-		setupTurnstileCallback,
-		setupTurnstileErrorCallback,
-		setupTurnstileExpiredCallback,
-	} from "../../lib/turnstile-utils";
+		initializeHCaptchaForm,
+		setupHCaptchaCallback,
+		setupHCaptchaErrorCallback,
+		setupHCaptchaExpiredCallback,
+	} from "../../lib/hcaptcha-utils";
 
 	document.addEventListener("DOMContentLoaded", () => {
 		const form = document.getElementById("signin-form");
@@ -110,35 +110,35 @@ const {
 		}
 
 		form.addEventListener("submit", (event) => {
-			const cfToken =
+			const captchaResponse =
 				form.querySelector<HTMLInputElement>(
-					"input[name='cf-turnstile-response']",
+					"input[name='h-captcha-response']",
 				)?.value ?? "";
 
 			const existingToken = captchaTokenInput.value.trim();
-			const trimmedCfToken = cfToken.trim();
+			const trimmedCaptchaResponse = captchaResponse.trim();
 
-			if (existingToken.length === 0 && trimmedCfToken.length === 0) {
+			if (existingToken.length === 0 && trimmedCaptchaResponse.length === 0) {
 				event.preventDefault();
 				alert("Please complete the CAPTCHA verification.");
 				return;
 			}
 
-			if (existingToken.length === 0 && trimmedCfToken.length > 0) {
-				captchaTokenInput.value = trimmedCfToken;
+			if (existingToken.length === 0 && trimmedCaptchaResponse.length > 0) {
+				captchaTokenInput.value = trimmedCaptchaResponse;
 			}
 		});
 	});
 
-	initializeTurnstileForm("signin-form", "signin_captcha_token");
-	setupTurnstileCallback(
-		"onSignInTurnstileSuccess",
+	initializeHCaptchaForm("signin-form", "signin_captcha_token");
+	setupHCaptchaCallback(
+		"onSignInHCaptchaSuccess",
 		"signin_captcha_token",
 		"signin-form",
 	);
-	setupTurnstileErrorCallback("onSignInTurnstileError");
-	setupTurnstileExpiredCallback(
-		"onSignInTurnstileExpired",
+	setupHCaptchaErrorCallback("onSignInHCaptchaError");
+	setupHCaptchaExpiredCallback(
+		"onSignInHCaptchaExpired",
 		"signin_captcha_token",
 	);
 </script>

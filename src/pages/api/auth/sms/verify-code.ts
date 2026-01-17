@@ -75,7 +75,9 @@ export function createVerifyCodeHandler(
 				phone_verified: true,
 			});
 
-			return redirect("/dashboard?success=phone_verified");
+			return redirect(
+				"/dashboard?success=phone_verified#notification-preferences",
+			);
 		} catch (error) {
 			console.error(
 				"Verify code error:",

@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { getSiteUrl } from "../../../../lib/env";
+import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
@@ -25,8 +26,33 @@ export const POST: APIRoute = async ({ request }) => {
 		return redirect("/auth/register?error=invalid_form");
 	}
 
-	const { email, password, timezone, captcha_token } = parsed.data;
-	const captchaToken = captcha_token;
+	const {
+		email,
+		password,
+		timezone,
+		captcha_token: captchaToken,
+	} = parsed.data;
+
+	try {
+		const verification = await verifyHCaptchaToken({
+			token: captchaToken,
+			remoteIp: getRequestIp(request),
+		});
+
+		if (!verification.success) {
+			console.error("Registration rejected due to captcha failure", {
+				email,
+				errorCodes: verification.errorCodes,
+			});
+			return redirect("/auth/register?error=captcha_required");
+		}
+	} catch (error) {
+		console.error("Registration rejected due to captcha error", {
+			email,
+			error,
+		});
+		return redirect("/auth/register?error=captcha_required");
+	}
 
 	const userTimezone = await resolveTimezone({
 		supabase,

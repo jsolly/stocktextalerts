@@ -1,5 +1,5 @@
 import type { AstroCookies } from "astro";
-import type { Database } from "./database.types";
+import type { Database } from "./generated/database.types";
 import type { AppSupabaseClient } from "./supabase";
 
 type DbUserRow = Database["public"]["Tables"]["users"]["Row"];

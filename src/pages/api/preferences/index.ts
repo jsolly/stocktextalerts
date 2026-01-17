@@ -37,6 +37,7 @@ export function createPreferencesHandler(
 			timezone: { type: "timezone" },
 			daily_digest_enabled: { type: "boolean" },
 			daily_digest_notification_time: { type: "time" },
+			tracked_stocks: { type: "json_string_array", required: true },
 		} as const satisfies FormSchema;
 
 		const parsed = parseWithSchema(formData, shape);
@@ -48,10 +49,12 @@ export function createPreferencesHandler(
 			return redirect("/dashboard?error=invalid_form");
 		}
 
+		const { tracked_stocks: trackedSymbols, ...preferenceData } = parsed.data;
+
 		const baseUpdates = omitUndefined({
-			...parsed.data,
+			...preferenceData,
 			timezone:
-				parsed.data.timezone === null ? undefined : parsed.data.timezone,
+				preferenceData.timezone === null ? undefined : preferenceData.timezone,
 		});
 
 		const safePreferenceUpdates: Parameters<typeof userService.update>[1] = {
@@ -77,6 +80,38 @@ export function createPreferencesHandler(
 				);
 				return redirect("/dashboard?error=phone_not_set");
 			}
+		}
+
+		const MAX_STOCKS = 50;
+		if (trackedSymbols.length > MAX_STOCKS) {
+			console.error("Preferences update rejected due to stock limit", {
+				userId: user.id,
+				count: trackedSymbols.length,
+				max: MAX_STOCKS,
+			});
+			return redirect("/dashboard?error=stocks_limit");
+		}
+
+		try {
+			const { error } = await supabase.rpc("replace_user_stocks", {
+				user_id: user.id,
+				symbols: trackedSymbols,
+			});
+
+			if (error) {
+				throw error;
+			}
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+
+			console.error("Failed to update tracked stocks", {
+				userId: user.id,
+				symbols: trackedSymbols,
+				error: errorMessage,
+			});
+
+			return redirect("/dashboard?error=update_failed");
 		}
 
 		const timezoneChanged =
@@ -135,7 +170,7 @@ export function createPreferencesHandler(
 				error: errorMessage,
 			});
 
-			throw error;
+			return redirect("/dashboard?error=update_failed");
 		}
 
 		return redirect("/dashboard?success=settings_updated");

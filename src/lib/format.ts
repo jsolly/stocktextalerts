@@ -17,6 +17,18 @@ const MESSAGE_ALLOWLIST: Record<string, string> = {
 	no_updates: "No updates to save",
 	sms_opted_out: "SMS notifications are disabled for this number",
 	user_not_found: "User not found",
+	stocks_limit: "Maximum 50 stocks allowed",
+	preview_email_sent: "Preview email sent successfully",
+	preview_sms_sent: "Preview SMS sent successfully",
+	preview_rate_limited: "Too many preview requests. Please try again later.",
+	preview_email_disabled: "Email notifications are disabled.",
+	preview_sms_disabled: "SMS notifications are disabled.",
+	preview_sms_opted_out:
+		"SMS notifications are disabled because you opted out.",
+	preview_sms_missing_phone: "Add a phone number before sending SMS previews.",
+	preview_sms_unverified:
+		"Verify your phone number before sending SMS previews.",
+	preview_failed: "Failed to send preview notification. Please try again.",
 };
 
 type MessageKey = keyof typeof MESSAGE_ALLOWLIST;

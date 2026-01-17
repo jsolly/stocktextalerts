@@ -19,6 +19,16 @@ const type: EmailOtpType | null =
 		? typeParam
 		: null;
 
+// If token_hash is present but type is invalid/missing, treat link as invalid and
+// immediately remove the raw token from the URL.
+if (tokenHash && type === null) {
+	const cleanedUrl = new URL(Astro.url);
+	cleanedUrl.searchParams.delete("token_hash");
+	return Astro.redirect(
+		`${cleanedUrl.pathname}${cleanedUrl.search}${cleanedUrl.hash}`,
+	);
+}
+
 // If token_hash is provided, verify it
 if (tokenHash && type) {
 	const { data, error } = await supabase.auth.verifyOtp({

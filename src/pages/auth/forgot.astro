@@ -1,6 +1,6 @@
 ---
+import HCaptcha from "../../components/HCaptcha.astro";
 import Navigation from "../../components/layout/Navigation.astro";
-import Turnstile from "../../components/Turnstile.astro";
 import Layout from "../../layouts/Layout.astro";
 
 const search = Astro.url.searchParams;
@@ -23,6 +23,9 @@ if (success === "true") {
 			message = seconds
 				? `For security purposes, you must wait ${seconds} more seconds before requesting to reset your password`
 				: "You've made too many password reset requests. Please try again later";
+			break;
+		case "captcha_required":
+			message = "Please complete the CAPTCHA and try again.";
 			break;
 		case "failed":
 			message = "Failed to request password reset. Please try again.";
@@ -74,11 +77,11 @@ if (success === "true") {
             />
           </div>
 					<div>
-						<Turnstile
+						<HCaptcha
 							tokenInputId="forgot_captcha_token"
-							callbackName="onForgotTurnstileSuccess"
-							errorCallback="onForgotTurnstileError"
-							expiredCallback="onForgotTurnstileExpired"
+							callbackName="onForgotHCaptchaSuccess"
+							errorCallback="onForgotHCaptchaError"
+							expiredCallback="onForgotHCaptchaExpired"
 						/>
 						<div
 							id="forgot-captcha-status"
@@ -102,11 +105,11 @@ if (success === "true") {
 <script>
 	import {
 		createCaptchaStatusHelpers,
-		initializeTurnstileForm,
-		setupTurnstileCallback,
-		setupTurnstileErrorCallback,
-		setupTurnstileExpiredCallback,
-	} from "../../lib/turnstile-utils";
+		initializeHCaptchaForm,
+		setupHCaptchaCallback,
+		setupHCaptchaErrorCallback,
+		setupHCaptchaExpiredCallback,
+	} from "../../lib/hcaptcha-utils";
 
 	const captchaStatus = createCaptchaStatusHelpers("forgot-captcha-status");
 
@@ -125,20 +128,20 @@ if (success === "true") {
 		}
 	});
 
-	initializeTurnstileForm("forgot-form", "forgot_captcha_token");
-	setupTurnstileCallback(
-		"onForgotTurnstileSuccess",
+	initializeHCaptchaForm("forgot-form", "forgot_captcha_token");
+	setupHCaptchaCallback(
+		"onForgotHCaptchaSuccess",
 		"forgot_captcha_token",
 		"forgot-form",
 	);
 
-	setupTurnstileErrorCallback("onForgotTurnstileError", (errorCode) => {
-		console.error("Turnstile error:", errorCode);
+	setupHCaptchaErrorCallback("onForgotHCaptchaError", (errorCode) => {
+		console.error("hCaptcha error:", errorCode);
 		captchaStatus.show("CAPTCHA failed to load. Please refresh and try again.");
 	});
 
-	setupTurnstileExpiredCallback(
-		"onForgotTurnstileExpired",
+	setupHCaptchaExpiredCallback(
+		"onForgotHCaptchaExpired",
 		"forgot_captcha_token",
 		() => {
 			captchaStatus.show("CAPTCHA expired. Please complete it again.");

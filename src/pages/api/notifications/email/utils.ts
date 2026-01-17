@@ -1,7 +1,15 @@
-import * as he from "he";
 import { Resend } from "resend";
 import { getSiteUrl } from "../../../../lib/env";
 import type { DeliveryResult, UserStockRow } from "../shared";
+
+function escapeHtml(value: string): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+}
 
 export interface EmailRequest {
 	to: string;
@@ -64,6 +72,7 @@ export function formatEmailMessage(
 	stocksList: string,
 ): { text: string; html: string } {
 	const dashboardUrl = `${getSiteUrl()}/dashboard`;
+	const escapedDashboardUrl = escapeHtml(dashboardUrl);
 
 	if (userStocks.length === 0) {
 		const text = `You don't have any tracked stocks yet.\n\nVisit your dashboard to add stocks to track: ${dashboardUrl}`;
@@ -84,7 +93,7 @@ export function formatEmailMessage(
 			You don't have any tracked stocks yet. Start tracking your favorite stocks to receive regular updates!
 		</p>
 		<div style="text-align: center; margin: 40px 0;">
-			<a href="${he.escape(dashboardUrl)}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background 0.2s;">
+			<a href="${escapedDashboardUrl}" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background 0.2s;">
 				Add Stocks to Track →
 			</a>
 		</div>
@@ -98,6 +107,7 @@ export function formatEmailMessage(
 	}
 
 	const text = `Your tracked stocks: ${stocksList}`;
+	const escapedStocksList = escapeHtml(stocksList);
 	const html = `
 <!DOCTYPE html>
 <html>
@@ -111,21 +121,19 @@ export function formatEmailMessage(
 	</div>
 	<div style="background: #ffffff; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
 		<h2 style="color: #1f2937; margin-top: 0; font-size: 24px; font-weight: 600;">Your Stock Update</h2>
-		<p style="color: #4b5563; font-size: 16px; margin-bottom: 20px;">
-			Your tracked stocks:
-		</p>
 		<div style="background: #f9fafb; padding: 20px; border-radius: 6px; margin-bottom: 30px;">
 			<p style="color: #1f2937; font-size: 18px; font-weight: 600; margin: 0; font-family: 'Courier New', monospace;">
-				${he.escape(stocksList)}
+				${escapedStocksList}
 			</p>
 		</div>
 		<div style="text-align: center; margin-top: 30px;">
-			<a href="${he.escape(dashboardUrl)}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
+			<a href="${escapedDashboardUrl}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
 				Manage your stocks →
 			</a>
 		</div>
 	</div>
 </body>
 </html>`;
+
 	return { text, html };
 }

@@ -25,6 +25,7 @@ describe("POST /api/preferences", () => {
 		formData.append("sms_notifications_enabled", "false");
 		formData.append("timezone", "America/Los_Angeles");
 		formData.append("daily_digest_notification_time", "08:00");
+		formData.append("tracked_stocks", JSON.stringify([]));
 
 		const request = new Request("http://localhost/api/preferences", {
 			method: "POST",
@@ -84,6 +85,7 @@ describe("POST /api/preferences", () => {
 		formData.append("email_notifications_enabled", "true");
 		formData.append("sms_notifications_enabled", "false");
 		formData.append("daily_digest_notification_time", "12:00");
+		formData.append("tracked_stocks", JSON.stringify([]));
 
 		const request = new Request("http://localhost/api/preferences", {
 			method: "POST",

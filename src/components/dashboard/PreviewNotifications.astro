@@ -1,4 +1,6 @@
 ---
+import PreviewNotificationButton from "./PreviewNotificationButton.astro";
+
 interface Props {
 	emailEnabled: boolean;
 	smsEnabled: boolean;
@@ -19,99 +21,12 @@ const showSection = emailEnabled || smsEnabled;
 
 		<div class="flex gap-4">
 			{emailEnabled && (
-				<button
-					id="preview-email-btn"
-					type="button"
-					class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-				>
-					Send Preview Email
-				</button>
+				<PreviewNotificationButton type="email" buttonText="Send Preview Email" />
 			)}
 			{smsEnabled && (
-				<button
-					id="preview-sms-btn"
-					type="button"
-					class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-				>
-					Send Preview SMS
-				</button>
+				<PreviewNotificationButton type="sms" buttonText="Send Preview SMS" />
 			)}
-		</div>
-
-		<div
-			id="preview-notification-feedback"
-			class="mt-4 hidden p-3 rounded-lg text-sm"
-			role="alert"
-		>
 		</div>
 	</div>
 )}
-
-<script>
-	function setAllButtonsDisabled(disabled: boolean) {
-		const emailBtn = document.getElementById("preview-email-btn");
-		const smsBtn = document.getElementById("preview-sms-btn");
-
-		if (emailBtn instanceof HTMLButtonElement) {
-			emailBtn.disabled = disabled;
-		}
-		if (smsBtn instanceof HTMLButtonElement) {
-			smsBtn.disabled = disabled;
-		}
-	}
-
-	function setupPreviewButton(
-		btnId: string,
-		type: import("../../lib/database.types").Enums<"delivery_method">,
-	) {
-		const btn = document.getElementById(btnId);
-		const feedback = document.getElementById("preview-notification-feedback");
-
-		if (!btn || !feedback || !(btn instanceof HTMLButtonElement)) return;
-
-		btn.addEventListener("click", async () => {
-			const originalText = btn.textContent;
-			setAllButtonsDisabled(true);
-			btn.textContent = "Sending...";
-			feedback.classList.add("hidden");
-			feedback.className = "mt-4 hidden p-3 rounded-lg text-sm";
-
-			try {
-				const res = await fetch("/api/notifications/preview", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type }),
-				});
-
-				const data = await res.json();
-
-				if (res.ok && data.success) {
-					feedback.textContent = `Preview ${type === "email" ? "email" : "SMS"} sent successfully!`;
-					feedback.classList.remove("hidden");
-					feedback.classList.add("bg-green-50", "text-green-800");
-				} else {
-					throw new Error(data.error || "Failed to send");
-				}
-			} catch (error) {
-				feedback.textContent =
-					error instanceof Error ? error.message : "An error occurred";
-				feedback.classList.remove("hidden");
-				feedback.classList.add("bg-red-50", "text-red-800");
-			} finally {
-				setAllButtonsDisabled(false);
-				btn.textContent = originalText;
-			}
-		});
-	}
-
-	const emailBtn = document.getElementById("preview-email-btn");
-	const smsBtn = document.getElementById("preview-sms-btn");
-
-	if (emailBtn) {
-		setupPreviewButton("preview-email-btn", "email");
-	}
-	if (smsBtn) {
-		setupPreviewButton("preview-sms-btn", "sms");
-	}
-</script>
 

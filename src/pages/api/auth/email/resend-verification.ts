@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { getSiteUrl } from "../../../../lib/env";
+import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../../lib/supabase";
 import { parseWithSchema } from "../../form-utils";
 
@@ -26,7 +27,26 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		return redirect("/auth/unconfirmed?error=invalid_form");
 	}
 
-	if (!captchaToken) {
+	try {
+		const verification = await verifyHCaptchaToken({
+			token: captchaToken,
+			remoteIp: getRequestIp(request),
+		});
+
+		if (!verification.success) {
+			console.error("Resend verification rejected due to captcha failure", {
+				email,
+				errorCodes: verification.errorCodes,
+			});
+			return redirect(
+				`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=captcha_required`,
+			);
+		}
+	} catch (error) {
+		console.error("Resend verification rejected due to captcha error", {
+			email,
+			error,
+		});
 		return redirect(
 			`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=captcha_required`,
 		);

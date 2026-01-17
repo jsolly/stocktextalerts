@@ -1,15 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { config } from "dotenv";
 import { Client } from "pg";
 import { beforeAll } from "vitest";
-
-// Load environment variables from .env.local if it exists
-try {
-	config({ path: ".env.local" });
-} catch (_error) {
-	// Ignore errors if .env.local doesn't exist or can't be read
-	// Environment variables may be set via other means (CI, etc.)
-}
 
 const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

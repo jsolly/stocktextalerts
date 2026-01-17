@@ -33,6 +33,7 @@ export function createSendVerificationHandler(
 
 		try {
 			const formData = await request.formData();
+
 			const parsed = parseWithSchema(formData, {
 				phone_country_code: { type: "string", required: true },
 				phone_national_number: { type: "string", required: true },
@@ -77,7 +78,9 @@ export function createSendVerificationHandler(
 				return redirect("/dashboard?error=verification_failed");
 			}
 
-			return redirect("/dashboard?success=verification_sent");
+			return redirect(
+				"/dashboard?success=verification_sent#notification-preferences",
+			);
 		} catch (error) {
 			console.error("Send verification error:", error);
 			return redirect("/dashboard?error=server_error");

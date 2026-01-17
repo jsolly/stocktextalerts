@@ -105,11 +105,10 @@ const isSmsFullyConfigured =
 			id="dashboard-preferences-form"
 			method="POST"
 			action="/api/preferences"
-			data-initial-symbols={JSON.stringify(initialSymbols)}
 			class="space-y-6"
 		>
 			<TrackedStocksPanel
-				client:only="vue"
+				client:load
 				stockOptions={stockOptions}
 				initialSymbols={initialSymbols}
 			/>
@@ -140,98 +139,23 @@ const isSmsFullyConfigured =
 	</div>
 </Layout>
 
-<script type="module">
-	import {
-		readFormValues,
-		setupFormNavigationWarning,
-	} from "../lib/form-navigation-warning";
+<script>
+	import { setupFormNavigationWarning } from "../lib/form-navigation-warning";
 
-	function diffChangedKeys(initial, current) {
-		const keys = new Set([...initial.keys(), ...current.keys()]);
-		const changed = [];
-		for (const key of keys) {
-			if (initial.get(key) !== current.get(key)) {
-				changed.push(key);
-			}
-		}
-		return changed;
-	}
-
-	function setupDashboardPreferencesDirtyCheck() {
-		const formElement = document.getElementById("dashboard-preferences-form");
-		if (!(formElement instanceof HTMLFormElement)) {
-			return;
-		}
-		const form = formElement;
-
-		const initialSymbolsFromServer = JSON.parse(
-			form.dataset.initialSymbols ?? "[]",
-		);
-		let initialPreferences = readFormValues(form);
-
-		let initialTrackedSymbols = [...initialSymbolsFromServer];
-		let currentTrackedSymbols = [...initialTrackedSymbols];
-
-		function isStocksDirty() {
-			const leftSet = new Set(initialTrackedSymbols);
-			const rightSet = new Set(currentTrackedSymbols);
-
-			if (leftSet.size !== rightSet.size) {
-				return true;
-			}
-
-			for (const symbol of leftSet) {
-				if (!rightSet.has(symbol)) {
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		function isPreferencesDirty() {
-			const currentPreferences = readFormValues(form);
-			return diffChangedKeys(initialPreferences, currentPreferences).length > 0;
-		}
-
-		function hasUnsavedChanges() {
-			return isPreferencesDirty() || isStocksDirty();
-		}
-
-		window.addEventListener("tracked-stocks-changed", (event) => {
-			if (!(event instanceof CustomEvent)) {
-				return;
-			}
-
-			const symbols = event.detail?.symbols;
-			currentTrackedSymbols = symbols;
-		});
-
-		window.addEventListener("tracked-stocks-saved", (event) => {
-			if (!(event instanceof CustomEvent)) {
-				return;
-			}
-
-			const symbols = event.detail?.symbols;
-			initialTrackedSymbols = [...symbols];
-			currentTrackedSymbols = [...symbols];
-		});
-
+	function setupDashboardPreferencesForm() {
 		setupFormNavigationWarning({
 			formId: "dashboard-preferences-form",
 			saveButtonId: "save-button",
-			customDirtyCheck: hasUnsavedChanges,
-			customSaveButtonCheck: isPreferencesDirty,
 		});
 	}
 
 	if (document.readyState === "loading") {
 		document.addEventListener(
 			"DOMContentLoaded",
-			setupDashboardPreferencesDirtyCheck,
+			setupDashboardPreferencesForm,
 		);
 	} else {
-		setupDashboardPreferencesDirtyCheck();
+		setupDashboardPreferencesForm();
 	}
 </script>
 

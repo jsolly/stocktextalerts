@@ -8,6 +8,9 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Add a phone number before verifying";
 		case "invalid_code":
 			return "Invalid or expired verification code";
+		case "rate_limit":
+		case "too_many_attempts":
+			return "Too many attempts. Please try again later.";
 		case "captcha_required":
 			return "Please complete the CAPTCHA and try again.";
 		case "failed":

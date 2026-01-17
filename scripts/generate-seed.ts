@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient, User as AuthUser } from '@supabase/supabase-js';
 import type { Stock } from '../src/lib/stocks';
@@ -133,8 +132,6 @@ async function generateUsersSql(
 
 async function main() {
   console.log('Generating supabase/seed.sql...');
-
-  dotenv.config({ path: path.join(projectRoot, '.env.local') });
 
   // Check for required environment variables
   const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;

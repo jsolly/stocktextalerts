@@ -1,6 +1,6 @@
 ---
+import HCaptcha from "../../components/HCaptcha.astro";
 import Navigation from "../../components/layout/Navigation.astro";
-import Turnstile from "../../components/Turnstile.astro";
 import Layout from "../../layouts/Layout.astro";
 import { createSupabaseServerClient } from "../../lib/supabase";
 import { getTimezoneOptions } from "../../lib/timezones/timezones";
@@ -129,11 +129,11 @@ if (error) {
 					</div>
 
 					<div>
-						<Turnstile
+						<HCaptcha
 							tokenInputId="register_captcha_token"
-							callbackName="onRegisterTurnstileSuccess"
-							errorCallback="onRegisterTurnstileError"
-							expiredCallback="onRegisterTurnstileExpired"
+							callbackName="onRegisterHCaptchaSuccess"
+							errorCallback="onRegisterHCaptchaError"
+							expiredCallback="onRegisterHCaptchaExpired"
 						/>
 						<div
 							id="register-captcha-status"
@@ -195,28 +195,28 @@ if (error) {
 <script>
 	import {
 		createCaptchaStatusHelpers,
-		initializeTurnstileForm,
-		setupTurnstileCallback,
-		setupTurnstileErrorCallback,
-		setupTurnstileExpiredCallback,
-	} from "../../lib/turnstile-utils";
+		initializeHCaptchaForm,
+		setupHCaptchaCallback,
+		setupHCaptchaErrorCallback,
+		setupHCaptchaExpiredCallback,
+	} from "../../lib/hcaptcha-utils";
 
 	const captchaStatus = createCaptchaStatusHelpers("register-captcha-status");
 
-	initializeTurnstileForm("register-form", "register_captcha_token");
-	setupTurnstileCallback(
-		"onRegisterTurnstileSuccess",
+	initializeHCaptchaForm("register-form", "register_captcha_token");
+	setupHCaptchaCallback(
+		"onRegisterHCaptchaSuccess",
 		"register_captcha_token",
 		"register-form",
 	);
 
-	setupTurnstileErrorCallback("onRegisterTurnstileError", (errorCode) => {
-		console.error("Turnstile error:", errorCode);
+	setupHCaptchaErrorCallback("onRegisterHCaptchaError", (errorCode) => {
+		console.error("hCaptcha error:", errorCode);
 		captchaStatus.show("CAPTCHA failed to load. Please refresh and try again.");
 	});
 
-	setupTurnstileExpiredCallback(
-		"onRegisterTurnstileExpired",
+	setupHCaptchaExpiredCallback(
+		"onRegisterHCaptchaExpired",
 		"register_captcha_token",
 		() => {
 			captchaStatus.show("CAPTCHA expired. Please complete it again.");

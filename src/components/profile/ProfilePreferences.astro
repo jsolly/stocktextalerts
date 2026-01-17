@@ -43,11 +43,11 @@ const { timezone, timezones } = Astro.props;
 		</div>
 
 		<div class="pt-4">
+			<!-- Button enabled by default for non-JS users; disabled by JS when form is pristine -->
 			<button
 				type="submit"
 				id="save-profile-preferences-button"
 				class="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer disabled:bg-gray-400 disabled:cursor-not-allowed"
-				disabled
 			>
 				Save Preferences
 			</button>
@@ -58,6 +58,7 @@ const { timezone, timezones } = Astro.props;
 <script>
 	import { setupDetectedTimezoneOption } from "../../lib/timezones/timezone-select";
 	import { DEFAULT_TIMEZONE } from "../../lib/timezones/timezone-constants";
+	import { setupFormChangeDetection } from "../../lib/form-change-detection";
 
 	function initializeFormState() {
 		const formElement = document.getElementById("profile-preferences-form");
@@ -67,48 +68,7 @@ const { timezone, timezones } = Astro.props;
 			return;
 		}
 
-		const form = formElement;
-		const saveButton = saveButtonElement;
-
-		const formData = new FormData(form);
-		const initialValues = new Map<string, string>();
-		
-		for (const [name, value] of formData.entries()) {
-			initialValues.set(name, String(value));
-		}
-
-		function checkFormChanged() {
-			const currentFormData = new FormData(form);
-			let hasChanges = false;
-			
-			for (const [name, value] of currentFormData.entries()) {
-				const initialValue = initialValues.get(name);
-				if (String(value) !== initialValue) {
-					hasChanges = true;
-					break;
-				}
-			}
-			
-			saveButton.disabled = !hasChanges;
-		}
-
-		form.addEventListener("change", checkFormChanged);
-		form.addEventListener("input", checkFormChanged);
-
-		form.addEventListener("submit", () => {
-			saveButton.disabled = true;
-		});
-
-		form.addEventListener("reset", () => {
-			setTimeout(() => {
-				initialValues.clear();
-				const resetFormData = new FormData(form);
-				for (const [name, value] of resetFormData.entries()) {
-					initialValues.set(name, String(value));
-				}
-				checkFormChanged();
-			}, 0);
-		});
+		setupFormChangeDetection(formElement, saveButtonElement);
 	}
 
 	if (document.readyState === "loading") {

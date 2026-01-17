@@ -1,4 +1,4 @@
-import type { Database } from "../database.types";
+import type { Database } from "../generated/database.types";
 import type { AppSupabaseClient } from "../supabase";
 import { DEFAULT_TIMEZONE } from "./timezone-constants";
 

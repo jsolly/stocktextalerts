@@ -49,11 +49,23 @@ npm install
 2. Choose a project name, database password, and region
 3. Wait for the project to finish provisioning
 
-**Supabase Auth CAPTCHA (Cloudflare Turnstile):**
-1. Create a Turnstile site in the Cloudflare dashboard and copy the **Sitekey** + **Secret Key**
+**Supabase Auth CAPTCHA (hCaptcha):**
+1. Create a site in the hCaptcha dashboard and copy the **Sitekey** + **Secret Key**
 2. In Supabase Dashboard, enable CAPTCHA protection: Settings → Authentication → Bot and Abuse Protection → **Enable CAPTCHA protection**
-3. Select **Cloudflare Turnstile** and paste the **Secret Key**
-4. For local dev, add `localhost` to your Turnstile domain allowlist (per Supabase docs: `https://supabase.com/docs/guides/auth/auth-captcha?queryGroups=captcha-method&captcha-method=turnstile-2`)
+3. Select **hCaptcha** and paste the **Secret Key**
+4. **For local development:** Use hCaptcha's test keys (recommended) or create a test sitekey:
+   - **Option A (Recommended):** Use hCaptcha's official test keys that always pass:
+     - Site Key: `10000000-ffff-ffff-ffff-000000000001`
+     - Secret Key: `0x0000000000000000000000000000000000000000`
+     - **Note:** hCaptcha prohibits `localhost` and `127.0.0.1` per their developer guide. To use test keys locally, either:
+       - Map `127.0.0.1` to a hosts-file alias (e.g., `test.localhost`) in `/etc/hosts`
+       - Run against a non-local host or configured test domain
+     - Production sitekey/secret must be used in Vercel/production environments
+   - **Option B:** Create a separate test sitekey in hCaptcha dashboard:
+     - Create a new site (e.g., "StockTextAlerts - Local Dev")
+     - Add `127.0.0.1` to allowed domains (note: `localhost` may not be accepted)
+     - Use this test sitekey/secret in your `.env.local` file
+   - Use your production sitekey/secret in production environment variables (Vercel)
 
 **Twilio:**
 1. Go to [twilio.com](https://www.twilio.com) and create an account
@@ -95,9 +107,9 @@ CRON_SECRET=your-random-secret-string
 RESEND_API_KEY=re_123456789
 EMAIL_FROM=notifications@updates.example.com
 
-# Cloudflare Turnstile (site key is public; secret key is server-only)
-PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAAABBBBBBBBBBBBBB
-TURNSTILE_SECRET_KEY=0x4AAAAAAABBBBBBBBBBBBBB_secret
+# hCaptcha (site key is public; secret key is server-only)
+PUBLIC_HCAPTCHA_SITE_KEY=your-hcaptcha-site-key
+HCAPTCHA_SECRET_KEY=your-hcaptcha-secret-key
 
 # Seed Data (Local Development)
 DEFAULT_PASSWORD=your-strong-local-seed-password
@@ -110,7 +122,7 @@ DEFAULT_PASSWORD=your-strong-local-seed-password
 - Twilio credentials: Twilio Console → Account Dashboard
 - `CRON_SECRET`: Generate a random string (e.g., `openssl rand -hex 32`)
 - Resend credentials: Resend Dashboard → API Keys
-- Turnstile secret: Cloudflare Dashboard → Turnstile → your site → **Secret key**
+- hCaptcha secret: hCaptcha Dashboard → Settings → **Secret key**
 
 **Security Note:** The `SUPABASE_SERVICE_ROLE_KEY` bypasses Row Level Security. Never expose it on the client side. The `.env.local` file (and all `.env*` files) are already excluded from version control via `.gitignore`; keep secrets only in environment files or your deployment platform, not in committed code.
 
@@ -205,12 +217,12 @@ The database is pre-seeded with stock data. If you need to update the list of av
 - `POST /api/auth/signin` - User signin
 - `POST /api/auth/signout` - User signout
 - `POST /api/auth/delete-account` - Delete user account
+- `POST /api/auth/update-password` - Update password from reset link
 - `POST /api/auth/sms/send-verification` - Send SMS verification code
 - `POST /api/auth/sms/verify-code` - Verify SMS code
 
 **Notifications & Preferences:**
-- `POST /api/preferences` - Update notification preferences (channels, timezone, daily digest)
-- `POST /api/preferences/stocks` - Update tracked stocks
+- `POST /api/preferences` - Update notification preferences and tracked stocks
 - `POST /api/notifications/scheduled` - Cron endpoint (protected by CRON_SECRET)
 - `POST /api/notifications/sms/inbound` - Twilio webhook for STOP/START/HELP keywords
 
@@ -291,8 +303,8 @@ The cron job:
 │   │   │   ├── DangerZone.astro
 │   │   │   └── ProfilePreferences.astro
 │   │   ├── PhoneInput.vue
+│   │   ├── HCaptcha.astro
 │   │   ├── TimezoneMismatchBanner.astro
-│   │   └── Turnstile.astro
 │   ├── layouts/
 │   │   └── Layout.astro
 │   ├── lib/
@@ -306,7 +318,8 @@ The cron job:
 │   │   ├── timezone-select.ts
 │   │   ├── timezones.ts
 │   │   ├── timezones.test.ts
-│   │   ├── turnstile-utils.ts
+│   │   ├── hcaptcha-utils.ts
+│   │   ├── hcaptcha.ts
 │   │   └── users.ts
 │   ├── pages/
 │   │   ├── api/
@@ -401,7 +414,7 @@ The cron job:
 ## Security Features
 
 - ✅ Row Level Security (RLS) on all database tables
-- ✅ CAPTCHA protection for anonymous auth flows (Supabase Auth + Cloudflare Turnstile)
+- ✅ CAPTCHA protection for anonymous auth flows (Supabase Auth + hCaptcha)
 - ✅ Cron endpoint protected by secret header
 - ✅ Phone verification via Twilio Verify API
 - ✅ SMS opt-out support (STOP keyword compliance)

@@ -239,7 +239,7 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 				break;
 			}
 			case "string": {
-				const trimmed = spec.trim ? raw.trim() : raw;
+				const trimmed = spec.trim !== false ? raw.trim() : raw;
 				if (trimmed === "" && spec.required) {
 					errors.push({ reason: "missing_field", key });
 					break;

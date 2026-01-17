@@ -1,5 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-import type { Database } from "../../../lib/database.types";
+import type { Database } from "../../../lib/generated/database.types";
 import type { AppSupabaseClient } from "../../../lib/supabase";
 import type { User } from "../../../lib/users";
 

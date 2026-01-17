@@ -1,6 +1,6 @@
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
-import { POST } from "../../../../src/pages/api/preferences/stocks";
+import { POST } from "../../../../src/pages/api/preferences";
 import { adminClient } from "../../../setup";
 import {
 	createAuthenticatedCookies,
@@ -37,7 +37,7 @@ async function updateTrackedStocks(
 	const formData = new FormData();
 	formData.append("tracked_stocks", JSON.stringify(stocksToUpdate));
 
-	const request = new Request("http://localhost/api/preferences/stocks", {
+	const request = new Request("http://localhost/api/preferences", {
 		method: "POST",
 		body: formData,
 	});
@@ -70,17 +70,15 @@ async function updateTrackedStocks(
 	return { response, testUser, trackedStocks, redirectUrl };
 }
 
-describe("POST /api/preferences/stocks", () => {
+describe("POST /api/preferences (tracked stocks)", () => {
 	it("should successfully update tracked stocks", async () => {
 		const { response, trackedStocks, redirectUrl } = await updateTrackedStocks(
 			[],
 			["AAPL", "MSFT", "GOOGL"],
 		);
 
-		expect(redirectUrl).toBeNull();
-		expect(response.status).toBe(200);
-		const responseData = await response.json();
-		expect(responseData.success).toBe(true);
+		expect(redirectUrl).toBe("/dashboard?success=settings_updated");
+		expect(response.status).toBe(302);
 
 		expect(trackedStocks).toHaveLength(3);
 		expect(trackedStocks?.map((s) => s.symbol)).toEqual([
@@ -96,10 +94,8 @@ describe("POST /api/preferences/stocks", () => {
 			["AAPL", "MSFT"],
 		);
 
-		expect(redirectUrl).toBeNull();
-		expect(response.status).toBe(200);
-		const responseData = await response.json();
-		expect(responseData.success).toBe(true);
+		expect(redirectUrl).toBe("/dashboard?success=settings_updated");
+		expect(response.status).toBe(302);
 
 		expect(trackedStocks).toHaveLength(2);
 		expect(trackedStocks?.map((s) => s.symbol)).toEqual(["AAPL", "MSFT"]);
@@ -111,10 +107,8 @@ describe("POST /api/preferences/stocks", () => {
 			[],
 		);
 
-		expect(redirectUrl).toBeNull();
-		expect(response.status).toBe(200);
-		const responseData = await response.json();
-		expect(responseData.success).toBe(true);
+		expect(redirectUrl).toBe("/dashboard?success=settings_updated");
+		expect(response.status).toBe(302);
 
 		expect(trackedStocks).toHaveLength(0);
 	});
@@ -137,7 +131,7 @@ describe("POST /api/preferences/stocks", () => {
 
 		const formData = new FormData();
 
-		const request = new Request("http://localhost/api/preferences/stocks", {
+		const request = new Request("http://localhost/api/preferences", {
 			method: "POST",
 			body: formData,
 		});
@@ -151,15 +145,18 @@ describe("POST /api/preferences/stocks", () => {
 				},
 				set: () => {},
 			},
-			redirect: () => {
-				throw new Error("Unexpected redirect");
+			redirect: (url: string) => {
+				return new Response(null, {
+					status: 302,
+					headers: { Location: url },
+				});
 			},
 		} as unknown as APIContext);
 
-		expect(response.status).toBe(400);
-		const responseData = await response.json();
-		expect(responseData.success).toBe(false);
-		expect(responseData.error).toBe("Invalid form");
+		expect(response.status).toBe(302);
+		expect(response.headers.get("Location")).toBe(
+			"/dashboard?error=invalid_form",
+		);
 
 		const { data: trackedStocks } = await adminClient
 			.from("user_stocks")

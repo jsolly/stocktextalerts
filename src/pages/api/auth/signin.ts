@@ -1,4 +1,6 @@
 import type { APIRoute } from "astro";
+import { setAuthCookies } from "../../../lib/auth-cookies";
+import { getRequestIp, verifyHCaptchaToken } from "../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../lib/supabase";
 import { parseWithSchema } from "../form-utils";
 
@@ -32,6 +34,31 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		);
 	}
 
+	try {
+		const verification = await verifyHCaptchaToken({
+			token: captchaToken,
+			remoteIp: getRequestIp(request),
+		});
+
+		if (!verification.success) {
+			console.error("Sign-in attempt rejected due to captcha failure", {
+				email,
+				errorCodes: verification.errorCodes,
+			});
+			return redirect(
+				`/signin?error=captcha_required&email=${encodeURIComponent(email)}`,
+			);
+		}
+	} catch (error) {
+		console.error("Sign-in attempt rejected due to captcha error", {
+			email,
+			error,
+		});
+		return redirect(
+			`/signin?error=captcha_required&email=${encodeURIComponent(email)}`,
+		);
+	}
+
 	const { data, error } = await supabase.auth.signInWithPassword({
 		email,
 		password,
@@ -59,17 +86,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	}
 
 	const { access_token, refresh_token } = data.session;
-	cookies.set("sb-access-token", access_token, {
-		path: "/",
-		httpOnly: true,
-		secure: import.meta.env.PROD,
-		sameSite: "lax",
-	});
-	cookies.set("sb-refresh-token", refresh_token, {
-		path: "/",
-		httpOnly: true,
-		secure: import.meta.env.PROD,
-		sameSite: "lax",
-	});
+	setAuthCookies(cookies, access_token, refresh_token);
 	return redirect("/dashboard");
 };

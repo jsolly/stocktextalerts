@@ -5,26 +5,28 @@ import vercel from "@astrojs/vercel";
 import vue from "@astrojs/vue";
 import { loadEnv } from "vite";
 
-const mode = process.env.NODE_ENV === "development" ? "development" : "production";
-const loadedEnv = loadEnv(mode, process.cwd(), "");
-
-const vercelUrl = process.env.VERCEL_URL || loadedEnv.VERCEL_URL;
+const mode = process.env.NODE_ENV || process.env.MODE || "development";
+const env = loadEnv(mode, process.cwd(), "");
+const vercelUrl = env.VERCEL_URL || process.env.VERCEL_URL;
 const isCI = Boolean(process.env.CI);
-
-if (!vercelUrl && !isCI) {
-	throw new Error(
-		"VERCEL_URL is not configured. VERCEL_URL is automatically set by Vercel. For local development, set VERCEL_URL=http://localhost:4321 in your .env.local file.",
-	);
-}
 
 // VERCEL_URL from Vercel is just the hostname (e.g., "stocktextalerts.com")
 // Locally, it should include the protocol (e.g., "http://localhost:4321")
-// In CI, use an explicit placeholder if VERCEL_URL is not available
-const site = isCI && !vercelUrl
-	? "https://placeholder.example.com"
-	: vercelUrl!.startsWith("http://") || vercelUrl!.startsWith("https://")
-		? vercelUrl!
-		: `https://${vercelUrl!}`;
+// In CI, use a placeholder if VERCEL_URL is not available
+let site: string;
+if (!vercelUrl) {
+	if (isCI) {
+		site = "https://placeholder.example.com";
+	} else {
+		throw new Error(
+			"VERCEL_URL is not configured. VERCEL_URL is automatically set by Vercel. For local development, set VERCEL_URL=http://localhost:4321 in your .env.local file.",
+		);
+	}
+} else if (vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://")) {
+	site = vercelUrl;
+} else {
+	site = `https://${vercelUrl}`;
+}
 
 // https://astro.build/config
 export default defineConfig({

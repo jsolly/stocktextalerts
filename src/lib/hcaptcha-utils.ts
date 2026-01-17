@@ -1,21 +1,22 @@
 /* =============
-Turnstile Utility Functions
+hCaptcha Utility Functions
 ============= */
 
 type CallbackWindow<T> = Window & {
 	[key: string]: T | undefined;
 };
 
-export function setupTurnstileCallback(
+function setWindowCallback<T>(callbackName: string, callback: T) {
+	const typedWindow = window as unknown as CallbackWindow<T>;
+	typedWindow[callbackName] = callback;
+}
+
+export function setupHCaptchaCallback(
 	callbackName: string,
 	tokenInputId: string,
 	formId?: string,
 ) {
-	const typedWindow = window as unknown as CallbackWindow<
-		(token: string) => void
-	>;
-
-	typedWindow[callbackName] = (token: string) => {
+	setWindowCallback<(token: string) => void>(callbackName, (token: string) => {
 		const input = document.getElementById(tokenInputId);
 		if (!(input instanceof HTMLInputElement)) {
 			return;
@@ -37,32 +38,27 @@ export function setupTurnstileCallback(
 
 			submitButton.disabled = false;
 		}
-	};
+	});
 }
 
-export function setupTurnstileErrorCallback(
+export function setupHCaptchaErrorCallback(
 	callbackName: string,
 	handler?: (errorCode: string) => void,
 ) {
-	const typedWindow = window as unknown as CallbackWindow<
-		(errorCode: string) => void
-	>;
-
-	typedWindow[callbackName] =
+	const cb =
 		handler ||
 		((errorCode: string) => {
-			console.error("Turnstile error:", errorCode);
+			console.error("hCaptcha error:", errorCode);
 		});
+	setWindowCallback<(errorCode: string) => void>(callbackName, cb);
 }
 
-export function setupTurnstileExpiredCallback(
+export function setupHCaptchaExpiredCallback(
 	callbackName: string,
 	tokenInputId: string,
 	handler?: () => void,
 ) {
-	const typedWindow = window as unknown as CallbackWindow<() => void>;
-
-	typedWindow[callbackName] = () => {
+	setWindowCallback<() => void>(callbackName, () => {
 		const input = document.getElementById(tokenInputId);
 		if (input instanceof HTMLInputElement) {
 			input.value = "";
@@ -70,10 +66,12 @@ export function setupTurnstileExpiredCallback(
 		}
 
 		handler?.();
-	};
+	});
 }
 
-export function initializeTurnstileForm(formId: string, tokenInputId: string) {
+const captchaFormCleanups = new WeakMap<HTMLInputElement, () => void>();
+
+export function initializeHCaptchaForm(formId: string, tokenInputId: string) {
 	const setup = () => {
 		const form = document.getElementById(formId);
 		if (!(form instanceof HTMLFormElement)) {
@@ -83,6 +81,11 @@ export function initializeTurnstileForm(formId: string, tokenInputId: string) {
 		const captchaTokenInput = document.getElementById(tokenInputId);
 		if (!(captchaTokenInput instanceof HTMLInputElement)) {
 			return;
+		}
+
+		const existingCleanup = captchaFormCleanups.get(captchaTokenInput);
+		if (existingCleanup) {
+			existingCleanup();
 		}
 
 		const submitButton = form.querySelector("button[type='submit']");
@@ -98,6 +101,13 @@ export function initializeTurnstileForm(formId: string, tokenInputId: string) {
 		updateDisabledState();
 
 		captchaTokenInput.addEventListener("input", updateDisabledState);
+
+		const cleanup = () => {
+			captchaTokenInput.removeEventListener("input", updateDisabledState);
+			captchaFormCleanups.delete(captchaTokenInput);
+		};
+
+		captchaFormCleanups.set(captchaTokenInput, cleanup);
 	};
 
 	if (document.readyState === "loading") {

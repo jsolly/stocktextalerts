@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { APIRoute } from "astro";
-import type { Database } from "../../../lib/database.types";
+import type { Database } from "../../../lib/generated/database.types";
 import { createSupabaseAdminClient } from "../../../lib/supabase";
 import { createEmailSender } from "./email/utils";
 import { processEmailUpdate, processSmsUpdate } from "./processing";
@@ -153,7 +153,6 @@ export const POST: APIRoute = async ({ request }) => {
 		const sendEmail = createEmailSender();
 
 		const currentTime = new Date();
-		const getCurrentTime = () => currentTime;
 
 		const { data: users, error: usersError } = await supabase
 			.from("users")
@@ -392,7 +391,7 @@ export const POST: APIRoute = async ({ request }) => {
 				const nextSendAt = calculateNextSendAt(
 					user.daily_digest_notification_time,
 					user.timezone,
-					getCurrentTime,
+					() => currentTime,
 				);
 				if (nextSendAt) {
 					const { error: updateError } = await supabase

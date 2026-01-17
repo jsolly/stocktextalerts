@@ -18,25 +18,37 @@ describe("Preview Notifications Endpoint", () => {
 			set: () => {},
 		}) as unknown as APIContext["cookies"];
 
-	it("returns 401 when user is not authenticated", async () => {
-		const request = new Request("http://localhost/api/notifications/preview", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ type: "email" }),
+	const toRedirect = (url: string) =>
+		new Response(null, {
+			status: 302,
+			headers: { Location: url },
 		});
+
+	const buildRequest = (type?: string) => {
+		const formData = new FormData();
+		if (type) {
+			formData.append("type", type);
+		}
+		return new Request("http://localhost/api/notifications/preview", {
+			method: "POST",
+			body: formData,
+		});
+	};
+
+	it("redirects to /signin?error=unauthorized (302) when user is not authenticated", async () => {
+		const request = buildRequest("email");
 
 		const response = await POST({
 			request,
 			cookies: toAstroCookies(new Map()),
+			redirect: toRedirect,
 		} as APIContext);
 
-		expect(response.status).toBe(401);
-		const json = await response.json();
-		expect(json.success).toBe(false);
-		expect(json.error).toBe("Unauthorized");
+		expect(response.status).toBe(302);
+		expect(response.headers.get("Location")).toBe("/signin?error=unauthorized");
 	});
 
-	it("returns 400 when notification type is invalid", async () => {
+	it("redirects to /dashboard?error=invalid_form (302) when notification type is invalid", async () => {
 		const { id, email } = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			confirmed: true,
@@ -44,30 +56,24 @@ describe("Preview Notifications Endpoint", () => {
 		try {
 			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request(
-				"http://localhost/api/notifications/preview",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "invalid" }),
-				},
-			);
+			const request = buildRequest("invalid");
 
 			const response = await POST({
 				request,
 				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
 			} as APIContext);
 
-			expect(response.status).toBe(400);
-			const json = await response.json();
-			expect(json.success).toBe(false);
-			expect(json.error).toBe("Invalid notification type");
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?error=invalid_form",
+			);
 		} finally {
 			await adminClient.auth.admin.deleteUser(id);
 		}
 	});
 
-	it("returns 400 when user record missing required email notification fields", async () => {
+	it("redirects to /dashboard?error=preview_email_disabled (302) when email notifications are disabled", async () => {
 		const { id, email } = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			confirmed: true,
@@ -77,32 +83,24 @@ describe("Preview Notifications Endpoint", () => {
 		try {
 			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request(
-				"http://localhost/api/notifications/preview",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "email" }),
-				},
-			);
+			const request = buildRequest("email");
 
 			const response = await POST({
 				request,
 				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
 			} as APIContext);
 
-			expect(response.status).toBe(400);
-			const json = await response.json();
-			expect(json.success).toBe(false);
-			expect(json.error).toBe(
-				"User record missing required email notification fields",
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?error=preview_email_disabled",
 			);
 		} finally {
 			await adminClient.auth.admin.deleteUser(id);
 		}
 	});
 
-	it("returns 400 when user record missing required SMS notification fields", async () => {
+	it("redirects to /dashboard?error=preview_sms_disabled (302) when SMS notifications are disabled", async () => {
 		const { id, email } = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			confirmed: true,
@@ -112,32 +110,142 @@ describe("Preview Notifications Endpoint", () => {
 		try {
 			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request(
-				"http://localhost/api/notifications/preview",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "sms" }),
-				},
-			);
+			const request = buildRequest("sms");
 
 			const response = await POST({
 				request,
 				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
 			} as APIContext);
 
-			expect(response.status).toBe(400);
-			const json = await response.json();
-			expect(json.success).toBe(false);
-			expect(json.error).toBe(
-				"User record missing required SMS notification fields",
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?error=preview_sms_disabled",
 			);
 		} finally {
 			await adminClient.auth.admin.deleteUser(id);
 		}
 	});
 
-	it("sends preview email notification when user has valid email fields", async () => {
+	it("redirects to /dashboard?error=preview_sms_opted_out (302) when user has opted out of SMS notifications", async () => {
+		const { id, email } = await createTestUser({
+			email: `test-${Date.now()}@example.com`,
+			confirmed: true,
+			smsNotificationsEnabled: true,
+		});
+
+		try {
+			const { error: updateError } = await adminClient
+				.from("users")
+				.update({ sms_opted_out: true })
+				.eq("id", id);
+
+			if (updateError) {
+				throw new Error(`Failed to set up test user: ${updateError.message}`);
+			}
+
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
+
+			const request = buildRequest("sms");
+
+			const response = await POST({
+				request,
+				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
+			} as APIContext);
+
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?error=preview_sms_opted_out",
+			);
+		} finally {
+			await adminClient.auth.admin.deleteUser(id);
+		}
+	});
+
+	it("redirects to /dashboard?error=preview_sms_unverified (302) when phone number is not verified", async () => {
+		const { id, email } = await createTestUser({
+			email: `test-${Date.now()}@example.com`,
+			confirmed: true,
+			smsNotificationsEnabled: true,
+		});
+
+		try {
+			const { error: updateError } = await adminClient
+				.from("users")
+				.update({
+					phone_country_code: "+1",
+					phone_number: "5005550006",
+					phone_verified: false,
+					sms_opted_out: false,
+				})
+				.eq("id", id);
+
+			if (updateError) {
+				throw new Error(`Failed to set up test user: ${updateError.message}`);
+			}
+
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
+
+			const request = buildRequest("sms");
+
+			const response = await POST({
+				request,
+				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
+			} as APIContext);
+
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?error=preview_sms_unverified",
+			);
+		} finally {
+			await adminClient.auth.admin.deleteUser(id);
+		}
+	});
+
+	it("redirects to /dashboard?error=preview_sms_missing_phone (302) when phone number is missing", async () => {
+		const { id, email } = await createTestUser({
+			email: `test-${Date.now()}@example.com`,
+			confirmed: true,
+			smsNotificationsEnabled: true,
+		});
+
+		try {
+			const { error: updateError } = await adminClient
+				.from("users")
+				.update({
+					phone_country_code: null,
+					phone_number: null,
+					phone_verified: false,
+					sms_opted_out: false,
+				})
+				.eq("id", id);
+
+			if (updateError) {
+				throw new Error(`Failed to set up test user: ${updateError.message}`);
+			}
+
+			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
+
+			const request = buildRequest("sms");
+
+			const response = await POST({
+				request,
+				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
+			} as APIContext);
+
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?error=preview_sms_missing_phone",
+			);
+		} finally {
+			await adminClient.auth.admin.deleteUser(id);
+		}
+	});
+
+	it("redirects to /dashboard?success=preview_email_sent (302) when user has valid email fields", async () => {
 		const { id, email } = await createTestUser({
 			email:
 				process.env.TEST_EMAIL_RECIPIENT || `test-${Date.now()}@resend.dev`,
@@ -149,30 +257,24 @@ describe("Preview Notifications Endpoint", () => {
 		try {
 			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request(
-				"http://localhost/api/notifications/preview",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "email" }),
-				},
-			);
+			const request = buildRequest("email");
 
 			const response = await POST({
 				request,
 				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
 			} as APIContext);
 
-			expect(response.status).toBe(200);
-			const json = await response.json();
-			expect(json.success).toBe(true);
-			expect(typeof json.logged).toBe("boolean");
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?success=preview_email_sent",
+			);
 		} finally {
 			await adminClient.auth.admin.deleteUser(id);
 		}
 	});
 
-	it("sends preview SMS notification when user has valid SMS fields", async () => {
+	it("redirects to /dashboard?success=preview_sms_sent (302) when user has valid SMS fields", async () => {
 		const { id, email } = await createTestUser({
 			email: `test-${Date.now()}@example.com`,
 			confirmed: true,
@@ -181,12 +283,14 @@ describe("Preview Notifications Endpoint", () => {
 		});
 
 		try {
+			// Use a unique phone number to avoid duplicate key constraint
+			// Twilio test credentials accept any number, so we can use a timestamp-based one
+			const uniquePhoneNumber = `500555${String(Date.now()).slice(-4)}`;
 			const { error: updateError } = await adminClient
 				.from("users")
 				.update({
 					phone_country_code: "+1",
-					// Twilio "magic" test number for successful send with test credentials
-					phone_number: "5005550006",
+					phone_number: uniquePhoneNumber,
 					phone_verified: true,
 					sms_opted_out: false,
 				})
@@ -200,24 +304,18 @@ describe("Preview Notifications Endpoint", () => {
 
 			const cookies = await createAuthenticatedCookies(email, TEST_PASSWORD);
 
-			const request = new Request(
-				"http://localhost/api/notifications/preview",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "sms" }),
-				},
-			);
+			const request = buildRequest("sms");
 
 			const response = await POST({
 				request,
 				cookies: toAstroCookies(cookies),
+				redirect: toRedirect,
 			} as APIContext);
 
-			expect(response.status).toBe(200);
-			const json = await response.json();
-			expect(json.success).toBe(true);
-			expect(typeof json.logged).toBe("boolean");
+			expect(response.status).toBe(302);
+			expect(response.headers.get("Location")).toBe(
+				"/dashboard?success=preview_sms_sent",
+			);
 		} finally {
 			await adminClient.auth.admin.deleteUser(id);
 		}

@@ -23,19 +23,25 @@ const { action = "/api/auth/delete-account" } = Astro.props;
 </div>
 
 <script>
-	const form = document.querySelector('[data-profile-delete-form]');
-	if (!(form instanceof HTMLFormElement)) {
-		throw new Error("Delete account form not found");
+	const forms = document.querySelectorAll('[data-profile-delete-form]');
+	if (forms.length === 0) {
+		console.error("Delete account form not found");
 	}
 
-	form.addEventListener("submit", (event) => {
-		const confirmed = confirm(
-			"Are you sure you want to delete your account? This action cannot be undone.",
-		);
-
-		if (!confirmed) {
-			event.preventDefault();
+	forms.forEach((form) => {
+		if (!(form instanceof HTMLFormElement)) {
+			return;
 		}
+
+		form.addEventListener("submit", (event) => {
+			const confirmed = confirm(
+				"Are you sure you want to delete your account? This action cannot be undone.",
+			);
+
+			if (!confirmed) {
+				event.preventDefault();
+			}
+		});
 	});
 </script>
 
