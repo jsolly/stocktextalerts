@@ -60,7 +60,6 @@ export function createPreferencesHandler(
 
 		const baseUpdates = omitUndefined({
 			...preferenceData,
-			timezone: preferenceData.timezone,
 		});
 
 		const safePreferenceUpdates: Parameters<typeof userService.update>[1] = {

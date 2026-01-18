@@ -8,9 +8,16 @@ interface Props {
 	timezones: TimezoneOption[];
 	isEditingPhone: boolean;
 	formId: string;
+	timezoneLoadError?: boolean;
 }
 
-const { user, timezones, isEditingPhone, formId } = Astro.props;
+const {
+	user,
+	timezones,
+	isEditingPhone,
+	formId,
+	timezoneLoadError = false,
+} = Astro.props;
 ---
 
 <div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -30,9 +37,12 @@ const { user, timezones, isEditingPhone, formId } = Astro.props;
 				id="timezone"
 				name="timezone"
 				required
-				class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+				class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
+				disabled={timezoneLoadError}
 			>
-				<option value="">Select your timezone</option>
+				<option value="" disabled hidden>
+					Select your timezone
+				</option>
 				{timezones.map((tz) => (
 					<option value={tz.value} selected={user.timezone === tz.value}>
 						{tz.label}

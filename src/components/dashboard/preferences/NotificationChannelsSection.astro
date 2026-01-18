@@ -70,7 +70,7 @@ const { user, isEditingPhone, formId } = Astro.props;
 							<>
 								<PhoneInput
 									client:load
-									required={user.sms_notifications_enabled}
+									required={true}
 									initialNationalNumber={user.phone_number}
 								/>
 								<button
@@ -139,8 +139,7 @@ const { user, isEditingPhone, formId } = Astro.props;
 												type="text"
 												id="code"
 												name="code"
-												required={user.sms_notifications_enabled}
-												disabled={!user.sms_notifications_enabled}
+												required={true}
 												autocomplete="one-time-code"
 												maxlength="6"
 												pattern="[0-9]{6}"

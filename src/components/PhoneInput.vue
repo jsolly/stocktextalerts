@@ -135,22 +135,28 @@ function handlePhoneInput(e: Event) {
 					previousDigits.slice(digitsBeforeCaret);
 
 				const formatted = formatPhone(newDigits);
-				requestAnimationFrame(() => {
-					if (input.value !== formatted) return;
-					const targetDigitsBeforeCaret = digitsBeforeCaret - 1;
-					if (targetDigitsBeforeCaret <= 0) {
-						input.setSelectionRange(0, 0);
-						return;
-					}
+				const targetDigitsBeforeCaret = digitsBeforeCaret - 1;
 
+				// We format the value ourselves and set it on the input synchronously so
+				// Vue sees the same value and doesn't need to patch the DOM input value.
+				// That avoids timing workarounds (setTimeout/nextTick/requestAnimationFrame)
+				// for caret management.
+				input.value = formatted;
+
+				if (targetDigitsBeforeCaret <= 0) {
+					input.setSelectionRange(0, 0);
+				} else {
 					let seenDigits = 0;
 					const foundIndex = [...formatted].findIndex((char) => {
-						if (/\d/.test(char)) seenDigits++;
+						if (/\d/.test(char)) {
+							seenDigits++;
+						}
 						return seenDigits === targetDigitsBeforeCaret;
 					});
-					const caretPos = foundIndex >= 0 ? foundIndex + 1 : formatted.length;
+					const caretPos =
+						foundIndex >= 0 ? foundIndex + 1 : formatted.length;
 					input.setSelectionRange(caretPos, caretPos);
-				});
+				}
 
 				phoneNumber.value = formatted;
 				lastDigits.value = newDigits;

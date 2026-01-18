@@ -45,10 +45,28 @@ const stocksFileUrl = new URL("../../scripts/us-stocks.json", import.meta.url);
 const stocksFileContents = await readFile(stocksFileUrl, "utf-8");
 const { data: allStocks } = JSON.parse(stocksFileContents) as { data: Stock[] };
 
-const [userStocks, timezones] = await Promise.all([
-	getUserStocks(supabase, authUser.id),
-	getTimezoneOptions(supabase, { includeValues: [user.timezone] }),
-]);
+const userStocks = await getUserStocks(supabase, authUser.id);
+
+let timezones: Awaited<ReturnType<typeof getTimezoneOptions>>;
+let timezoneLoadError = false;
+
+try {
+	timezones = await getTimezoneOptions(supabase, {
+		includeValues: [user.timezone],
+	});
+} catch (error) {
+	console.error("Failed to load timezone options:", error);
+	timezoneLoadError = true;
+	timezones = user.timezone
+		? [
+				{
+					value: user.timezone,
+					label: user.timezone.replace(/_/g, " "),
+					display_order: 0,
+				},
+			]
+		: [];
+}
 
 const initialSymbols = userStocks.map((stock) => stock.symbol);
 
@@ -92,6 +110,12 @@ const isSmsFullyConfigured =
 			</div>
 		)}
 
+		{timezoneLoadError && (
+			<div class="mb-6 p-4 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-700" role="alert">
+				Unable to load all timezone options. Only your current timezone is available. Please refresh the page to try again.
+			</div>
+		)}
+
 		<TimezoneMismatchBanner
 			savedTimezone={user.timezone}
 			allowedTimezones={timezones.map((tz) => tz.value)}
@@ -116,6 +140,7 @@ const isSmsFullyConfigured =
 			<NotificationPreferencesCard
 				user={user}
 				timezones={timezones}
+				timezoneLoadError={timezoneLoadError}
 				isEditingPhone={isEditingPhone}
 				formId="dashboard-preferences-form"
 			/>
@@ -141,12 +166,51 @@ const isSmsFullyConfigured =
 </Layout>
 
 <script>
-	import { setupFormNavigationWarning } from "../lib/forms/navigation-warning";
+	import { readFormValues, setupFormNavigationWarning } from "../lib/forms/navigation-warning";
 
 	function setupDashboardPreferencesForm() {
+		const formElement = document.getElementById("dashboard-preferences-form");
+		if (!(formElement instanceof HTMLFormElement)) {
+			return;
+		}
+
+		const form = formElement;
+		let initialValues = readFormValues(form);
+
+		function checkIfDirty() {
+			const currentValues = readFormValues(form);
+			const keys = new Set([...initialValues.keys(), ...currentValues.keys()]);
+			for (const key of keys) {
+				if (initialValues.get(key) !== currentValues.get(key)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		function isTimezoneValid() {
+			const timezoneSelect = document.getElementById("timezone");
+			if (!(timezoneSelect instanceof HTMLSelectElement)) {
+				return true;
+			}
+
+			if (timezoneSelect.disabled && !timezoneSelect.value) {
+				return false;
+			}
+
+			return true;
+		}
+
 		setupFormNavigationWarning({
 			formId: "dashboard-preferences-form",
 			saveButtonId: "save-button",
+			customSaveButtonCheck: () => {
+				return checkIfDirty() && isTimezoneValid();
+			},
+		});
+
+		form.addEventListener("submit:success", () => {
+			initialValues = readFormValues(form);
 		});
 	}
 

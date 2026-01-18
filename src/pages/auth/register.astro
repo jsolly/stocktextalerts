@@ -186,14 +186,12 @@ if (error) {
 			return;
 		}
 
-		emailInputElement.addEventListener('keydown', (e) => {
-			if (e.key === ' ') {
-				e.preventDefault();
-			}
-		});
-		// Strip spaces from pasted content
+		// Strip all whitespace on any input (typing or paste)
 		emailInputElement.addEventListener('input', () => {
-			emailInputElement.value = emailInputElement.value.replace(/\s/g, '');
+			const stripped = emailInputElement.value.replace(/\s/g, '');
+			if (stripped !== emailInputElement.value) {
+				emailInputElement.value = stripped;
+			}
 		});
 
 		setupDetectedTimezoneOption({ defaultTimezone: DEFAULT_TIMEZONE });

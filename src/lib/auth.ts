@@ -13,6 +13,8 @@ export function getAuthErrorMessage(error: string | null): string {
 			return "Too many attempts. Please try again later.";
 		case "captcha_required":
 			return "Please complete the CAPTCHA and try again.";
+		case "captcha_failed":
+			return "CAPTCHA verification failed. Please try again.";
 		case "failed":
 			return "Failed to process request. Please try again.";
 		case "server_error":

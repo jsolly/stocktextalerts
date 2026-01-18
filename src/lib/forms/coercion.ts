@@ -205,11 +205,7 @@ export function coerceValue(
 				}
 
 				return { value: parsedValue };
-			} catch (error) {
-				console.error("Failed to parse JSON string array field", {
-					key: "",
-					error,
-				});
+			} catch {
 				return {
 					value: undefined,
 					error: { reason: "invalid_json_array", key: "", value: raw },

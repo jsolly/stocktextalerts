@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { getSiteUrl } from "../../../../lib/env";
 import { parseWithSchema } from "../../../../lib/forms/parsing";
-import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../../lib/supabase";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
@@ -34,31 +33,6 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		return redirect("/auth/unconfirmed?error=invalid_form");
 	}
 
-	try {
-		const verification = await verifyHCaptchaToken({
-			token: captchaToken,
-			remoteIp: getRequestIp(request),
-		});
-
-		if (!verification.success) {
-			console.error("Resend verification rejected due to captcha failure", {
-				email,
-				errorCodes: verification.errorCodes,
-			});
-			return redirect(
-				`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=captcha_required`,
-			);
-		}
-	} catch (error) {
-		console.error("Resend verification rejected due to captcha error", {
-			email,
-			error,
-		});
-		return redirect(
-			`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=captcha_required`,
-		);
-	}
-
 	const origin = getSiteUrl();
 	const emailRedirectTo = `${origin}/auth/verified`;
 
@@ -67,10 +41,21 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		email,
 		options: {
 			emailRedirectTo,
+			captchaToken,
 		},
 	});
 
 	if (error) {
+		if (error.code === "captcha_failed") {
+			console.error("Resend verification blocked due to captcha", {
+				code: error.code,
+				status: error.status,
+			});
+			return redirect(
+				`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=captcha_required`,
+			);
+		}
+
 		console.error("Resend verification email failed:", error);
 		return redirect(
 			`/auth/unconfirmed?email=${encodeURIComponent(email)}&error=failed`,

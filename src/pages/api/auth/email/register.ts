@@ -2,7 +2,6 @@ import type { APIRoute } from "astro";
 import { redirect } from "../../../../lib/api-utils";
 import { getSiteUrl } from "../../../../lib/env";
 import { parseWithSchema } from "../../../../lib/forms/parsing";
-import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
@@ -40,27 +39,6 @@ export const POST: APIRoute = async ({ request }) => {
 	// We must trim here to prevent registration failures when inserting into public.users.
 	const email = rawEmail.trim();
 
-	try {
-		const verification = await verifyHCaptchaToken({
-			token: captchaToken,
-			remoteIp: getRequestIp(request),
-		});
-
-		if (!verification.success) {
-			console.error("Registration rejected due to captcha failure", {
-				email,
-				errorCodes: verification.errorCodes,
-			});
-			return redirect("/auth/register?error=captcha_required");
-		}
-	} catch (error) {
-		console.error("Registration rejected due to captcha error", {
-			email,
-			error,
-		});
-		return redirect("/auth/register?error=captcha_required");
-	}
-
 	const userTimezone = await resolveTimezone({
 		supabase,
 		detectedTimezone: timezone,
@@ -79,6 +57,14 @@ export const POST: APIRoute = async ({ request }) => {
 	});
 
 	if (error) {
+		if (error.code === "captcha_failed") {
+			console.error("User registration blocked due to captcha", {
+				code: error.code,
+				status: error.status,
+			});
+			return redirect("/auth/register?error=captcha_required");
+		}
+
 		if (error.code === "user_already_exists") {
 			console.error("User registration rejected: user already exists", {
 				email,
@@ -92,6 +78,20 @@ export const POST: APIRoute = async ({ request }) => {
 	if (data.user) {
 		// Use admin client to bypass RLS for user profile creation
 		const adminSupabase = createSupabaseAdminClient();
+
+		async function cleanupOrphanedAuthUser(userId: string): Promise<void> {
+			const { error: deleteError } =
+				await adminSupabase.auth.admin.deleteUser(userId);
+			if (deleteError) {
+				console.error(
+					"Failed to cleanup orphaned auth user after profile creation failure",
+					{
+						userId,
+						error: deleteError,
+					},
+				);
+			}
+		}
 
 		const userProfileData = {
 			id: data.user.id,
@@ -109,11 +109,13 @@ export const POST: APIRoute = async ({ request }) => {
 
 		if (profileError) {
 			console.error("Failed to create user profile:", profileError);
+			await cleanupOrphanedAuthUser(data.user.id);
 			return redirect("/auth/register?error=profile_creation_failed");
 		}
 
 		if (!profile) {
 			console.error("Profile creation returned no data");
+			await cleanupOrphanedAuthUser(data.user.id);
 			return redirect("/auth/register?error=profile_creation_failed");
 		}
 	}

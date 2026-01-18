@@ -8,6 +8,9 @@
 - **Offer alternatives**: Provide 2-3 approaches with pros/cons and a recommendation with justification.
 - **Database migrations**: Do NOT create new migration files. Only modify the initial migration in `supabase/migrations`. This is a new app with no users, so destructive schema changes are OK.
 
+## Supabase Auth
+- **Email identity provider_id**: For email providers in `auth.identities`, `provider_id` must be set to the user's UUID from `auth.users`, NOT the email address. For OAuth/SAML providers, `provider_id` uses the provider's unique ID. This is a critical requirement—using the email for email providers will break authentication.
+
 ## Coding Standards
 - **No compatibility layers**: Avoid shims, adapters, deprecations, or re-exports for legacy behavior.
 - **No browser polyfills or legacy fallbacks**: Don't add try-catch blocks, feature detection, or polyfills for old browsers (IE11, etc.). Modern browser APIs like `Intl.DateTimeFormat().resolvedOptions().timeZone`, `sessionStorage`, `Map`, `Set`, etc. are well-supported and won't throw in supported environments. Only handle legitimate error cases (e.g., `sessionStorage` throwing `SecurityError` in private browsing modes). Server-side polyfills (e.g., `@js-temporal/polyfill` for Node.js) are acceptable when the API isn't available in the runtime environment.
@@ -18,6 +21,7 @@
 - **Self-documenting code**: Write clear, descriptive names and structure; avoid TSDoc/JSDoc comments.
 - **DRY principle**: Check for similar code in other files before implementing; extract shared logic to utilities.
 - **Error handling**: Let errors propagate naturally; avoid defensive programming (unnecessary null checks, try-catch blocks that swallow errors). Handle errors at boundaries (API endpoints, user-facing code) where appropriate.
+- **Deterministic error checking**: Avoid using `.includes()` or other string matching methods to detect error types. Use structured error properties (e.g., `error.code`, `error.status`) or verify conditions before operations (e.g., verify captcha tokens before API calls) rather than parsing error messages.
 - **Avoid fallbacks in error scenarios**: Don't use fallbacks or default values when encountering unexpected conditions or errors. Fail fast and explicitly. It's better to discover issues early than to have fault-tolerant code that masks problems.
 - **Log unexpected redirects**: When a user is redirected due to an error or unexpected condition, log the error with context (user ID, path, reason) to help diagnose issues in production.
 - **Validation**: Minimize trimming/normalization. Rely on strict front-end forms/inputs to produce valid data, then validate/enforce correctness in the database (constraints). Only validate untrusted external input.

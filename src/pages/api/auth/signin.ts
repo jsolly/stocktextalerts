@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { setAuthCookies } from "../../../lib/auth-cookies";
 import { parseWithSchema } from "../../../lib/forms/parsing";
-import { getRequestIp, verifyHCaptchaToken } from "../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../lib/supabase";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
@@ -32,31 +31,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const password = parsed.data.password;
 	const captchaToken = parsed.data.captcha_token;
 
-	try {
-		const verification = await verifyHCaptchaToken({
-			token: captchaToken,
-			remoteIp: getRequestIp(request),
-		});
-
-		if (!verification.success) {
-			console.error("Sign-in attempt rejected due to captcha failure", {
-				email,
-				errorCodes: verification.errorCodes,
-			});
-			return redirect(
-				`/signin?error=captcha_required&email=${encodeURIComponent(email)}`,
-			);
-		}
-	} catch (error) {
-		console.error("Sign-in attempt rejected due to captcha error", {
-			email,
-			error,
-		});
-		return redirect(
-			`/signin?error=captcha_required&email=${encodeURIComponent(email)}`,
-		);
-	}
-
 	const { data, error } = await supabase.auth.signInWithPassword({
 		email,
 		password,
@@ -66,6 +40,16 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	});
 
 	if (error) {
+		if (error.code === "captcha_failed") {
+			console.error("Sign-in blocked due to captcha", {
+				code: error.code,
+				status: error.status,
+			});
+			return redirect(
+				`/signin?error=captcha_required&email=${encodeURIComponent(email)}`,
+			);
+		}
+
 		if (error.code === "email_not_confirmed") {
 			console.error("Sign-in blocked due to unconfirmed email", {
 				email,
