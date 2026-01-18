@@ -70,7 +70,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	if (!data.session) {
 		console.error("Sign-in succeeded but no session was returned", { email });
 		return redirect(
-			`/signin?error=NoSession&email=${encodeURIComponent(email)}`,
+			`/signin?error=no_session&email=${encodeURIComponent(email)}`,
 		);
 	}
 

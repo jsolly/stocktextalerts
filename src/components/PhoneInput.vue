@@ -178,6 +178,18 @@ const isValid = computed(() => {
 	return phoneNumber.value ? isValidPhoneNumber(phoneNumber.value, country.value) : false;
 });
 
+watch(
+	isValid,
+	(valid) => {
+		const event = new CustomEvent("phone-validity-changed", {
+			bubbles: true,
+			detail: { isValid: valid },
+		});
+		document.dispatchEvent(event);
+	},
+	{ immediate: true },
+);
+
 function validate() {
 	if (phoneNumber.value) {
 		showError.value = !isValidPhoneNumber(phoneNumber.value, country.value);

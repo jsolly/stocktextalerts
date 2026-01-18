@@ -39,9 +39,15 @@ async function updateTrackedStocks(
 		...userOverrides,
 	});
 
-	await adminClient.auth.admin.updateUserById(testUser.id, {
-		email_confirm: true,
-	});
+	const { error: confirmError } = await adminClient.auth.admin.updateUserById(
+		testUser.id,
+		{
+			email_confirm: true,
+		},
+	);
+	if (confirmError) {
+		throw new Error(`Failed to confirm user: ${confirmError.message}`);
+	}
 
 	const { data: userPreferencesBefore } = await adminClient
 		.from("users")
