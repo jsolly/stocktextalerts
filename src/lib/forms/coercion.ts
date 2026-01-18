@@ -97,6 +97,8 @@ export function coerceValue(
 			};
 		}
 		case "string": {
+			// Trimming is only used for untrusted external input (e.g., webhooks like Twilio SMS).
+			// Normal app forms should not set trim: true and should validate input strictly.
 			const value = spec.trim === true ? raw.trim() : raw;
 			if (value === "") {
 				return { value: undefined };
@@ -155,19 +157,18 @@ export function coerceValue(
 			return { value: Number.parseInt(raw, 10) };
 		}
 		case "number": {
-			const trimmedRaw = raw.trim();
-			if (trimmedRaw === "") {
+			if (raw === "") {
 				return { value: undefined };
 			}
 
-			if (!FLOAT_PATTERN.test(trimmedRaw)) {
+			if (!FLOAT_PATTERN.test(raw)) {
 				return {
 					value: undefined,
 					error: { reason: "invalid_number", key: "", value: raw },
 				};
 			}
 
-			const parsedValue = Number.parseFloat(trimmedRaw);
+			const parsedValue = Number.parseFloat(raw);
 			return { value: parsedValue };
 		}
 		case "json_string_array": {
@@ -215,6 +216,52 @@ export function coerceValue(
 	}
 }
 
+export function processFields(
+	keys: readonly string[],
+	rawData: Record<string, string | null>,
+	schema: FormSchema,
+): { errors: FormIssue[]; output: Record<string, unknown> } {
+	const errors: FormIssue[] = [];
+	const output: Record<string, unknown> = {};
+
+	for (const key of keys) {
+		const spec = schema[key] as FieldSpec;
+		const raw = rawData[key];
+
+		if (raw === null) {
+			if (spec.type === "boolean") {
+				// HTML checkboxes submit no value when unchecked, which we treat as `false`
+				// for optional boolean fields. Required booleans still enforce presence.
+				if (spec.required) {
+					errors.push({ reason: "missing_field", key });
+				} else {
+					output[key] = false;
+				}
+			} else if (spec.required) {
+				errors.push({ reason: "missing_field", key });
+			} else {
+				output[key] = undefined;
+			}
+			continue;
+		}
+
+		const { value, error } = coerceValue(spec, raw);
+		if (error) {
+			errors.push({ ...error, key });
+			continue;
+		}
+
+		if (value === undefined && spec.required) {
+			errors.push({ reason: "missing_field", key });
+			continue;
+		}
+
+		output[key] = value;
+	}
+
+	return { errors, output };
+}
+
 export function coerceWithSchema<TSchema extends FormSchema>(
 	formData: FormData,
 	schema: TSchema,
@@ -242,26 +289,7 @@ export function coerceWithSchema<TSchema extends FormSchema, TResult>(
 		};
 	}
 
-	const errors: FormIssue[] = [];
-	const output: Record<string, unknown> = {};
-
-	for (const key of keys) {
-		const spec = schema[key] as FieldSpec;
-		const raw = rawData[key];
-
-		if (raw === null) {
-			output[key] = spec.type === "boolean" ? false : undefined;
-			continue;
-		}
-
-		const { value, error } = coerceValue(spec, raw);
-		if (error) {
-			errors.push({ ...error, key });
-			continue;
-		}
-
-		output[key] = value;
-	}
+	const { errors, output } = processFields(keys, rawData, schema);
 
 	if (errors.length > 0) {
 		return {

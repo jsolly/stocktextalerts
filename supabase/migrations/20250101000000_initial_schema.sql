@@ -350,9 +350,6 @@ CREATE TABLE IF NOT EXISTS scheduled_notifications (
   PRIMARY KEY (user_id, notification_type, scheduled_date, channel)
 );
 
-CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_user_type_date
-  ON scheduled_notifications (user_id, notification_type, scheduled_date);
-
 CREATE INDEX IF NOT EXISTS idx_users_next_send_at
   ON users (next_send_at)
   WHERE daily_digest_enabled = true

@@ -40,7 +40,13 @@ export function setupTimezoneMismatchBanner(options: {
 
 	const saved = savedTimezone ?? "";
 	const dismissalKey = `timezone_mismatch_banner_dismissed:${saved}:${detected}`;
-	if (sessionStorage.getItem(dismissalKey) === "1") {
+	let dismissed = false;
+	try {
+		dismissed = sessionStorage.getItem(dismissalKey) === "1";
+	} catch {
+		dismissed = false;
+	}
+	if (dismissed) {
 		return;
 	}
 
@@ -55,7 +61,11 @@ export function setupTimezoneMismatchBanner(options: {
 	dismissButton.addEventListener(
 		"click",
 		() => {
-			sessionStorage.setItem(dismissalKey, "1");
+			try {
+				sessionStorage.setItem(dismissalKey, "1");
+			} catch {
+				// Ignore sessionStorage errors (SecurityError / QuotaExceededError)
+			}
 			banner.classList.add("hidden");
 		},
 		{ once: true },

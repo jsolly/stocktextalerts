@@ -24,6 +24,9 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const captchaToken = parsed.data.captcha_token;
 
 	if (/\s/.test(email)) {
+		console.error("Resend verification rejected: email contains whitespace", {
+			email,
+		});
 		return redirect("/auth/unconfirmed?error=invalid_form");
 	}
 

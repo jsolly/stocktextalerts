@@ -57,15 +57,18 @@ export function createPreferencesHandler(
 		}
 
 		const { tracked_stocks: trackedSymbols, ...preferenceData } = parsed.data;
-		if (!trackedSymbols) {
-			console.error("Preferences update rejected due to missing stocks");
-			return redirect("/dashboard?error=invalid_form");
-		}
 
 		const baseUpdates = omitUndefined({
 			...preferenceData,
 			timezone: preferenceData.timezone,
 		});
+
+		if (Object.keys(baseUpdates).length === 0) {
+			console.error("Preferences update rejected: no updates provided", {
+				userId: user.id,
+			});
+			return redirect("/dashboard?error=no_updates");
+		}
 
 		const safePreferenceUpdates: Parameters<typeof userService.update>[1] = {
 			...baseUpdates,

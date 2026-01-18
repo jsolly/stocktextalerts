@@ -40,7 +40,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import StockInput, { type StockOption } from "./StockInput.vue";
 
@@ -65,10 +65,13 @@ const trackedStocksValue = computed(() =>
 	JSON.stringify(draftSymbols.value),
 );
 
-watch(draftSymbols, async () => {
-	await nextTick();
+watch(
+	draftSymbols,
+	() => {
 	formElement.value?.dispatchEvent(new Event("input", { bubbles: true }));
-});
+	},
+	{ flush: "post" },
+);
 
 const handleSelect = (symbol: string) => {
 	if (!symbol) {

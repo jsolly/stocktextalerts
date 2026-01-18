@@ -74,6 +74,9 @@ export const POST: APIRoute = async ({ request }) => {
 
 	if (error) {
 		if (error.code === "user_already_exists") {
+			console.error("User registration rejected: user already exists", {
+				email,
+			});
 			return redirect("/auth/register?error=user_already_exists");
 		}
 		console.error("User registration failed:", error);

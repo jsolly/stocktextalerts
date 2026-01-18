@@ -41,10 +41,18 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	const { password, confirm, token, type } = parsed.data;
 
 	if (password !== confirm) {
+		console.error("Password reset rejected: password mismatch", {
+			tokenProvided: !!token,
+			type,
+		});
 		return redirect(buildRecoverRedirect("password_mismatch", token, type));
 	}
 
 	if (type !== "recovery") {
+		console.error("Password reset rejected: invalid type", {
+			type,
+			tokenProvided: !!token,
+		});
 		return redirect(buildRecoverRedirect("invalid_token", token, type));
 	}
 
@@ -55,6 +63,11 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 	// updateUserById to fail with weak_password after the token is consumed.
 	// See supabase/config.toml for the configured password policy.
 	if (password.length < MIN_PASSWORD_LENGTH) {
+		console.error("Password reset rejected: password too short", {
+			passwordLength: password.length,
+			minLength: MIN_PASSWORD_LENGTH,
+			tokenProvided: !!token,
+		});
 		return redirect(buildRecoverRedirect("weak_password", token, type));
 	}
 

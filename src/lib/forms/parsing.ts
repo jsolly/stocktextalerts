@@ -1,11 +1,5 @@
-import { coerceValue, readRawSchemaData } from "./coercion";
-import type {
-	FieldSpec,
-	FormIssue,
-	FormSchema,
-	InferSchema,
-	ParseOutcome,
-} from "./schema";
+import { processFields, readRawSchemaData } from "./coercion";
+import type { FormSchema, InferSchema, ParseOutcome } from "./schema";
 
 export function parseWithSchema<TSchema extends FormSchema>(
 	formData: FormData,
@@ -34,43 +28,7 @@ export function parseWithSchema<TSchema extends FormSchema, TResult>(
 		};
 	}
 
-	const errors: FormIssue[] = [];
-	const output: Record<string, unknown> = {};
-
-	for (const key of keys) {
-		const spec = schema[key] as FieldSpec;
-		const raw = rawData[key];
-
-		if (raw === null) {
-			if (spec.type === "boolean") {
-				// HTML checkboxes submit no value when unchecked, which we treat as `false`
-				// for optional boolean fields. Required booleans still enforce presence.
-				if (spec.required) {
-					errors.push({ reason: "missing_field", key });
-				} else {
-					output[key] = false;
-				}
-			} else if (spec.required) {
-				errors.push({ reason: "missing_field", key });
-			} else {
-				output[key] = undefined;
-			}
-			continue;
-		}
-
-		if (raw === "" && spec.required) {
-			errors.push({ reason: "missing_field", key });
-			continue;
-		}
-
-		const { value, error } = coerceValue(spec, raw);
-		if (error) {
-			errors.push({ ...error, key });
-			continue;
-		}
-
-		output[key] = value;
-	}
+	const { errors, output } = processFields(keys, rawData, schema);
 
 	if (errors.length > 0) {
 		return {

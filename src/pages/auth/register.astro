@@ -12,7 +12,12 @@ let message = "";
 let showSignInLink = false;
 
 const supabase = createSupabaseServerClient();
-const timezones = await getTimezoneOptions(supabase);
+let timezones: Awaited<ReturnType<typeof getTimezoneOptions>> = [];
+try {
+	timezones = await getTimezoneOptions(supabase);
+} catch (error) {
+	console.error("Failed to load timezone options:", error);
+}
 
 if (error) {
 	switch (error) {
@@ -145,9 +150,7 @@ if (error) {
           <div>
             <button 
               type="submit" 
-              class={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                "text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
-              }`}
+              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Register
             </button>

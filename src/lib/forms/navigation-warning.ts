@@ -56,14 +56,9 @@ export function setupFormNavigationWarning(options: {
 	const saveButton = saveButtonElement;
 
 	let isSubmitting = false;
-	let submittingResetTimeoutId: number | undefined;
 
 	function clearSubmittingState() {
 		isSubmitting = false;
-		if (submittingResetTimeoutId !== undefined) {
-			window.clearTimeout(submittingResetTimeoutId);
-			submittingResetTimeoutId = undefined;
-		}
 	}
 
 	const initialValues = readFormValues(form);
@@ -97,12 +92,6 @@ export function setupFormNavigationWarning(options: {
 
 	function handleSubmit(event: SubmitEvent) {
 		isSubmitting = true;
-		if (submittingResetTimeoutId !== undefined) {
-			window.clearTimeout(submittingResetTimeoutId);
-		}
-		submittingResetTimeoutId = window.setTimeout(() => {
-			clearSubmittingState();
-		}, 2000);
 
 		queueMicrotask(() => {
 			if (event.defaultPrevented) {
@@ -113,11 +102,6 @@ export function setupFormNavigationWarning(options: {
 
 	function handleInvalid() {
 		clearSubmittingState();
-	}
-
-	function handleReset() {
-		clearSubmittingState();
-		updateSaveButtonState();
 	}
 
 	function handleBeforeUnload(event: BeforeUnloadEvent) {
@@ -135,8 +119,9 @@ export function setupFormNavigationWarning(options: {
 	form.addEventListener("input", handleFormChange);
 	form.addEventListener("change", handleFormChange);
 	form.addEventListener("submit", handleSubmit);
+	form.addEventListener("submit:success", clearSubmittingState);
+	form.addEventListener("submit:error", clearSubmittingState);
 	form.addEventListener("invalid", handleInvalid, true);
-	form.addEventListener("reset", handleReset);
 	window.addEventListener("beforeunload", handleBeforeUnload);
 
 	function shouldWarnOnLinkClick(link: HTMLAnchorElement): boolean {
@@ -201,12 +186,10 @@ export function setupFormNavigationWarning(options: {
 		form.removeEventListener("input", handleFormChange);
 		form.removeEventListener("change", handleFormChange);
 		form.removeEventListener("submit", handleSubmit);
+		form.removeEventListener("submit:success", clearSubmittingState);
+		form.removeEventListener("submit:error", clearSubmittingState);
 		form.removeEventListener("invalid", handleInvalid, true);
-		form.removeEventListener("reset", handleReset);
 		window.removeEventListener("beforeunload", handleBeforeUnload);
 		document.removeEventListener("click", handleDocumentClick, true);
-		if (submittingResetTimeoutId !== undefined) {
-			window.clearTimeout(submittingResetTimeoutId);
-		}
 	};
 }

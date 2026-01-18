@@ -53,17 +53,14 @@ export async function verifyHCaptchaToken({
 		payload.set("sitekey", siteKey);
 	}
 
-	const controller = new AbortController();
-	const timeoutId = setTimeout(() => controller.abort(), 10000);
-
 	const response = await fetch("https://api.hcaptcha.com/siteverify", {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
 		body: payload,
-		signal: controller.signal,
-	}).finally(() => clearTimeout(timeoutId));
+		signal: AbortSignal.timeout(10_000),
+	});
 
 	if (!response.ok) {
 		throw new Error(

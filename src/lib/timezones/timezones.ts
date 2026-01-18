@@ -85,6 +85,9 @@ async function getAllTimezonesCached(
 		})
 		.catch((error) => {
 			console.error("Failed to load timezones cache:", error);
+			// Only invalidate cache on error if a cache bust was explicitly requested
+			// (i.e., cacheBuster changed). This preserves valid cached data during
+			// transient fetch errors.
 			if (allTimezonesCache && allTimezonesCache.cacheBuster !== cacheBuster) {
 				allTimezonesCache = null;
 			}

@@ -17,7 +17,10 @@
 - **Self-documenting code**: Write clear, descriptive names and structure; avoid TSDoc/JSDoc comments.
 - **DRY principle**: Check for similar code in other files before implementing; extract shared logic to utilities.
 - **Error handling**: Let errors propagate naturally; avoid defensive programming (unnecessary null checks, try-catch blocks that swallow errors). Handle errors at boundaries (API endpoints, user-facing code) where appropriate.
-- **Validation**: Prefer validating input in the database. Two quality guards: strict front-end forms/inputs and database constraints. Only validate untrusted external input.
+- **Avoid fallbacks in error scenarios**: Don't use fallbacks or default values when encountering unexpected conditions or errors. Fail fast and explicitly. It's better to discover issues early than to have fault-tolerant code that masks problems.
+- **Log unexpected redirects**: When a user is redirected due to an error or unexpected condition, log the error with context (user ID, path, reason) to help diagnose issues in production.
+- **Validation**: Minimize trimming/normalization. Rely on strict front-end forms/inputs to produce valid data, then validate/enforce correctness in the database (constraints). Only validate untrusted external input.
+- **Timing hacks**: Avoid setTimeout, nextTick, requestAnimationFrame, and similar timing workarounds. These are usually signs of race conditions or architectural issues. Fix the root cause instead of adding delays.
 
 ## Tech Stack
 - **Testing**: Vitest only; happy path coverage only. Do not use Jest.

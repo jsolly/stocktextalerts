@@ -51,6 +51,13 @@ export function createProfilePreferencesHandler(
 		}
 
 		const { preferenceUpdates } = parsed.data;
+		if (Object.keys(preferenceUpdates).length === 0) {
+			console.error(
+				"Profile preferences update rejected: no updates provided",
+				{ userId: user.id },
+			);
+			return redirect("/profile?error=no_updates");
+		}
 
 		try {
 			await userService.update(user.id, preferenceUpdates);

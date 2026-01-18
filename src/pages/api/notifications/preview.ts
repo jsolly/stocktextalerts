@@ -12,6 +12,7 @@ import {
 	createSmsSender,
 	createTwilioClient,
 	readTwilioConfig,
+	type TwilioConfig,
 } from "./sms/twilio-utils";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
@@ -20,6 +21,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const authUser = await userService.getCurrentUser();
 
 	if (!authUser) {
+		console.error("Preview notification attempt without authenticated user");
 		return redirect("/signin?error=unauthorized");
 	}
 
@@ -63,8 +65,20 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		return redirect("/dashboard?error=preview_failed");
 	}
 
-	if (rateLimitAllowed !== true) {
+	if (rateLimitAllowed === false) {
+		console.warn("User rate-limited", { userId: authUser.id });
 		return redirect("/dashboard?error=preview_rate_limited");
+	}
+
+	if (rateLimitAllowed !== true) {
+		console.error(
+			"Preview notification rate limit check returned unexpected value",
+			{
+				userId: authUser.id,
+				rateLimitAllowed,
+			},
+		);
+		return redirect("/dashboard?error=preview_rate_limit_unexpected");
 	}
 
 	let userStocks: UserStockRow[];
@@ -101,6 +115,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			}
 
 			if (!user) {
+				console.error("User not found for email preview", {
+					userId: authUser.id,
+				});
 				return redirect("/dashboard?error=user_not_found");
 			}
 
@@ -137,6 +154,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 			}
 
 			if (!user) {
+				console.error("User not found for SMS preview", {
+					userId: authUser.id,
+				});
 				return redirect("/dashboard?error=user_not_found");
 			}
 
@@ -156,7 +176,16 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 				return redirect("/dashboard?error=preview_sms_unverified");
 			}
 
-			const twilioConfig = readTwilioConfig();
+			let twilioConfig: TwilioConfig;
+			try {
+				twilioConfig = readTwilioConfig();
+			} catch (error) {
+				console.error("Failed to read Twilio config for SMS preview", {
+					userId: authUser.id,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return redirect("/dashboard?error=preview_sms_unavailable");
+			}
 			const twilioClient = createTwilioClient(twilioConfig);
 			const sendSms = createSmsSender(twilioClient, twilioConfig.phoneNumber);
 

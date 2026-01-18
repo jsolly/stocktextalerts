@@ -37,8 +37,15 @@ export function setupFormChangeDetection(
 	form: HTMLFormElement,
 	saveButton: HTMLButtonElement,
 ) {
-	// Note: initialValues is mutated on form reset to track the new baseline
+	// Note: initialValues is mutated on successful submit
 	const initialValues = snapshot(new FormData(form));
+
+	function updateInitialValues() {
+		initialValues.clear();
+		for (const [k, v] of snapshot(new FormData(form)).entries()) {
+			initialValues.set(k, v);
+		}
+	}
 
 	function checkFormChanged() {
 		const currentValues = snapshot(new FormData(form));
@@ -50,18 +57,23 @@ export function setupFormChangeDetection(
 	form.addEventListener("change", checkFormChanged);
 	form.addEventListener("input", checkFormChanged);
 
-	form.addEventListener("submit", () => {
+	form.addEventListener("submit", (event) => {
 		saveButton.disabled = true;
+
+		// If another handler cancels submission, restore the correct enabled state.
+		queueMicrotask(() => {
+			if (event.defaultPrevented) {
+				checkFormChanged();
+			}
+		});
 	});
 
-	form.addEventListener("reset", () => {
-		setTimeout(() => {
-			const resetFormData = new FormData(form);
-			initialValues.clear();
-			for (const [k, v] of snapshot(resetFormData).entries()) {
-				initialValues.set(k, v);
-			}
-			checkFormChanged();
-		}, 0);
+	form.addEventListener("submit:success", () => {
+		updateInitialValues();
+		checkFormChanged();
+	});
+
+	form.addEventListener("submit:error", () => {
+		checkFormChanged();
 	});
 }
