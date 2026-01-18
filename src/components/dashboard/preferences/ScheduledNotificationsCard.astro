@@ -38,9 +38,13 @@ const currentTime = minutesToTimeInputValue(
 			<div class="mt-4 space-y-3">
 				<label class="flex items-center cursor-pointer">
 					<input
+						type="hidden"
+						name="daily_digest_enabled"
+						value={user.daily_digest_enabled ? "on" : "off"}
+					/>
+					<input
 						type="checkbox"
 						id="daily_digest_enabled"
-						name="daily_digest_enabled"
 						class="mr-2 cursor-pointer"
 						checked={user.daily_digest_enabled}
 					/>
@@ -84,8 +88,9 @@ const currentTime = minutesToTimeInputValue(
 			return;
 		}
 
-		const enabledCheckbox = formElement.querySelector(
-			'input[name="daily_digest_enabled"]',
+		const enabledCheckbox = formElement.querySelector("#daily_digest_enabled");
+		const enabledHidden = formElement.querySelector(
+			'input[type="hidden"][name="daily_digest_enabled"]',
 		);
 		const timeInput = formElement.querySelector(
 			'input[name="daily_digest_notification_time"]',
@@ -93,17 +98,21 @@ const currentTime = minutesToTimeInputValue(
 
 		if (
 			!(enabledCheckbox instanceof HTMLInputElement) ||
+			!(enabledHidden instanceof HTMLInputElement) ||
 			!(timeInput instanceof HTMLInputElement)
 		) {
 			return;
 		}
 
 		const update = () => {
-			timeInput.disabled = !enabledCheckbox.checked;
+			const enabled = enabledCheckbox.checked;
+			enabledHidden.value = enabled ? "on" : "off";
+			timeInput.disabled = !enabled;
+			formElement.dispatchEvent(new Event("input", { bubbles: true }));
 		};
 
 		update();
-		enabledCheckbox.addEventListener("change", update);
+		enabledCheckbox.addEventListener("input", update);
 	}
 
 	if (document.readyState === "loading") {

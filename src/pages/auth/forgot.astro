@@ -115,8 +115,12 @@ if (success === "true") {
 	const captchaStatus = createCaptchaStatusHelpers("forgot-captcha-status");
 
 	document.addEventListener("DOMContentLoaded", () => {
-		const emailInput = document.getElementById("email") as HTMLInputElement;
-		setupEmailInputHandlers(emailInput);
+		const emailInput = document.getElementById("email");
+		if (!emailInput) {
+			return;
+		}
+		const inputEl = emailInput as HTMLInputElement;
+		setupEmailInputHandlers(inputEl);
 
 		const captchaTokenInput = document.getElementById(
 			"forgot_captcha_token",

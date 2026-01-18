@@ -58,16 +58,30 @@ export function createPreferencesHandler(
 
 		const { tracked_stocks: trackedSymbols, ...preferenceData } = parsed.data;
 
-		const baseUpdates = omitUndefined({
-			...preferenceData,
-		});
-
-		const safePreferenceUpdates: Parameters<typeof userService.update>[1] = {
-			...baseUpdates,
-			email_notifications_enabled:
-				baseUpdates.email_notifications_enabled ?? false,
-			sms_notifications_enabled: baseUpdates.sms_notifications_enabled ?? false,
-		};
+		const safePreferenceUpdates: Parameters<typeof userService.update>[1] =
+			omitUndefined({
+				timezone: preferenceData.timezone,
+				daily_digest_notification_time:
+					preferenceData.daily_digest_notification_time,
+				...(formData.has("email_notifications_enabled")
+					? {
+							email_notifications_enabled:
+								preferenceData.email_notifications_enabled ?? false,
+						}
+					: {}),
+				...(formData.has("sms_notifications_enabled")
+					? {
+							sms_notifications_enabled:
+								preferenceData.sms_notifications_enabled ?? false,
+						}
+					: {}),
+				...(formData.has("daily_digest_enabled")
+					? {
+							daily_digest_enabled:
+								preferenceData.daily_digest_enabled ?? false,
+						}
+					: {}),
+			});
 
 		const dbUser = await userService.getById(user.id);
 		if (!dbUser) {

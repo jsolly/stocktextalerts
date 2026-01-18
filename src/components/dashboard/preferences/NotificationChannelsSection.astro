@@ -18,8 +18,13 @@ const { user, isEditingPhone, formId } = Astro.props;
 	<div class="space-y-4">
 		<label class="flex items-center cursor-pointer">
 			<input
-				type="checkbox"
+				type="hidden"
 				name="email_notifications_enabled"
+				value={user.email_notifications_enabled ? "on" : "off"}
+			/>
+			<input
+				type="checkbox"
+				id="email_notifications_enabled"
 				class="mr-2 cursor-pointer"
 				checked={user.email_notifications_enabled}
 			/>
@@ -28,8 +33,13 @@ const { user, isEditingPhone, formId } = Astro.props;
 
 		<label class="flex items-center cursor-pointer">
 			<input
-				type="checkbox"
+				type="hidden"
 				name="sms_notifications_enabled"
+				value={user.sms_notifications_enabled ? "on" : "off"}
+			/>
+			<input
+				type="checkbox"
+				id="sms_notifications_enabled"
 				class="mr-2 cursor-pointer"
 				checked={user.sms_notifications_enabled}
 			/>
@@ -174,9 +184,16 @@ const { user, isEditingPhone, formId } = Astro.props;
 		}
 		const form = formElement;
 
-		const smsCheckbox = form.querySelector(
-			'input[name="sms_notifications_enabled"]',
+		const emailCheckbox = form.querySelector("#email_notifications_enabled");
+		const emailHidden = form.querySelector(
+			'input[type="hidden"][name="email_notifications_enabled"]',
 		);
+
+		const smsCheckbox = form.querySelector("#sms_notifications_enabled");
+		const smsHidden = form.querySelector(
+			'input[type="hidden"][name="sms_notifications_enabled"]',
+		);
+
 		const phoneVerificationSection = document.getElementById(
 			"phone-verification-section",
 		);
@@ -184,19 +201,40 @@ const { user, isEditingPhone, formId } = Astro.props;
 			"phone-verification-fieldset",
 		);
 
+		function syncEmail() {
+			if (
+				!(emailCheckbox instanceof HTMLInputElement) ||
+				!(emailHidden instanceof HTMLInputElement)
+			) {
+				return;
+			}
+
+			emailHidden.value = emailCheckbox.checked ? "on" : "off";
+			form.dispatchEvent(new Event("input", { bubbles: true }));
+		}
+
 		function updateSmsUI() {
 			if (
 				!(smsCheckbox instanceof HTMLInputElement) ||
+				!(smsHidden instanceof HTMLInputElement) ||
 				!(phoneVerificationSection instanceof HTMLElement)
 			) {
 				return;
 			}
 
 			const enabled = smsCheckbox.checked;
+			smsHidden.value = enabled ? "on" : "off";
+			form.dispatchEvent(new Event("input", { bubbles: true }));
+
 			phoneVerificationSection.classList.toggle("hidden", !enabled);
 			if (phoneVerificationFieldset instanceof HTMLFieldSetElement) {
 				phoneVerificationFieldset.disabled = !enabled;
 			}
+		}
+
+		if (emailCheckbox instanceof HTMLInputElement) {
+			syncEmail();
+			emailCheckbox.addEventListener("input", syncEmail);
 		}
 
 		if (
@@ -204,9 +242,7 @@ const { user, isEditingPhone, formId } = Astro.props;
 			phoneVerificationSection instanceof HTMLElement
 		) {
 			updateSmsUI();
-			smsCheckbox.addEventListener("change", () => {
-				updateSmsUI();
-			});
+			smsCheckbox.addEventListener("input", updateSmsUI);
 		}
 	}
 

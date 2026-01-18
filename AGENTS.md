@@ -10,6 +10,7 @@
 
 ## Supabase Auth
 - **Email identity provider_id**: For email providers in `auth.identities`, `provider_id` must be set to the user's UUID from `auth.users`, NOT the email address. For OAuth/SAML providers, `provider_id` uses the provider's unique ID. This is a critical requirement—using the email for email providers will break authentication.
+- **CAPTCHA + resend verification (supabase-js v2.90.0)**: `supabase.auth.resend(...)` supports `options.captchaToken`. When CAPTCHA verification fails, Supabase may return `error.code === "captcha_failed"` (see `src/pages/api/auth/email/resend-verification.ts`).
 
 ## Coding Standards
 - **No compatibility layers**: Avoid shims, adapters, deprecations, or re-exports for legacy behavior.
@@ -24,6 +25,7 @@
 - **Deterministic error checking**: Avoid using `.includes()` or other string matching methods to detect error types. Use structured error properties (e.g., `error.code`, `error.status`) or verify conditions before operations (e.g., verify captcha tokens before API calls) rather than parsing error messages.
 - **Avoid fallbacks in error scenarios**: Don't use fallbacks or default values when encountering unexpected conditions or errors. Fail fast and explicitly. It's better to discover issues early than to have fault-tolerant code that masks problems.
 - **Log unexpected redirects**: When a user is redirected due to an error or unexpected condition, log the error with context (user ID, path, reason) to help diagnose issues in production.
+- **PII logging**: Do not mask or omit PII (personally identifiable information) in logs. Log email addresses, phone numbers, and other identifiers as needed for debugging and error tracking.
 - **Validation**: Minimize trimming/normalization. Rely on strict front-end forms/inputs to produce valid data, then validate/enforce correctness in the database (constraints). Only validate untrusted external input.
 - **External service data normalization**: When passing data to external services that don't enforce our database constraints (e.g., Supabase Auth's `auth.users` table), trim/normalize at the application level before sending. Add comments explaining why this cannot be enforced at the database level. This prevents mismatches between external service data and our database constraints.
 - **Timing hacks**: Avoid setTimeout, nextTick, requestAnimationFrame, and similar timing workarounds. These are usually signs of race conditions or architectural issues. Fix the root cause instead of adding delays.
