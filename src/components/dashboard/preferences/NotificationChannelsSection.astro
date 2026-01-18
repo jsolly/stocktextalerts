@@ -18,7 +18,16 @@ const sendVerificationButtonId = `${formId}-send-verification-button`;
 const smsVerificationCodeId = `${formId}-sms-verification-code`;
 ---
 
-<div class="space-y-4">
+<div
+	class="space-y-4"
+	data-notification-channels="true"
+	data-form-id={formId}
+	data-email-notifications-enabled-id={emailNotificationsEnabledId}
+	data-sms-notifications-enabled-id={smsNotificationsEnabledId}
+	data-phone-verification-section-id={phoneVerificationSectionId}
+	data-phone-verification-fieldset-id={phoneVerificationFieldsetId}
+	data-send-verification-button-id={sendVerificationButtonId}
+>
 	<label class="block text-sm font-medium text-slate-700 mb-2">
 		Notification Channels
 	</label>
@@ -183,20 +192,30 @@ const smsVerificationCodeId = `${formId}-sms-verification-code`;
 	</div>
 </div>
 
-<script
-	type="module"
-	define:vars={{
-		formId,
-		emailNotificationsEnabledId,
-		smsNotificationsEnabledId,
-		phoneVerificationSectionId,
-		phoneVerificationFieldsetId,
-		sendVerificationButtonId,
-	}}
->
-	import { isValidPhoneNumber } from "libphonenumber-js";
+<script type="module">
+	function setupNotificationChannelsUI(root) {
+		if (!(root instanceof HTMLElement)) {
+			return;
+		}
 
-	function setupNotificationChannelsUI() {
+		const formId = root.dataset.formId;
+		const emailNotificationsEnabledId = root.dataset.emailNotificationsEnabledId;
+		const smsNotificationsEnabledId = root.dataset.smsNotificationsEnabledId;
+		const phoneVerificationSectionId = root.dataset.phoneVerificationSectionId;
+		const phoneVerificationFieldsetId = root.dataset.phoneVerificationFieldsetId;
+		const sendVerificationButtonId = root.dataset.sendVerificationButtonId;
+
+		if (
+			!formId ||
+			!emailNotificationsEnabledId ||
+			!smsNotificationsEnabledId ||
+			!phoneVerificationSectionId ||
+			!phoneVerificationFieldsetId ||
+			!sendVerificationButtonId
+		) {
+			return;
+		}
+
 		const formElement = document.getElementById(formId);
 		if (!(formElement instanceof HTMLFormElement)) {
 			return;
@@ -277,22 +296,23 @@ const smsVerificationCodeId = `${formId}-sms-verification-code`;
 				const isValid = event.detail?.isValid === true;
 				sendVerificationButton.disabled = !isValid;
 			});
-
-			const phoneInput = form.querySelector(`[id="phone"]`);
-			if (phoneInput instanceof HTMLInputElement) {
-				const phoneValue = phoneInput.value.trim();
-				const isValid = phoneValue ? isValidPhoneNumber(phoneValue, "US") : false;
-				sendVerificationButton.disabled = !isValid;
-			} else {
-				sendVerificationButton.disabled = true;
-			}
 		}
 	}
 
 	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", setupNotificationChannelsUI);
+		document.addEventListener("DOMContentLoaded", () => {
+			for (const root of document.querySelectorAll(
+				'[data-notification-channels="true"]',
+			)) {
+				setupNotificationChannelsUI(root);
+			}
+		});
 	} else {
-		setupNotificationChannelsUI();
+		for (const root of document.querySelectorAll(
+			'[data-notification-channels="true"]',
+		)) {
+			setupNotificationChannelsUI(root);
+		}
 	}
 </script>
 
