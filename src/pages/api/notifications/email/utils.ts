@@ -48,7 +48,7 @@ export function createEmailSender(): EmailSender {
 				to,
 				subject,
 				text: body,
-				html: html || body,
+				html: html ?? escapeHtml(body),
 			});
 
 			if (error) {

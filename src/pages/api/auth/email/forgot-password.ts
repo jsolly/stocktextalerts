@@ -33,7 +33,11 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			return redirect("/auth/forgot?error=invalid_form");
 		}
 
-		const email = parsed.data.email;
+		// Trim email to ensure consistency with Supabase Auth. This cannot be enforced at the
+		// database level because Supabase Auth stores emails in its own auth.users table which
+		// doesn't have our whitespace constraint. Trimming prevents authentication mismatches
+		// when users request password resets with emails that have leading/trailing whitespace.
+		const email = parsed.data.email.trim();
 		const captchaToken = parsed.data.captcha_token;
 
 		try {

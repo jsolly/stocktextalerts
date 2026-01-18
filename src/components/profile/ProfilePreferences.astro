@@ -4,9 +4,10 @@ import type { TimezoneOption } from "../../lib/timezones/timezones";
 interface Props {
 	timezone: string;
 	timezones: TimezoneOption[];
+	timezoneLoadError?: boolean;
 }
 
-const { timezone, timezones } = Astro.props;
+const { timezone, timezones, timezoneLoadError = false } = Astro.props;
 ---
 
 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -29,7 +30,8 @@ const { timezone, timezones } = Astro.props;
 				id="timezone"
 				name="timezone"
 				required
-				class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+				class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
+				disabled={timezoneLoadError}
 			>
 			<option value="" disabled hidden>
 				Select your timezone

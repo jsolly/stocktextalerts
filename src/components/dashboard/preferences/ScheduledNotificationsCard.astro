@@ -3,9 +3,10 @@ import type { User } from "../../../lib/users";
 
 interface Props {
 	user: User;
+	formId: string;
 }
 
-const { user } = Astro.props;
+const { user, formId } = Astro.props;
 
 function minutesToTimeInputValue(minutes: number): string {
 	const hours = Math.floor(minutes / 60);
@@ -76,9 +77,9 @@ const currentTime = minutesToTimeInputValue(
 	</div>
 </div>
 
-<script>
+<script define:vars={{ formId }}>
 	function setupDailyDigestUI() {
-		const formElement = document.getElementById("dashboard-preferences-form");
+		const formElement = document.getElementById(formId);
 		if (!(formElement instanceof HTMLFormElement)) {
 			return;
 		}

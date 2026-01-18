@@ -110,20 +110,24 @@ if (success === "true") {
 		setupHCaptchaErrorCallback,
 		setupHCaptchaExpiredCallback,
 	} from "../../lib/hcaptcha-utils";
+	import { setupEmailInputHandlers } from "../../lib/forms/utils";
 
 	const captchaStatus = createCaptchaStatusHelpers("forgot-captcha-status");
 
 	document.addEventListener("DOMContentLoaded", () => {
 		const emailInput = document.getElementById("email") as HTMLInputElement;
-		emailInput.addEventListener("keydown", (e) => {
-			if (e.key === " ") {
-				e.preventDefault();
-			}
-		});
-		// Strip spaces from pasted content
-		emailInput.addEventListener("input", () => {
-			emailInput.value = emailInput.value.replace(/\s/g, "");
-		});
+		setupEmailInputHandlers(emailInput);
+
+		const captchaTokenInput = document.getElementById(
+			"forgot_captcha_token",
+		) as HTMLInputElement | null;
+		if (captchaTokenInput) {
+			captchaTokenInput.addEventListener("input", () => {
+				if (captchaTokenInput.value.trim().length > 0) {
+					captchaStatus.hide();
+				}
+			});
+		}
 	});
 
 	initializeHCaptchaForm("forgot-form", "forgot_captcha_token");
@@ -145,12 +149,5 @@ if (success === "true") {
 			captchaStatus.show("CAPTCHA expired. Please complete it again.");
 		},
 	);
-
-	const captchaTokenInput = document.getElementById("forgot_captcha_token") as HTMLInputElement;
-	captchaTokenInput.addEventListener("input", () => {
-		if (captchaTokenInput.value.trim().length > 0) {
-			captchaStatus.hide();
-		}
-	});
 </script>
 

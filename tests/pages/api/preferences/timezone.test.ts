@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
 import { POST } from "../../../../src/pages/api/preferences/timezone";
@@ -5,17 +6,19 @@ import { adminClient } from "../../../setup";
 import { createAuthenticatedCookies, createTestUser } from "../../../utils";
 
 describe("POST /api/preferences/timezone", () => {
+	const TEST_PASSWORD = "TestPassword123!";
+
 	it("updates the current user's timezone and redirects back", async () => {
 		const testUser = await createTestUser({
-			email: `test-timezone-${Date.now()}@example.com`,
-			password: "TestPassword123!",
+			email: `test-timezone-${randomUUID()}@resend.dev`,
+			password: TEST_PASSWORD,
 			confirmed: true,
 			timezone: "America/New_York",
 		});
 
 		const cookies = await createAuthenticatedCookies(
 			testUser.email,
-			"TestPassword123!",
+			TEST_PASSWORD,
 		);
 
 		const formData = new FormData();

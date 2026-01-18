@@ -22,12 +22,7 @@ export function setupTimezoneMismatchBanner(options: {
 		return;
 	}
 
-	let detected = "";
-	try {
-		detected = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-	} catch {
-		detected = "";
-	}
+	const detected = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
 
 	if (!detected || detected === "") {
 		return;

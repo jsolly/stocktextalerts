@@ -63,13 +63,6 @@ export function createPreferencesHandler(
 			timezone: preferenceData.timezone,
 		});
 
-		if (Object.keys(baseUpdates).length === 0) {
-			console.error("Preferences update rejected: no updates provided", {
-				userId: user.id,
-			});
-			return redirect("/dashboard?error=no_updates");
-		}
-
 		const safePreferenceUpdates: Parameters<typeof userService.update>[1] = {
 			...baseUpdates,
 			email_notifications_enabled:

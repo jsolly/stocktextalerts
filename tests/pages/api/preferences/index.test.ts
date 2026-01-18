@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
 import { POST } from "../../../../src/pages/api/preferences";
@@ -7,12 +8,9 @@ import { createAuthenticatedCookies, createTestUser } from "../../../utils";
 describe("POST /api/preferences", () => {
 	it("should successfully update user preferences", async () => {
 		const testUser = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			password: "TestPassword123!",
-		});
-
-		await adminClient.auth.admin.updateUserById(testUser.id, {
-			email_confirm: true,
+			confirmed: true,
 		});
 
 		const cookies = await createAuthenticatedCookies(
@@ -47,7 +45,7 @@ describe("POST /api/preferences", () => {
 					headers: { Location: url },
 				});
 			},
-		} as unknown as APIContext);
+		} as APIContext);
 
 		expect(response.status).toBe(302);
 		expect(response.headers.get("Location")).toBe(
@@ -68,12 +66,9 @@ describe("POST /api/preferences", () => {
 
 	it("should successfully update preferences with a different daily digest hour", async () => {
 		const testUser = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			password: "TestPassword123!",
-		});
-
-		await adminClient.auth.admin.updateUserById(testUser.id, {
-			email_confirm: true,
+			confirmed: true,
 		});
 
 		const cookies = await createAuthenticatedCookies(
@@ -107,7 +102,7 @@ describe("POST /api/preferences", () => {
 					headers: { Location: url },
 				});
 			},
-		} as unknown as APIContext);
+		} as APIContext);
 
 		expect(response.status).toBe(302);
 		expect(response.headers.get("Location")).toBe(

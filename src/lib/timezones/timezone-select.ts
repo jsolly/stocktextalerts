@@ -14,13 +14,7 @@ export function setupDetectedTimezoneOption(options?: {
 		return;
 	}
 
-	let detected = "";
-	try {
-		detected = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-	} catch {
-		// Silently fail - timezone detection is a progressive enhancement
-		detected = "";
-	}
+	const detected = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
 
 	const knownValues = new Set(
 		Array.from(select.options).map((option) => option.value),

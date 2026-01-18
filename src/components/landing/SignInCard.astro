@@ -91,6 +91,7 @@ const {
 		setupHCaptchaErrorCallback,
 		setupHCaptchaExpiredCallback,
 	} from "../../lib/hcaptcha-utils";
+	import { setupEmailInputHandlers } from "../../lib/forms/utils";
 
 	const captchaStatus = createCaptchaStatusHelpers("signin-captcha-status");
 
@@ -102,15 +103,7 @@ const {
 
 		const emailInput = document.getElementById("email");
 		if (emailInput instanceof HTMLInputElement) {
-			emailInput.addEventListener("keydown", (e) => {
-				if (e.key === " ") {
-					e.preventDefault();
-				}
-			});
-			// Strip spaces from pasted content
-			emailInput.addEventListener("input", () => {
-				emailInput.value = emailInput.value.replace(/\s/g, "");
-			});
+			setupEmailInputHandlers(emailInput);
 		}
 
 		const captchaTokenInput = document.getElementById("signin_captcha_token");

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TIMEZONE } from "../../../../../src/lib/timezones/timezone-constants";
@@ -7,7 +8,7 @@ import { adminClient } from "../../../../setup";
 describe("POST /api/auth/email/register", () => {
 	it("can register a user", async () => {
 		const payload = {
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			password: "TestPassword123!",
 			captcha_token: "test-captcha-token",
 			timezone: "America/New_York",
@@ -55,7 +56,7 @@ describe("POST /api/auth/email/register", () => {
 
 	it("fallback timezone is used if a detected timezone does not exist in the database and no valid offset is provided", async () => {
 		const payload = {
-			email: `test-fallback-${Date.now()}@example.com`,
+			email: `test-fallback-${randomUUID()}@resend.dev`,
 			password: "TestPassword123!",
 			captcha_token: "test-captcha-token",
 			timezone: "Fake/Zone",
@@ -93,7 +94,7 @@ describe("POST /api/auth/email/register", () => {
 
 	it("correctly matches a user with a timezone in the database", async () => {
 		const payload = {
-			email: `test-match-${Date.now()}@example.com`,
+			email: `test-match-${randomUUID()}@resend.dev`,
 			password: "TestPassword123!",
 			captcha_token: "test-captcha-token",
 			timezone: "America/Los_Angeles",
@@ -131,7 +132,7 @@ describe("POST /api/auth/email/register", () => {
 
 	it("verifies email after registration", async () => {
 		const payload = {
-			email: `test-verify-${Date.now()}@example.com`,
+			email: `test-verify-${randomUUID()}@resend.dev`,
 			password: "TestPassword123!",
 			captcha_token: "test-captcha-token",
 			timezone: "America/New_York",

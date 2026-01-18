@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import type { TablesInsert } from "../src/lib/generated/database.types";
 import { adminClient } from "./setup";
@@ -28,7 +29,7 @@ export async function createTestUser(
 	const email =
 		options.email ||
 		process.env.TEST_EMAIL_RECIPIENT ||
-		`test-${Date.now()}@example.com`;
+		`test-${randomUUID()}@resend.dev`;
 	const password = options.password || "TestPassword123!";
 	const timezone = options.timezone || "America/New_York";
 
@@ -60,6 +61,7 @@ export async function createTestUser(
 	}
 
 	// Create Profile in 'users' table
+	// Default to 9:00 AM (540 minutes from midnight)
 	const defaultNotificationTime = 540;
 	const rawNotificationTime =
 		options.dailyDigestNotificationTime ?? defaultNotificationTime;

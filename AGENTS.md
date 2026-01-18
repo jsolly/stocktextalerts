@@ -10,6 +10,7 @@
 
 ## Coding Standards
 - **No compatibility layers**: Avoid shims, adapters, deprecations, or re-exports for legacy behavior.
+- **No browser polyfills or legacy fallbacks**: Don't add try-catch blocks, feature detection, or polyfills for old browsers (IE11, etc.). Modern browser APIs like `Intl.DateTimeFormat().resolvedOptions().timeZone`, `sessionStorage`, `Map`, `Set`, etc. are well-supported and won't throw in supported environments. Only handle legitimate error cases (e.g., `sessionStorage` throwing `SecurityError` in private browsing modes). Server-side polyfills (e.g., `@js-temporal/polyfill` for Node.js) are acceptable when the API isn't available in the runtime environment.
 - **Keep files focused**: ≤300 lines; extract utilities to maintain DRY principles.
 - **Prefer functional patterns**: Use classes only when clearly warranted; question class-based approaches.
 - **Avoid one-line functions**: Either inline simple logic or expand to meaningful functions.
@@ -20,6 +21,7 @@
 - **Avoid fallbacks in error scenarios**: Don't use fallbacks or default values when encountering unexpected conditions or errors. Fail fast and explicitly. It's better to discover issues early than to have fault-tolerant code that masks problems.
 - **Log unexpected redirects**: When a user is redirected due to an error or unexpected condition, log the error with context (user ID, path, reason) to help diagnose issues in production.
 - **Validation**: Minimize trimming/normalization. Rely on strict front-end forms/inputs to produce valid data, then validate/enforce correctness in the database (constraints). Only validate untrusted external input.
+- **External service data normalization**: When passing data to external services that don't enforce our database constraints (e.g., Supabase Auth's `auth.users` table), trim/normalize at the application level before sending. Add comments explaining why this cannot be enforced at the database level. This prevents mismatches between external service data and our database constraints.
 - **Timing hacks**: Avoid setTimeout, nextTick, requestAnimationFrame, and similar timing workarounds. These are usually signs of race conditions or architectural issues. Fix the root cause instead of adding delays.
 
 ## Tech Stack

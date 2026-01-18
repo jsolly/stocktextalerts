@@ -143,16 +143,12 @@ function handlePhoneInput(e: Event) {
 						return;
 					}
 
-					let caretPos = formatted.length;
 					let seenDigits = 0;
-					for (let i = 0; i < formatted.length; i++) {
-						if (!/\d/.test(formatted[i])) continue;
-						seenDigits++;
-						if (seenDigits === targetDigitsBeforeCaret) {
-							caretPos = i + 1;
-							break;
-						}
-					}
+					const foundIndex = [...formatted].findIndex((char) => {
+						if (/\d/.test(char)) seenDigits++;
+						return seenDigits === targetDigitsBeforeCaret;
+					});
+					const caretPos = foundIndex >= 0 ? foundIndex + 1 : formatted.length;
 					input.setSelectionRange(caretPos, caretPos);
 				});
 

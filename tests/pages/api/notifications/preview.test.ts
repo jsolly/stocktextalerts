@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
 import { POST } from "../../../../src/pages/api/notifications/preview";
@@ -50,7 +51,7 @@ describe("Preview Notifications Endpoint", () => {
 
 	it("redirects to /dashboard?error=invalid_form (302) when notification type is invalid", async () => {
 		const { id, email } = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 		});
 		try {
@@ -75,7 +76,7 @@ describe("Preview Notifications Endpoint", () => {
 
 	it("redirects to /dashboard?error=preview_email_disabled (302) when email notifications are disabled", async () => {
 		const { id, email } = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 			emailNotificationsEnabled: false,
 		});
@@ -102,7 +103,7 @@ describe("Preview Notifications Endpoint", () => {
 
 	it("redirects to /dashboard?error=preview_sms_disabled (302) when SMS notifications are disabled", async () => {
 		const { id, email } = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 			smsNotificationsEnabled: false,
 		});
@@ -129,7 +130,7 @@ describe("Preview Notifications Endpoint", () => {
 
 	it("redirects to /dashboard?error=preview_sms_opted_out (302) when user has opted out of SMS notifications", async () => {
 		const { id, email } = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 			smsNotificationsEnabled: true,
 		});
@@ -165,7 +166,7 @@ describe("Preview Notifications Endpoint", () => {
 
 	it("redirects to /dashboard?error=preview_sms_unverified (302) when phone number is not verified", async () => {
 		const { id, email } = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 			smsNotificationsEnabled: true,
 		});
@@ -206,7 +207,7 @@ describe("Preview Notifications Endpoint", () => {
 
 	it("redirects to /dashboard?error=preview_sms_missing_phone (302) when phone number is missing", async () => {
 		const { id, email } = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 			smsNotificationsEnabled: true,
 		});
@@ -248,7 +249,7 @@ describe("Preview Notifications Endpoint", () => {
 	it("redirects to /dashboard?success=preview_email_sent (302) when user has valid email fields", async () => {
 		const { id, email } = await createTestUser({
 			email:
-				process.env.TEST_EMAIL_RECIPIENT || `test-${Date.now()}@resend.dev`,
+				process.env.TEST_EMAIL_RECIPIENT || `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 			emailNotificationsEnabled: true,
 			trackedStocks: ["AAPL"],
@@ -276,7 +277,7 @@ describe("Preview Notifications Endpoint", () => {
 
 	it("redirects to /dashboard?success=preview_sms_sent (302) when user has valid SMS fields", async () => {
 		const { id, email } = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			confirmed: true,
 			smsNotificationsEnabled: true,
 			trackedStocks: ["AAPL"],

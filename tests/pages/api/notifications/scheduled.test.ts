@@ -58,18 +58,16 @@ describe("Scheduled Notifications Integration", () => {
 			}
 			// Ensure environment matches (mocking request header is enough if app checks env)
 
-			const request = new Request(
-				"http://localhost/api/notifications/scheduled",
-				{
+			const createRequest = () =>
+				new Request("http://localhost/api/notifications/scheduled", {
 					method: "POST",
 					headers: {
 						Authorization: `Bearer ${cronSecret}`,
 					},
-				},
-			);
+				});
 
-			const response = await POST({ request } as APIContext);
-			const response2 = await POST({ request } as APIContext);
+			const response = await POST({ request: createRequest() } as APIContext);
+			const response2 = await POST({ request: createRequest() } as APIContext);
 
 			// 3. Assertions
 			// Check Status

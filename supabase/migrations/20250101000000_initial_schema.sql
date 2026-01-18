@@ -480,7 +480,7 @@ BEGIN
   WHERE (SELECT COUNT(*) FROM rate_limit_log
          WHERE user_id = p_user_id
            AND endpoint = p_endpoint
-           AND created_at > window_start) < p_max_requests;
+           AND created_at >= window_start) < p_max_requests;
   
   IF NOT FOUND THEN
     RETURN false;

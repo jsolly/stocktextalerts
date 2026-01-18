@@ -61,7 +61,17 @@ export function setupFormNavigationWarning(options: {
 		isSubmitting = false;
 	}
 
-	const initialValues = readFormValues(form);
+	let initialValues = readFormValues(form);
+
+	function resetInitialValues() {
+		initialValues = readFormValues(form);
+		updateSaveButtonState();
+	}
+
+	function handleSubmitSuccess() {
+		clearSubmittingState();
+		resetInitialValues();
+	}
 
 	function checkIfDirty() {
 		if (customDirtyCheck) {
@@ -119,7 +129,7 @@ export function setupFormNavigationWarning(options: {
 	form.addEventListener("input", handleFormChange);
 	form.addEventListener("change", handleFormChange);
 	form.addEventListener("submit", handleSubmit);
-	form.addEventListener("submit:success", clearSubmittingState);
+	form.addEventListener("submit:success", handleSubmitSuccess);
 	form.addEventListener("submit:error", clearSubmittingState);
 	form.addEventListener("invalid", handleInvalid, true);
 	window.addEventListener("beforeunload", handleBeforeUnload);
@@ -186,7 +196,7 @@ export function setupFormNavigationWarning(options: {
 		form.removeEventListener("input", handleFormChange);
 		form.removeEventListener("change", handleFormChange);
 		form.removeEventListener("submit", handleSubmit);
-		form.removeEventListener("submit:success", clearSubmittingState);
+		form.removeEventListener("submit:success", handleSubmitSuccess);
 		form.removeEventListener("submit:error", clearSubmittingState);
 		form.removeEventListener("invalid", handleInvalid, true);
 		window.removeEventListener("beforeunload", handleBeforeUnload);

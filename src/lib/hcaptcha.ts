@@ -2,7 +2,7 @@
 hCaptcha Verification
 ============= */
 
-type HCaptchaVerifyResult = {
+export type HCaptchaVerifyResult = {
 	success: boolean;
 	errorCodes: string[];
 };
@@ -10,6 +10,7 @@ type HCaptchaVerifyResult = {
 export function getRequestIp(request: Request): string | null {
 	const forwardedFor = request.headers.get("x-forwarded-for");
 	if (forwardedFor) {
+		// Trim to handle potential whitespace from proxy headers
 		const first = forwardedFor.split(",")[0]?.trim();
 		if (first) {
 			return first;
@@ -17,6 +18,7 @@ export function getRequestIp(request: Request): string | null {
 	}
 
 	const realIp = request.headers.get("x-real-ip");
+	// Trim to handle potential whitespace from proxy headers
 	return realIp?.trim() || null;
 }
 
@@ -27,6 +29,15 @@ export async function verifyHCaptchaToken({
 	token: string;
 	remoteIp?: string | null;
 }): Promise<HCaptchaVerifyResult> {
+	// Trim to handle whitespace-only tokens (e.g., accidental spaces in form inputs)
+	// External input from hCaptcha widget should not have whitespace, but we validate defensively
+	if (!token || token.trim().length === 0) {
+		return {
+			success: false,
+			errorCodes: ["missing-input-response"],
+		};
+	}
+
 	if (import.meta.env.MODE === "test") {
 		return {
 			success: true,

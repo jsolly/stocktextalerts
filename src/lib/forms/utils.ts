@@ -10,3 +10,18 @@ export function omitUndefined<T extends Record<string, unknown | undefined>>(
 	);
 	return Object.fromEntries(entries) as Partial<NonUndefined<T>>;
 }
+
+export function setupEmailInputHandlers(emailInput: HTMLInputElement) {
+	emailInput.addEventListener("keydown", (e) => {
+		if (e.key === " ") {
+			e.preventDefault();
+		}
+	});
+
+	emailInput.addEventListener("paste", (e) => {
+		if (!e.clipboardData) return;
+		e.preventDefault();
+		const paste = e.clipboardData.getData("text");
+		emailInput.value = paste.replace(/\s/g, "");
+	});
+}

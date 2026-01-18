@@ -5,9 +5,10 @@ import PhoneInput from "../../PhoneInput.vue";
 interface Props {
 	user: User;
 	isEditingPhone: boolean;
+	formId: string;
 }
 
-const { user, isEditingPhone } = Astro.props;
+const { user, isEditingPhone, formId } = Astro.props;
 ---
 
 <div class="space-y-4">
@@ -166,9 +167,9 @@ const { user, isEditingPhone } = Astro.props;
 	</div>
 </div>
 
-<script>
+<script define:vars={{ formId }}>
 	function setupNotificationChannelsUI() {
-		const formElement = document.getElementById("dashboard-preferences-form");
+		const formElement = document.getElementById(formId);
 		if (!(formElement instanceof HTMLFormElement)) {
 			return;
 		}

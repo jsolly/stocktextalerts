@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
 import { POST } from "../../../../src/pages/api/preferences";
@@ -20,7 +21,7 @@ async function updateTrackedStocks(
 	redirectUrl: string | null;
 }> {
 	const testUser = await createTestUser({
-		email: `test-${Date.now()}@example.com`,
+		email: `test-${randomUUID()}@resend.dev`,
 		password: TEST_PASSWORD,
 		trackedStocks: initialStocks,
 	});
@@ -115,7 +116,7 @@ describe("POST /api/preferences (tracked stocks)", () => {
 
 	it("should reject request with missing tracked_stocks field", async () => {
 		const testUser = await createTestUser({
-			email: `test-${Date.now()}@example.com`,
+			email: `test-${randomUUID()}@resend.dev`,
 			password: TEST_PASSWORD,
 			trackedStocks: ["AAPL"],
 		});

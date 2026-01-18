@@ -7,9 +7,10 @@ interface Props {
 	user: User;
 	timezones: TimezoneOption[];
 	isEditingPhone: boolean;
+	formId: string;
 }
 
-const { user, timezones, isEditingPhone } = Astro.props;
+const { user, timezones, isEditingPhone, formId } = Astro.props;
 ---
 
 <div class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -40,7 +41,7 @@ const { user, timezones, isEditingPhone } = Astro.props;
 			</select>
 		</div>
 
-		<NotificationChannelsSection user={user} isEditingPhone={isEditingPhone} />
+		<NotificationChannelsSection user={user} isEditingPhone={isEditingPhone} formId={formId} />
 	</div>
 </div>
 
