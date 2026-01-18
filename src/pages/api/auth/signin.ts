@@ -1,8 +1,8 @@
 import type { APIRoute } from "astro";
 import { setAuthCookies } from "../../../lib/auth-cookies";
+import { parseWithSchema } from "../../../lib/forms/parsing";
 import { getRequestIp, verifyHCaptchaToken } from "../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../lib/supabase";
-import { parseWithSchema } from "../form-utils";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const supabase = createSupabaseServerClient();
@@ -10,29 +10,23 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
 		email: { type: "string", required: true },
-		password: { type: "string", required: true },
-		captcha_token: { type: "string" },
+		password: { type: "string", required: true, trim: false },
+		captcha_token: { type: "string", required: true },
 	} as const);
 
 	if (!parsed.ok) {
 		console.error("Sign-in attempt rejected due to invalid form", {
 			errors: parsed.allErrors,
 		});
-		return redirect("/signin?error=invalid_form");
+		const email = formData.get("email");
+		const emailParam =
+			typeof email === "string" ? `&email=${encodeURIComponent(email)}` : "";
+		return redirect(`/signin?error=invalid_form${emailParam}`);
 	}
 
 	const email = parsed.data.email;
 	const password = parsed.data.password;
 	const captchaToken = parsed.data.captcha_token;
-
-	if (!captchaToken) {
-		console.error("Sign-in attempt rejected due to missing captcha token", {
-			email,
-		});
-		return redirect(
-			`/signin?error=captcha_required&email=${encodeURIComponent(email)}`,
-		);
-	}
 
 	try {
 		const verification = await verifyHCaptchaToken({

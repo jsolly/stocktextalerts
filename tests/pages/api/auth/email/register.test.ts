@@ -1,8 +1,8 @@
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TIMEZONE } from "../../../../src/lib/timezones/timezone-constants";
-import { POST } from "../../../../src/pages/api/auth/email/register";
-import { adminClient } from "../../../setup";
+import { DEFAULT_TIMEZONE } from "../../../../../src/lib/timezones/timezone-constants";
+import { POST } from "../../../../../src/pages/api/auth/email/register";
+import { adminClient } from "../../../../setup";
 
 describe("POST /api/auth/email/register", () => {
 	it("can register a user", async () => {

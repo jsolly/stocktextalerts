@@ -117,7 +117,50 @@ function handlePhoneInput(e: Event) {
 
 	const inputType = (e as InputEvent).inputType;
 	if (inputType === "deleteContentBackward" && newDigits.length === previousDigits.length) {
-		newDigits = previousDigits.slice(0, -1);
+		const selectionStart = input.selectionStart ?? input.value.length;
+		const selectionEnd = input.selectionEnd ?? input.value.length;
+		const isCaretSelectionCollapsed = selectionStart === selectionEnd;
+
+		const isCaretAtEnd = selectionStart === input.value.length;
+		if (!isCaretSelectionCollapsed || isCaretAtEnd) {
+			newDigits = previousDigits.slice(0, -1);
+		} else {
+			const digitsBeforeCaret = input.value
+				.slice(0, selectionStart)
+				.replace(/\D/g, "").length;
+
+			if (digitsBeforeCaret > 0) {
+				newDigits =
+					previousDigits.slice(0, digitsBeforeCaret - 1) +
+					previousDigits.slice(digitsBeforeCaret);
+
+				const formatted = formatPhone(newDigits);
+				requestAnimationFrame(() => {
+					if (input.value !== formatted) return;
+					const targetDigitsBeforeCaret = digitsBeforeCaret - 1;
+					if (targetDigitsBeforeCaret <= 0) {
+						input.setSelectionRange(0, 0);
+						return;
+					}
+
+					let caretPos = formatted.length;
+					let seenDigits = 0;
+					for (let i = 0; i < formatted.length; i++) {
+						if (!/\d/.test(formatted[i])) continue;
+						seenDigits++;
+						if (seenDigits === targetDigitsBeforeCaret) {
+							caretPos = i + 1;
+							break;
+						}
+					}
+					input.setSelectionRange(caretPos, caretPos);
+				});
+
+				phoneNumber.value = formatted;
+				lastDigits.value = newDigits;
+				return; // early return to skip duplicate formatting below
+			}
+		}
 	}
 
 	const formatted = formatPhone(newDigits);

@@ -39,19 +39,19 @@ export function setupFormNavigationWarning(options: {
 	saveButtonId: string;
 	customDirtyCheck?: () => boolean;
 	customSaveButtonCheck?: () => boolean;
-}) {
+}): (() => void) | undefined {
 	const { formId, saveButtonId, customDirtyCheck, customSaveButtonCheck } =
 		options;
 
 	const formElement = document.getElementById(formId);
 	if (!(formElement instanceof HTMLFormElement)) {
-		return;
+		return undefined;
 	}
 	const form = formElement;
 
 	const saveButtonElement = document.getElementById(saveButtonId);
 	if (!(saveButtonElement instanceof HTMLButtonElement)) {
-		return;
+		return undefined;
 	}
 	const saveButton = saveButtonElement;
 
@@ -95,10 +95,7 @@ export function setupFormNavigationWarning(options: {
 		updateSaveButtonState();
 	}
 
-	form.addEventListener("input", handleFormChange);
-	form.addEventListener("change", handleFormChange);
-
-	form.addEventListener("submit", (event) => {
+	function handleSubmit(event: SubmitEvent) {
 		isSubmitting = true;
 		if (submittingResetTimeoutId !== undefined) {
 			window.clearTimeout(submittingResetTimeoutId);
@@ -112,22 +109,18 @@ export function setupFormNavigationWarning(options: {
 				clearSubmittingState();
 			}
 		});
-	});
+	}
 
-	form.addEventListener(
-		"invalid",
-		() => {
-			clearSubmittingState();
-		},
-		true,
-	);
+	function handleInvalid() {
+		clearSubmittingState();
+	}
 
-	form.addEventListener("reset", () => {
+	function handleReset() {
 		clearSubmittingState();
 		updateSaveButtonState();
-	});
+	}
 
-	window.addEventListener("beforeunload", (event) => {
+	function handleBeforeUnload(event: BeforeUnloadEvent) {
 		if (isSubmitting) {
 			return;
 		}
@@ -137,7 +130,14 @@ export function setupFormNavigationWarning(options: {
 			event.returnValue = "";
 			return "";
 		}
-	});
+	}
+
+	form.addEventListener("input", handleFormChange);
+	form.addEventListener("change", handleFormChange);
+	form.addEventListener("submit", handleSubmit);
+	form.addEventListener("invalid", handleInvalid, true);
+	form.addEventListener("reset", handleReset);
+	window.addEventListener("beforeunload", handleBeforeUnload);
 
 	function shouldWarnOnLinkClick(link: HTMLAnchorElement): boolean {
 		if (link.target === "_blank") {
@@ -172,30 +172,41 @@ export function setupFormNavigationWarning(options: {
 		return true;
 	}
 
-	document.addEventListener(
-		"click",
-		(event) => {
-			const target = event.target;
-			if (!(target instanceof Element)) {
-				return;
-			}
+	function handleDocumentClick(event: Event) {
+		const target = event.target;
+		if (!(target instanceof Element)) {
+			return;
+		}
 
-			const link = target.closest("a");
-			if (!link || !shouldWarnOnLinkClick(link)) {
-				return;
-			}
+		const link = target.closest("a");
+		if (!link || !shouldWarnOnLinkClick(link)) {
+			return;
+		}
 
-			if (
-				!confirm(
-					"You have unsaved changes. Are you sure you want to leave this page?",
-				)
-			) {
-				event.preventDefault();
-				event.stopPropagation();
-			}
-		},
-		true,
-	);
+		if (
+			!confirm(
+				"You have unsaved changes. Are you sure you want to leave this page?",
+			)
+		) {
+			event.preventDefault();
+			event.stopPropagation();
+		}
+	}
+
+	document.addEventListener("click", handleDocumentClick, true);
 
 	updateSaveButtonState();
+
+	return () => {
+		form.removeEventListener("input", handleFormChange);
+		form.removeEventListener("change", handleFormChange);
+		form.removeEventListener("submit", handleSubmit);
+		form.removeEventListener("invalid", handleInvalid, true);
+		form.removeEventListener("reset", handleReset);
+		window.removeEventListener("beforeunload", handleBeforeUnload);
+		document.removeEventListener("click", handleDocumentClick, true);
+		if (submittingResetTimeoutId !== undefined) {
+			window.clearTimeout(submittingResetTimeoutId);
+		}
+	};
 }

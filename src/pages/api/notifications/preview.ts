@@ -1,10 +1,10 @@
 import type { APIRoute } from "astro";
+import { coerceWithSchema } from "../../../lib/forms/coercion";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
-import { parseWithSchema } from "../form-utils";
 import { createEmailSender } from "./email/utils";
 import { processEmailUpdate, processSmsUpdate } from "./processing";
 import { loadUserStocks, type UserStockRow } from "./shared";
@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 	}
 
 	const formData = await request.formData();
-	const parsed = parseWithSchema(formData, {
+	const parsed = coerceWithSchema(formData, {
 		type: { type: "enum", values: ["email", "sms"] as const, required: true },
 	} as const);
 
@@ -148,7 +148,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 				return redirect("/dashboard?error=preview_sms_opted_out");
 			}
 
-			if (!user.phone_country_code?.trim() || !user.phone_number?.trim()) {
+			if (!user.phone_country_code || !user.phone_number) {
 				return redirect("/dashboard?error=preview_sms_missing_phone");
 			}
 

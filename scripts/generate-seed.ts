@@ -107,7 +107,7 @@ async function generateUsersSql(
     }
 
     const userEmailLookup = userEmailRaw.toLowerCase();
-    const userPasswordRaw = user.password || defaultPassword;
+    const userPasswordRaw = defaultPassword;
 
     const trackedStocks = Array.isArray(user.tracked_stocks)
       ? user.tracked_stocks
@@ -182,7 +182,13 @@ async function main() {
   let users: SeedUser[] = [];
   if (fs.existsSync(USERS_FILE)) {
     try {
-      users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+      const parsed = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8')) as unknown;
+      if (!Array.isArray(parsed)) {
+        throw new Error(
+          `${USERS_FILE} must contain a JSON array of users (SeedUser[]) for generateUsersSql; received ${typeof parsed}`,
+        );
+      }
+      users = parsed as SeedUser[];
     } catch (error) {
       throw new Error(
         `Failed to parse ${USERS_FILE}: ${error instanceof Error ? error.message : String(error)}`,

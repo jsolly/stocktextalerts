@@ -59,6 +59,12 @@ const {
 				errorCallback="onSignInHCaptchaError"
 				expiredCallback="onSignInHCaptchaExpired"
 			/>
+			<div
+				id="signin-captcha-status"
+				class="mt-2 hidden rounded-md bg-red-50 p-3 text-sm text-red-700"
+				role="status"
+				aria-live="polite"
+			></div>
 		</div>
     <div class="flex items-center justify-between">
       <div class="text-sm">
@@ -79,11 +85,14 @@ const {
 
 <script>
 	import {
+		createCaptchaStatusHelpers,
 		initializeHCaptchaForm,
 		setupHCaptchaCallback,
 		setupHCaptchaErrorCallback,
 		setupHCaptchaExpiredCallback,
 	} from "../../lib/hcaptcha-utils";
+
+	const captchaStatus = createCaptchaStatusHelpers("signin-captcha-status");
 
 	document.addEventListener("DOMContentLoaded", () => {
 		const form = document.getElementById("signin-form");
@@ -120,12 +129,18 @@ const {
 
 			if (existingToken.length === 0 && trimmedCaptchaResponse.length === 0) {
 				event.preventDefault();
-				alert("Please complete the CAPTCHA verification.");
+				captchaStatus.show("Please complete the CAPTCHA verification.");
 				return;
 			}
 
 			if (existingToken.length === 0 && trimmedCaptchaResponse.length > 0) {
 				captchaTokenInput.value = trimmedCaptchaResponse;
+			}
+		});
+
+		captchaTokenInput.addEventListener("input", () => {
+			if (captchaTokenInput.value.trim().length > 0) {
+				captchaStatus.hide();
 			}
 		});
 	});
@@ -135,6 +150,9 @@ const {
 		"onSignInHCaptchaSuccess",
 		"signin_captcha_token",
 		"signin-form",
+		() => {
+			captchaStatus.hide();
+		},
 	);
 	setupHCaptchaErrorCallback("onSignInHCaptchaError");
 	setupHCaptchaExpiredCallback(

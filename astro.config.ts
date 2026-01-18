@@ -8,7 +8,8 @@ import { loadEnv } from "vite";
 const mode = process.env.NODE_ENV || process.env.MODE || "development";
 const env = loadEnv(mode, process.cwd(), "");
 const vercelUrl = env.VERCEL_URL || process.env.VERCEL_URL;
-const isCI = Boolean(process.env.CI);
+
+const isCI = process.env.CI === "true" || env.CI === "true";
 
 // VERCEL_URL from Vercel is just the hostname (e.g., "stocktextalerts.com")
 // Locally, it should include the protocol (e.g., "http://localhost:4321")

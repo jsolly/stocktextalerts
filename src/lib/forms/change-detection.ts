@@ -3,7 +3,17 @@ export function snapshot(fd: FormData) {
 	const keys = new Set<string>();
 	for (const [name] of fd.entries()) keys.add(String(name));
 	for (const name of keys) {
-		values.set(name, fd.getAll(name).map(String).join("\u0000"));
+		values.set(
+			name,
+			fd
+				.getAll(name)
+				.map((item) =>
+					item instanceof File
+						? `${item.name}:${item.size}:${item.lastModified}`
+						: String(item),
+				)
+				.join("\u0000"),
+		);
 	}
 	return values;
 }
@@ -27,6 +37,7 @@ export function setupFormChangeDetection(
 	form: HTMLFormElement,
 	saveButton: HTMLButtonElement,
 ) {
+	// Note: initialValues is mutated on form reset to track the new baseline
 	const initialValues = snapshot(new FormData(form));
 
 	function checkFormChanged() {

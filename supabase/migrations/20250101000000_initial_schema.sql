@@ -179,8 +179,15 @@ CREATE TABLE IF NOT EXISTS users (
     (phone_country_code IS NULL AND phone_number IS NULL) OR
     (phone_country_code IS NOT NULL AND phone_number IS NOT NULL)
   ),
+  CONSTRAINT users_sms_requires_phone CHECK (
+    sms_notifications_enabled = false OR
+    (phone_country_code IS NOT NULL AND phone_number IS NOT NULL)
+  ),
   CONSTRAINT users_email_no_whitespace CHECK (email = btrim(email) AND email !~ E'\\s'),
-  CONSTRAINT users_email_non_empty CHECK (email <> '')
+  CONSTRAINT users_email_non_empty CHECK (email <> ''),
+  CONSTRAINT users_timezone_no_whitespace CHECK (timezone = btrim(timezone)),
+  CONSTRAINT users_phone_country_code_no_whitespace CHECK (phone_country_code IS NULL OR phone_country_code = btrim(phone_country_code)),
+  CONSTRAINT users_phone_number_no_whitespace CHECK (phone_number IS NULL OR phone_number = btrim(phone_number))
 );
 
 /* =============
@@ -190,7 +197,8 @@ Stocks
 CREATE TABLE IF NOT EXISTS stocks (
   symbol VARCHAR(10) PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  exchange VARCHAR(50) NOT NULL
+  exchange VARCHAR(50) NOT NULL,
+  CONSTRAINT stocks_symbol_no_whitespace CHECK (symbol = btrim(symbol))
 );
 
 /* =============
@@ -216,6 +224,9 @@ RETURNS void
 LANGUAGE plpgsql
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  sanitized_symbols text[];
+  sanitized_count integer;
 BEGIN
   DELETE FROM user_stocks WHERE user_stocks.user_id = replace_user_stocks.user_id;
 
@@ -223,17 +234,85 @@ BEGIN
     RETURN;
   END IF;
 
-  INSERT INTO user_stocks (user_id, symbol)
-  SELECT replace_user_stocks.user_id, sanitized.symbol
-  FROM (
+  SELECT ARRAY(
     SELECT DISTINCT UPPER(TRIM(BOTH FROM entry)) AS symbol
     FROM unnest(symbols) AS raw(entry)
     WHERE TRIM(BOTH FROM entry) <> ''
-  ) AS sanitized;
+  ) INTO sanitized_symbols;
+
+  IF sanitized_symbols IS NULL OR array_length(sanitized_symbols, 1) IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT array_length(sanitized_symbols, 1) INTO sanitized_count;
+  IF sanitized_count > 50 THEN
+    RAISE EXCEPTION 'Tracked stocks limit exceeded'
+      USING ERRCODE = 'check_violation',
+        CONSTRAINT = 'user_stocks_max_limit';
+  END IF;
+
+  INSERT INTO user_stocks (user_id, symbol)
+  SELECT replace_user_stocks.user_id, symbol
+  FROM unnest(sanitized_symbols) AS symbol;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.replace_user_stocks(uuid, text[]) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.update_user_preferences_and_stocks(
+  p_user_id uuid,
+  p_symbols text[],
+  p_email_notifications_enabled boolean,
+  p_sms_notifications_enabled boolean,
+  p_timezone text,
+  p_daily_digest_enabled boolean,
+  p_daily_digest_notification_time integer,
+  p_next_send_at timestamp with time zone
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF p_symbols IS NULL THEN
+    RAISE EXCEPTION 'Tracked stocks required'
+      USING ERRCODE = 'check_violation',
+        CONSTRAINT = 'user_stocks_required';
+  END IF;
+
+  IF NULLIF(current_setting('request.jwt.claims', true), '')::json->>'role' = 'authenticated'
+     AND p_user_id <> (SELECT auth.uid()) THEN
+    RAISE EXCEPTION 'Cannot update preferences for another user';
+  END IF;
+
+  PERFORM public.replace_user_stocks(p_user_id, p_symbols);
+
+  UPDATE public.users
+  SET
+    email_notifications_enabled = p_email_notifications_enabled,
+    sms_notifications_enabled = p_sms_notifications_enabled,
+    timezone = p_timezone,
+    daily_digest_enabled = p_daily_digest_enabled,
+    daily_digest_notification_time = p_daily_digest_notification_time,
+    next_send_at = p_next_send_at
+  WHERE id = p_user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User not found';
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.update_user_preferences_and_stocks(
+  uuid,
+  text[],
+  boolean,
+  boolean,
+  text,
+  boolean,
+  integer,
+  timestamp with time zone
+) TO authenticated, service_role;
 
 /* =============
 Notification Log
@@ -375,11 +454,19 @@ DECLARE
   window_start timestamp with time zone;
   lock_key bigint;
 BEGIN
-  IF current_setting('request.jwt.claims', true)::json->>'role' = 'authenticated'
+  IF NULLIF(current_setting('request.jwt.claims', true), '')::json->>'role' = 'authenticated'
      AND p_user_id <> (SELECT auth.uid()) THEN
     RAISE EXCEPTION 'Cannot check rate limit for another user';
   END IF;
   
+  IF p_max_requests IS NULL OR p_max_requests <= 0 THEN
+    RAISE EXCEPTION 'invalid rate limit parameter: p_max_requests must be > 0';
+  END IF;
+
+  IF p_window_minutes IS NULL OR p_window_minutes <= 0 THEN
+    RAISE EXCEPTION 'invalid rate limit parameter: p_window_minutes must be > 0';
+  END IF;
+
   window_start := pg_catalog.now() - (p_window_minutes || ' minutes')::interval;
   
   lock_key := pg_catalog.hashtext(p_user_id::text || '|' || p_endpoint);

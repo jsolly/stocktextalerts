@@ -22,13 +22,12 @@ export function setupDetectedTimezoneOption(options?: {
 		detected = "";
 	}
 
-	const detectedTimezone = detected.trim();
 	const knownValues = new Set(
 		Array.from(select.options).map((option) => option.value),
 	);
 
-	if (detectedTimezone && knownValues.has(detectedTimezone)) {
-		select.value = detectedTimezone;
+	if (detected && detected !== "" && knownValues.has(detected)) {
+		select.value = detected;
 		return;
 	}
 

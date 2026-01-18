@@ -90,12 +90,12 @@ if (success === "true") {
 							errorCallback="onUnconfirmedHCaptchaError"
 							expiredCallback="onUnconfirmedHCaptchaExpired"
 						/>
-						<div
-							id="unconfirmed-captcha-status"
-							class="mt-2 hidden rounded-md bg-red-50 p-3 text-sm text-red-700"
-							role="alert"
-							aria-live="polite"
-						></div>
+					<div
+						id="unconfirmed-captcha-status"
+						class="mt-2 hidden rounded-md bg-red-50 p-3 text-sm text-red-700"
+						role="status"
+						aria-live="polite"
+					></div>
             <button
               id="resend-btn"
               type="submit"

@@ -14,7 +14,6 @@ const MESSAGE_ALLOWLIST: Record<string, string> = {
 	failed_to_update_stocks: "Failed to update tracked stocks. Please try again.",
 	server_error: "An error occurred. Please try again",
 	phone_not_set: "Phone number not set",
-	no_updates: "No updates to save",
 	sms_opted_out: "SMS notifications are disabled for this number",
 	user_not_found: "User not found",
 	stocks_limit: "Maximum 50 stocks allowed",

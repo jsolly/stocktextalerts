@@ -53,18 +53,7 @@ async function loadAllTimezones(
 		}
 	}
 
-	return rows
-		.map((row) => {
-			const value = row.value.trim();
-			return value === ""
-				? null
-				: {
-						...row,
-						value,
-						label: row.label.trim(),
-					};
-		})
-		.filter((row): row is DbTimezoneRow => row !== null);
+	return rows.filter((row) => row.value !== "");
 }
 
 async function getAllTimezonesCached(
@@ -94,6 +83,13 @@ async function getAllTimezonesCached(
 			};
 			return rows;
 		})
+		.catch((error) => {
+			console.error("Failed to load timezones cache:", error);
+			if (allTimezonesCache && allTimezonesCache.cacheBuster !== cacheBuster) {
+				allTimezonesCache = null;
+			}
+			throw error;
+		})
 		.finally(() => {
 			allTimezonesInFlight = null;
 		});
@@ -105,9 +101,9 @@ export async function getTimezoneOptions(
 	supabase: AppSupabaseClient,
 	options?: { includeValues?: string[] },
 ): Promise<TimezoneOption[]> {
-	const includeValues = (options?.includeValues ?? [])
-		.map((value) => value.trim())
-		.filter((value) => value !== "");
+	const includeValues = (options?.includeValues ?? []).filter(
+		(value) => value !== "",
+	);
 	const uniqueIncludeValues = [...new Set(includeValues)];
 
 	const rows = await getAllTimezonesCached(supabase);
@@ -151,16 +147,15 @@ export async function resolveTimezone(options: {
 	allTimezoneValues?: string[];
 }): Promise<string> {
 	const { supabase, detectedTimezone, allTimezoneValues } = options;
-	const detectedTrimmed = (detectedTimezone ?? "").trim();
 
 	const rows = allTimezoneValues ? null : await getAllTimezonesCached(supabase);
 	const values =
 		allTimezoneValues ?? rows?.map((timezone) => timezone.value) ?? [];
 
-	if (detectedTrimmed !== "") {
+	if (detectedTimezone && detectedTimezone !== "") {
 		const byValue = new Set(values);
-		if (byValue.has(detectedTrimmed)) {
-			return detectedTrimmed;
+		if (byValue.has(detectedTimezone)) {
+			return detectedTimezone;
 		}
 	}
 

@@ -1,10 +1,10 @@
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
-import { POST } from "../../../src/pages/api/timezone";
-import { adminClient } from "../../setup";
-import { createAuthenticatedCookies, createTestUser } from "../../utils";
+import { POST } from "../../../../src/pages/api/preferences/timezone";
+import { adminClient } from "../../../setup";
+import { createAuthenticatedCookies, createTestUser } from "../../../utils";
 
-describe("POST /api/timezone", () => {
+describe("POST /api/preferences/timezone", () => {
 	it("updates the current user's timezone and redirects back", async () => {
 		const testUser = await createTestUser({
 			email: `test-timezone-${Date.now()}@example.com`,
@@ -21,7 +21,7 @@ describe("POST /api/timezone", () => {
 		const formData = new FormData();
 		formData.append("timezone", "Etc/UTC");
 
-		const request = new Request("http://localhost/api/timezone", {
+		const request = new Request("http://localhost/api/preferences/timezone", {
 			method: "POST",
 			body: formData,
 		});
@@ -49,6 +49,7 @@ describe("POST /api/timezone", () => {
 			.single();
 
 		expect(error).toBeNull();
+		expect(updatedUser).not.toBeNull();
 		expect(updatedUser.timezone).toBe("Etc/UTC");
 	});
 });

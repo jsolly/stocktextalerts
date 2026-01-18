@@ -29,32 +29,28 @@ export function setupTimezoneMismatchBanner(options: {
 		detected = "";
 	}
 
-	const detectedTimezone = detected.trim();
-	const savedTimezoneTrimmed = String(savedTimezone ?? "").trim();
-
-	if (!detectedTimezone) {
+	if (!detected || detected === "") {
 		return;
 	}
 
-	const allowedTimezoneSet = new Set(
-		(allowedTimezones ?? []).map((timezone) => String(timezone ?? "").trim()),
-	);
-	if (!allowedTimezoneSet.has(detectedTimezone)) {
+	const allowedTimezoneSet = new Set(allowedTimezones ?? []);
+	if (!allowedTimezoneSet.has(detected)) {
 		return;
 	}
 
-	const dismissalKey = `timezone_mismatch_banner_dismissed:${savedTimezoneTrimmed}:${detectedTimezone}`;
+	const saved = savedTimezone ?? "";
+	const dismissalKey = `timezone_mismatch_banner_dismissed:${saved}:${detected}`;
 	if (sessionStorage.getItem(dismissalKey) === "1") {
 		return;
 	}
 
-	if (!savedTimezoneTrimmed || detectedTimezone === savedTimezoneTrimmed) {
+	if (!saved || detected === saved) {
 		return;
 	}
 
-	detectedSpan.textContent = detectedTimezone;
-	savedSpan.textContent = savedTimezoneTrimmed;
-	timezoneInput.value = detectedTimezone;
+	detectedSpan.textContent = detected;
+	savedSpan.textContent = saved;
+	timezoneInput.value = detected;
 
 	dismissButton.addEventListener(
 		"click",

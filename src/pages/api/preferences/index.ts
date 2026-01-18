@@ -1,7 +1,14 @@
 import type { APIRoute } from "astro";
+import {
+	isSmsRequiresPhoneError,
+	isStocksLimitError,
+	isStocksRequiredError,
+} from "../../../lib/database-errors";
+import { coerceWithSchema } from "../../../lib/forms/coercion";
+import type { FormSchema } from "../../../lib/forms/schema";
+import { omitUndefined } from "../../../lib/forms/utils";
 import { createSupabaseServerClient } from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
-import { type FormSchema, omitUndefined, parseWithSchema } from "../form-utils";
 import { calculateNextSendAt } from "../notifications/shared";
 
 interface PreferencesDependencies {
@@ -40,7 +47,7 @@ export function createPreferencesHandler(
 			tracked_stocks: { type: "json_string_array", required: true },
 		} as const satisfies FormSchema;
 
-		const parsed = parseWithSchema(formData, shape);
+		const parsed = coerceWithSchema(formData, shape);
 
 		if (!parsed.ok) {
 			console.error("Preferences update rejected due to invalid form", {
@@ -50,11 +57,14 @@ export function createPreferencesHandler(
 		}
 
 		const { tracked_stocks: trackedSymbols, ...preferenceData } = parsed.data;
+		if (!trackedSymbols) {
+			console.error("Preferences update rejected due to missing stocks");
+			return redirect("/dashboard?error=invalid_form");
+		}
 
 		const baseUpdates = omitUndefined({
 			...preferenceData,
-			timezone:
-				preferenceData.timezone === null ? undefined : preferenceData.timezone,
+			timezone: preferenceData.timezone,
 		});
 
 		const safePreferenceUpdates: Parameters<typeof userService.update>[1] = {
@@ -68,50 +78,6 @@ export function createPreferencesHandler(
 		if (!dbUser) {
 			console.error("User not found", { userId: user.id });
 			return redirect("/signin?error=user_not_found");
-		}
-
-		if (safePreferenceUpdates.sms_notifications_enabled) {
-			if (!dbUser.phone_country_code || !dbUser.phone_number) {
-				console.error(
-					"Preferences update rejected: SMS enabled without phone number",
-					{
-						userId: user.id,
-					},
-				);
-				return redirect("/dashboard?error=phone_not_set");
-			}
-		}
-
-		const MAX_STOCKS = 50;
-		if (trackedSymbols.length > MAX_STOCKS) {
-			console.error("Preferences update rejected due to stock limit", {
-				userId: user.id,
-				count: trackedSymbols.length,
-				max: MAX_STOCKS,
-			});
-			return redirect("/dashboard?error=stocks_limit");
-		}
-
-		try {
-			const { error } = await supabase.rpc("replace_user_stocks", {
-				user_id: user.id,
-				symbols: trackedSymbols,
-			});
-
-			if (error) {
-				throw error;
-			}
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-
-			console.error("Failed to update tracked stocks", {
-				userId: user.id,
-				symbols: trackedSymbols,
-				error: errorMessage,
-			});
-
-			return redirect("/dashboard?error=update_failed");
 		}
 
 		const timezoneChanged =
@@ -159,16 +125,67 @@ export function createPreferencesHandler(
 		}
 
 		try {
-			await userService.update(user.id, safePreferenceUpdates);
+			const finalEmailNotificationsEnabled =
+				safePreferenceUpdates.email_notifications_enabled ??
+				dbUser.email_notifications_enabled ??
+				false;
+			const finalSmsNotificationsEnabled =
+				safePreferenceUpdates.sms_notifications_enabled ??
+				dbUser.sms_notifications_enabled ??
+				false;
+			const finalDailyDigestEnabled =
+				safePreferenceUpdates.daily_digest_enabled ??
+				dbUser.daily_digest_enabled;
+			const finalDailyDigestNotificationTime =
+				safePreferenceUpdates.daily_digest_notification_time ??
+				dbUser.daily_digest_notification_time;
+
+			const finalNextSendAt = Object.hasOwn(
+				safePreferenceUpdates,
+				"next_send_at",
+			)
+				? (safePreferenceUpdates.next_send_at ?? null)
+				: (dbUser.next_send_at ?? null);
+
+			const { error } = await supabase.rpc(
+				"update_user_preferences_and_stocks",
+				{
+					p_user_id: user.id,
+					p_symbols: trackedSymbols,
+					p_email_notifications_enabled: finalEmailNotificationsEnabled,
+					p_sms_notifications_enabled: finalSmsNotificationsEnabled,
+					p_timezone: finalTimezone,
+					p_daily_digest_enabled: finalDailyDigestEnabled,
+					p_daily_digest_notification_time: finalDailyDigestNotificationTime,
+					p_next_send_at: finalNextSendAt,
+				},
+			);
+
+			if (error) {
+				throw error;
+			}
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
 
-			console.error("Failed to update user preferences", {
+			console.error("Failed to update user preferences/tracked stocks", {
 				userId: user.id,
 				preferences: safePreferenceUpdates,
+				symbols: trackedSymbols,
 				error: errorMessage,
 			});
+
+			if (isSmsRequiresPhoneError(errorMessage)) {
+				return redirect("/dashboard?error=phone_not_set");
+			}
+
+			if (isStocksLimitError(errorMessage)) {
+				return redirect("/dashboard?error=stocks_limit");
+			}
+
+			if (isStocksRequiredError(errorMessage)) {
+				return redirect("/dashboard?error=invalid_form");
+			}
 
 			return redirect("/dashboard?error=update_failed");
 		}

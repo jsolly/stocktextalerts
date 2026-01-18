@@ -71,14 +71,13 @@ export function calculateNextSendAt(
 			return null;
 		}
 
-		const timezoneTrimmed = timezone.trim();
-		if (timezoneTrimmed === "") {
+		if (timezone.trim() === "") {
 			return null;
 		}
 
 		const now = getCurrentTime();
 		const nowInstant = Temporal.Instant.from(now.toISOString());
-		const nowZoned = nowInstant.toZonedDateTimeISO(timezoneTrimmed);
+		const nowZoned = nowInstant.toZonedDateTimeISO(timezone);
 
 		let candidate = nowZoned.with({
 			hour: hours,

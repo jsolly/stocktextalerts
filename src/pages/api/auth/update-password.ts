@@ -1,9 +1,9 @@
 import type { APIRoute } from "astro";
+import { parseWithSchema } from "../../../lib/forms/parsing";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../lib/supabase";
-import { parseWithSchema } from "../form-utils";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -25,8 +25,8 @@ function buildRecoverRedirect(
 export const POST: APIRoute = async ({ request, redirect }) => {
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
-		password: { type: "string", required: true },
-		confirm: { type: "string", required: true },
+		password: { type: "string", required: true, trim: false },
+		confirm: { type: "string", required: true, trim: false },
 		token: { type: "string", required: true },
 		type: { type: "string", required: true },
 	} as const);

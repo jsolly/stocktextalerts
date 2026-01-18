@@ -1,8 +1,19 @@
 import type { APIRoute } from "astro";
 import { getSiteUrl } from "../../../../lib/env";
+import { parseWithSchema } from "../../../../lib/forms/parsing";
 import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../../lib/supabase";
-import { parseWithSchema } from "../../form-utils";
+
+/*
+ * Regex pattern to extract seconds from Supabase Auth rate limit error messages.
+ *
+ * Supabase Auth rate limit errors (status 429 or code "rate_limit_exceeded") include
+ * a message with the remaining wait time in the format: "N seconds" or "N second".
+ * Example: "Please try again in 60 seconds" or "Rate limit exceeded. Try again in 120 seconds"
+ *
+ * This pattern matches one or more digits followed by optional whitespace and "second" or "seconds".
+ */
+const RATE_LIMIT_SECONDS_PATTERN = /(\d+)\s+seconds?/;
 
 export const POST: APIRoute = async ({ request, redirect }) => {
 	const supabase = createSupabaseServerClient();
@@ -57,7 +68,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			console.error("Password reset request failed:", error);
 
 			if (error.status === 429 || error.code === "rate_limit_exceeded") {
-				const seconds = error.message?.match(/(\d+)\s+seconds?/)?.[1];
+				const seconds = error.message?.match(RATE_LIMIT_SECONDS_PATTERN)?.[1];
 				if (seconds) {
 					return redirect(`/auth/forgot?error=rate_limit&seconds=${seconds}`);
 				}

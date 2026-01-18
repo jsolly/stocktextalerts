@@ -1,7 +1,9 @@
 import type { APIRoute } from "astro";
+import { coerceWithSchema } from "../../../lib/forms/coercion";
+import type { FormSchema } from "../../../lib/forms/schema";
+import { omitUndefined } from "../../../lib/forms/utils";
 import { createSupabaseServerClient } from "../../../lib/supabase";
 import { createUserService } from "../../../lib/users";
-import { type FormSchema, omitUndefined, parseWithSchema } from "../form-utils";
 
 interface ProfilePreferencesDependencies {
 	createSupabaseServerClient: typeof createSupabaseServerClient;
@@ -35,9 +37,9 @@ export function createProfilePreferencesHandler(
 			timezone: { type: "timezone" },
 		} as const satisfies FormSchema;
 
-		const parsed = parseWithSchema(formData, shape, (body) => ({
+		const parsed = coerceWithSchema(formData, shape, (body) => ({
 			preferenceUpdates: omitUndefined({
-				timezone: body.timezone ?? undefined,
+				timezone: body.timezone,
 			}),
 		}));
 
@@ -49,10 +51,6 @@ export function createProfilePreferencesHandler(
 		}
 
 		const { preferenceUpdates } = parsed.data;
-
-		if (Object.keys(preferenceUpdates).length === 0) {
-			return redirect("/profile?error=no_updates");
-		}
 
 		try {
 			await userService.update(user.id, preferenceUpdates);

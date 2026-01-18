@@ -26,7 +26,7 @@ A stock notification application that sends scheduled SMS and email updates abou
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js (see `.nvmrc` for the required version)
 - Docker (Docker Desktop or Docker Engine)
 - Supabase account
 - Twilio account with Verify API enabled
@@ -51,7 +51,7 @@ npm install
 
 **Supabase Auth CAPTCHA (hCaptcha):**
 1. Create a site in the hCaptcha dashboard and copy the **Sitekey** + **Secret Key**
-2. In Supabase Dashboard, enable CAPTCHA protection: Settings → Authentication → Bot and Abuse Protection → **Enable CAPTCHA protection**
+2. In Supabase Dashboard, enable CAPTCHA protection: Project Settings → Auth → Bot and Abuse Protection → **Enable CAPTCHA protection**
 3. Select **hCaptcha** and paste the **Secret Key**
 4. **For local development:** Use hCaptcha's test keys (recommended) or create a test sitekey:
    - **Option A (Recommended):** Use hCaptcha's official test keys that always pass:

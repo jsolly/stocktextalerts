@@ -27,7 +27,7 @@ const { savedTimezone, allowedTimezones } = Astro.props;
 			</p>
 		</div>
 		<div class="shrink-0 flex items-center gap-2">
-			<form method="POST" action="/api/timezone">
+			<form method="POST" action="/api/preferences/timezone">
 				<input type="hidden" name="timezone" id="timezone-update-value" value="" />
 				<button
 					type="submit"

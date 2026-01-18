@@ -302,6 +302,19 @@ export type Database = {
 				Args: { symbols: string[]; user_id: string };
 				Returns: undefined;
 			};
+			update_user_preferences_and_stocks: {
+				Args: {
+					p_daily_digest_enabled: boolean;
+					p_daily_digest_notification_time: number;
+					p_email_notifications_enabled: boolean;
+					p_next_send_at: string | null;
+					p_sms_notifications_enabled: boolean;
+					p_symbols: string[];
+					p_timezone: string;
+					p_user_id: string;
+				};
+				Returns: undefined;
+			};
 		};
 		Enums: {
 			delivery_method: "email" | "sms";

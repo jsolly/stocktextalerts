@@ -15,7 +15,7 @@ const { timezone, timezones } = Astro.props;
 	<form
 		id="profile-preferences-form"
 		method="POST"
-		action="/api/profile/preferences"
+		action="/api/preferences/profile"
 		class="space-y-6"
 	>
 		<div>
@@ -58,7 +58,7 @@ const { timezone, timezones } = Astro.props;
 <script>
 	import { setupDetectedTimezoneOption } from "../../lib/timezones/timezone-select";
 	import { DEFAULT_TIMEZONE } from "../../lib/timezones/timezone-constants";
-	import { setupFormChangeDetection } from "../../lib/form-change-detection";
+	import { setupFormChangeDetection } from "../../lib/forms/change-detection";
 
 	function initializeFormState() {
 		const formElement = document.getElementById("profile-preferences-form");

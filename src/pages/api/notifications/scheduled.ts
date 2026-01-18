@@ -360,31 +360,32 @@ export const POST: APIRoute = async ({ request }) => {
 								error: smsError || "Twilio client not initialized",
 							});
 							if (!logged) stats.logFailures++;
-							return stats;
+							// Continue to next_send_at calculation/update so this user
+							// doesn't get stuck retrying immediately on next cron run.
+						} else {
+							const { sent, logged, error } = await processSmsUpdate(
+								supabase,
+								user,
+								userStocks,
+								stocksList,
+								smsSender,
+							);
+
+							if (sent) stats.smsSent++;
+							else stats.smsFailed++;
+
+							if (!logged) stats.logFailures++;
+
+							await updateScheduledNotificationRow({
+								supabase,
+								userId: user.id,
+								notificationType: "daily_digest",
+								scheduledDate,
+								channel: "sms",
+								status: sent ? "sent" : "failed",
+								error,
+							});
 						}
-
-						const { sent, logged, error } = await processSmsUpdate(
-							supabase,
-							user,
-							userStocks,
-							stocksList,
-							smsSender,
-						);
-
-						if (sent) stats.smsSent++;
-						else stats.smsFailed++;
-
-						if (!logged) stats.logFailures++;
-
-						await updateScheduledNotificationRow({
-							supabase,
-							userId: user.id,
-							notificationType: "daily_digest",
-							scheduledDate,
-							channel: "sms",
-							status: sent ? "sent" : "failed",
-							error,
-						});
 					}
 				}
 

@@ -15,6 +15,7 @@ export function setupHCaptchaCallback(
 	callbackName: string,
 	tokenInputId: string,
 	formId?: string,
+	handler?: (token: string) => void,
 ) {
 	setWindowCallback<(token: string) => void>(callbackName, (token: string) => {
 		const input = document.getElementById(tokenInputId);
@@ -24,6 +25,7 @@ export function setupHCaptchaCallback(
 
 		input.value = token;
 		input.dispatchEvent(new Event("input", { bubbles: true }));
+		handler?.(token);
 
 		if (formId) {
 			const form = document.getElementById(formId);

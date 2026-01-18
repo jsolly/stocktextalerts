@@ -1,12 +1,13 @@
 import type { APIRoute } from "astro";
+import { redirect } from "../../../../lib/api-utils";
 import { getSiteUrl } from "../../../../lib/env";
+import { parseWithSchema } from "../../../../lib/forms/parsing";
 import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import {
 	createSupabaseAdminClient,
 	createSupabaseServerClient,
 } from "../../../../lib/supabase";
 import { resolveTimezone } from "../../../../lib/timezones/timezones";
-import { parseWithSchema, redirect } from "../../form-utils";
 
 export const POST: APIRoute = async ({ request }) => {
 	const supabase = createSupabaseServerClient();
@@ -14,7 +15,7 @@ export const POST: APIRoute = async ({ request }) => {
 	const formData = await request.formData();
 	const parsed = parseWithSchema(formData, {
 		email: { type: "string", required: true },
-		password: { type: "string", required: true },
+		password: { type: "string", required: true, trim: false },
 		captcha_token: { type: "string", required: true },
 		timezone: { type: "timezone" },
 	} as const);
@@ -56,7 +57,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 	const userTimezone = await resolveTimezone({
 		supabase,
-		detectedTimezone: timezone ?? null,
+		detectedTimezone: timezone,
 	});
 
 	const origin = getSiteUrl();

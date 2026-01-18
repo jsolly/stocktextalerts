@@ -1,8 +1,8 @@
 import type { APIRoute } from "astro";
 import { getSiteUrl } from "../../../../lib/env";
+import { parseWithSchema } from "../../../../lib/forms/parsing";
 import { getRequestIp, verifyHCaptchaToken } from "../../../../lib/hcaptcha";
 import { createSupabaseServerClient } from "../../../../lib/supabase";
-import { parseWithSchema } from "../../form-utils";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
 	const supabase = createSupabaseServerClient();
