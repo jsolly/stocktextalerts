@@ -18,7 +18,7 @@ export function getAuthErrorMessage(error: string | null): string {
 		case "server_error":
 			return "Something went wrong. Please try again later.";
 		case "invalid_credentials":
-			return "Incorrect password. Please try again.";
+			return "Invalid email or password.";
 		case "user_not_found":
 			return "No account exists with this email.";
 		case "delete_failed":

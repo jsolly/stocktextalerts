@@ -28,6 +28,7 @@ const MESSAGE_ALLOWLIST: Record<string, string> = {
 	preview_sms_unverified:
 		"Verify your phone number before sending SMS previews.",
 	preview_failed: "Failed to send preview notification. Please try again.",
+	no_updates: "No changes were made to your preferences.",
 };
 
 type MessageKey = keyof typeof MESSAGE_ALLOWLIST;

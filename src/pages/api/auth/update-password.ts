@@ -35,7 +35,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		console.error("Password reset rejected due to invalid form", {
 			errors: parsed.allErrors,
 		});
-		return redirect(buildRecoverRedirect("invalid_form"));
+		return redirect(buildRecoverRedirect("invalid_form"), 303);
 	}
 
 	const { password, confirm, token, type } = parsed.data;
@@ -45,7 +45,10 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			tokenProvided: !!token,
 			type,
 		});
-		return redirect(buildRecoverRedirect("password_mismatch", token, type));
+		return redirect(
+			buildRecoverRedirect("password_mismatch", token, type),
+			303,
+		);
 	}
 
 	if (type !== "recovery") {
@@ -53,7 +56,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			type,
 			tokenProvided: !!token,
 		});
-		return redirect(buildRecoverRedirect("invalid_token", token, type));
+		return redirect(buildRecoverRedirect("invalid_token", token, type), 303);
 	}
 
 	// Validate password strength before consuming the token
@@ -68,7 +71,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 			minLength: MIN_PASSWORD_LENGTH,
 			tokenProvided: !!token,
 		});
-		return redirect(buildRecoverRedirect("weak_password", token, type));
+		return redirect(buildRecoverRedirect("weak_password", token, type), 303);
 	}
 
 	const supabase = createSupabaseServerClient();
@@ -86,10 +89,10 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		});
 
 		if (errorCode === "otp_expired") {
-			return redirect(buildRecoverRedirect("expired", token, type));
+			return redirect(buildRecoverRedirect("expired", token, type), 303);
 		}
 
-		return redirect(buildRecoverRedirect("invalid_token", token, type));
+		return redirect(buildRecoverRedirect("invalid_token", token, type), 303);
 	}
 
 	const adminClient = createSupabaseAdminClient();
@@ -109,11 +112,17 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 		// If update fails with weak_password, the token is already consumed
 		// We redirect without the token since it can't be reused
 		if (updateError.code === "weak_password") {
-			return redirect(buildRecoverRedirect("weak_password", undefined, type));
+			return redirect(
+				buildRecoverRedirect("weak_password", undefined, type),
+				303,
+			);
 		}
 
-		return redirect(buildRecoverRedirect("update_failed", undefined, type));
+		return redirect(
+			buildRecoverRedirect("update_failed", undefined, type),
+			303,
+		);
 	}
 
-	return redirect("/signin?success=password_reset");
+	return redirect("/signin?success=password_reset", 303);
 };

@@ -114,18 +114,16 @@ if (success === "true") {
 	const captchaStatus = createCaptchaStatusHelpers("forgot-captcha-status");
 
 	document.addEventListener("DOMContentLoaded", () => {
-		const emailInput = document.getElementById("email");
-		if (emailInput instanceof HTMLInputElement) {
-			emailInput.addEventListener("keydown", (e) => {
-				if (e.key === " ") {
-					e.preventDefault();
-				}
-			});
-			// Strip spaces from pasted content
-			emailInput.addEventListener("input", () => {
-				emailInput.value = emailInput.value.replace(/\s/g, "");
-			});
-		}
+		const emailInput = document.getElementById("email") as HTMLInputElement;
+		emailInput.addEventListener("keydown", (e) => {
+			if (e.key === " ") {
+				e.preventDefault();
+			}
+		});
+		// Strip spaces from pasted content
+		emailInput.addEventListener("input", () => {
+			emailInput.value = emailInput.value.replace(/\s/g, "");
+		});
 	});
 
 	initializeHCaptchaForm("forgot-form", "forgot_captcha_token");
@@ -148,13 +146,11 @@ if (success === "true") {
 		},
 	);
 
-	const captchaTokenInput = document.getElementById("forgot_captcha_token");
-	if (captchaTokenInput instanceof HTMLInputElement) {
-		captchaTokenInput.addEventListener("input", () => {
-			if (captchaTokenInput.value.trim().length > 0) {
-				captchaStatus.hide();
-			}
-		});
-	}
+	const captchaTokenInput = document.getElementById("forgot_captcha_token") as HTMLInputElement;
+	captchaTokenInput.addEventListener("input", () => {
+		if (captchaTokenInput.value.trim().length > 0) {
+			captchaStatus.hide();
+		}
+	});
 </script>
 

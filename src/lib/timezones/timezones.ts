@@ -11,6 +11,8 @@ export type TimezoneOption = Pick<
 
 const ALL_TIMEZONES_TTL_MS = 24 * 60 * 60 * 1000;
 
+// Module-level cache resets on serverless cold starts, but provides
+// TTL benefits during warm invocations to reduce DB load during sustained traffic.
 let allTimezonesCache: {
 	rows: DbTimezoneRow[];
 	expiresAtMs: number;
