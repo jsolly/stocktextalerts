@@ -184,6 +184,7 @@ const smsVerificationCodeId = `${formId}-sms-verification-code`;
 </div>
 
 <script
+	type="module"
 	define:vars={{
 		formId,
 		emailNotificationsEnabledId,
@@ -193,6 +194,8 @@ const smsVerificationCodeId = `${formId}-sms-verification-code`;
 		sendVerificationButtonId,
 	}}
 >
+	import { isValidPhoneNumber } from "libphonenumber-js";
+
 	function setupNotificationChannelsUI() {
 		const formElement = document.getElementById(formId);
 		if (!(formElement instanceof HTMLFormElement)) {
@@ -267,8 +270,6 @@ const smsVerificationCodeId = `${formId}-sms-verification-code`;
 			sendVerificationButtonId,
 		);
 		if (sendVerificationButton instanceof HTMLButtonElement) {
-			sendVerificationButton.disabled = true;
-
 			document.addEventListener("phone-validity-changed", (event) => {
 				if (!(event instanceof CustomEvent)) {
 					return;
@@ -276,6 +277,15 @@ const smsVerificationCodeId = `${formId}-sms-verification-code`;
 				const isValid = event.detail?.isValid === true;
 				sendVerificationButton.disabled = !isValid;
 			});
+
+			const phoneInput = form.querySelector(`[id="phone"]`);
+			if (phoneInput instanceof HTMLInputElement) {
+				const phoneValue = phoneInput.value.trim();
+				const isValid = phoneValue ? isValidPhoneNumber(phoneValue, "US") : false;
+				sendVerificationButton.disabled = !isValid;
+			} else {
+				sendVerificationButton.disabled = true;
+			}
 		}
 	}
 

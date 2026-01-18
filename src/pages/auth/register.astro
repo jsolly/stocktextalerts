@@ -175,16 +175,7 @@ if (error) {
 	import { DEFAULT_TIMEZONE } from "../../lib/timezones/timezone-constants";
 
 	document.addEventListener('DOMContentLoaded', () => {
-		const form = document.getElementById('register-form');
 		const emailInputElement = document.getElementById('email');
-		const timezoneInputElement = document.getElementById('timezone');
-		
-		if (!(form instanceof HTMLFormElement) 
-			|| !(emailInputElement instanceof HTMLInputElement)
-			|| !(timezoneInputElement instanceof HTMLSelectElement)) {
-			console.error('Registration form elements not found');
-			return;
-		}
 
 		// Strip all whitespace on any input (typing or paste)
 		emailInputElement.addEventListener('input', () => {

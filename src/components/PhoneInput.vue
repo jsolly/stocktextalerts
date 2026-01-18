@@ -36,6 +36,7 @@
 					@blur="handleBlur"
 					:aria-describedby="showError ? 'phone-error' : undefined"
 					:aria-invalid="showError ? 'true' : undefined"
+					:data-phone-is-valid="isValid ? 'true' : 'false'"
 					class="w-full rounded-r-lg py-2 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
 					:placeholder="computedPlaceholder"
 					name="phone"
@@ -147,7 +148,7 @@ function handlePhoneInput(e: Event) {
 					input.setSelectionRange(0, 0);
 				} else {
 					let seenDigits = 0;
-					const foundIndex = [...formatted].findIndex((char) => {
+					const foundIndex = Array.from(formatted).findIndex((char) => {
 						if (/\d/.test(char)) {
 							seenDigits++;
 						}
