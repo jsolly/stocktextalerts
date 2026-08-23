@@ -41,9 +41,9 @@ concurrency:
 jobs:
   janitor:
     name: janitor
-    # ARM: cheapest tier; the agent CLI is arch-neutral. Long wall-clock is the
-    # agent pass itself, not compile/test fan-out.
-    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    # Public GitHub-hosted ARM (4 vCPU, unlimited $0). Agent CLI is arch-neutral.
+    # Long wall-clock is the agent pass itself, not compile/test fan-out.
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
       - name: Checkout

@@ -1,9 +1,6 @@
-# Custom runner labels for actionlint.
-# Blacksmith runners are self-hosted from actionlint's perspective, so their
-# labels must be declared here or `runner-label` checks fail (see check:actions).
+# GitHub-hosted runner labels (ubuntu-latest, ubuntu-24.04-arm) are built into
+# actionlint. Custom self-hosted labels were only needed for Blacksmith
+# (blacksmith-*-ubuntu-2404{,-arm}); those were removed in the GitHub-hosted
+# cutover trial. Re-add labels here if a self-hosted runner is introduced.
 self-hosted-runner:
-  labels:
-    - blacksmith-4vcpu-ubuntu-2404
-    - blacksmith-4vcpu-ubuntu-2404-arm
-    - blacksmith-2vcpu-ubuntu-2404
-    - blacksmith-2vcpu-ubuntu-2404-arm
+  labels: []
