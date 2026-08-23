@@ -176,6 +176,6 @@ Suggested branch protection: require a PR + the `CI / ci` check (non-strict is f
 
 - **Injectables above** relocate SES identity and SSM namespaces without editing the template. Defaults preserve this project’s production values when unset.
 - **Lambda `FunctionName`s** (`stocktextalerts-*`) and the CloudFormation stack name are still fixed in the template — change those only if you need a second stack in the same account (manual YAML edit; existing stacks would replace resources).
-- **CI runners:** this repo uses Blacksmith labels and an optional janitor workflow. Forks without Blacksmith should switch workflow `runs-on` to `ubuntu-latest` (and drop sticky-disk steps). Janitor secrets are optional and not required to run the app.
+- **CI runners:** this repo uses GitHub-hosted runners (`ubuntu-24.04-arm` for CI/janitor, `ubuntu-latest` x64 for deploy). Forks inherit those labels; no third-party runner app is required. Janitor secrets are optional and not required to run the app.
 - **Alert topic:** point `ALERT_TOPIC_SSM_PARAM` at any SNS topic ARN stored in SSM; you do not need a sibling “shared-infra” repo.
 - **SMS / Twilio:** not part of the current product. Removed in [#550](https://github.com/birthmilk/stocktextalerts/pull/550) (app + schema) and [#551](https://github.com/birthmilk/stocktextalerts/pull/551) (Twilio SSM env vars). See the README “Historical note: SMS removed” for how to start if you want that channel back.

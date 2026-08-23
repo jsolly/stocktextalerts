@@ -50,8 +50,8 @@ function runPass(pass: "all" | "parallel" | "serial", args: string[]): number {
  * third of the unit suite's test time spent one file at a time. 18.7s of that was the two
  * `tests/pages/http/**` files, which have since moved back into the parallel pass (see
  * tests/serial-test-files.ts). What is left is the reconcile and scheduler specs, whose
- * subject is the whole `assets`/scheduling table. Re-measure with
- * `blacksmith jobs tests <job_id> --summary suites` before changing the split again.
+ * subject is the whole `assets`/scheduling table. Re-measure from the unit job
+ * log (Vitest reporter timings) before changing the split again.
  *
  * Both passes always run, and the run fails if either does.
  */

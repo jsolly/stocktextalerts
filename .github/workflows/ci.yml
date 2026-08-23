@@ -48,11 +48,11 @@ env:
 jobs:
   gate:
     name: gate
-    # ARM: ~37% cheaper per minute than the x64 tier ($0.0025 vs $0.004). The test
-    # battery is arch-neutral (multi-arch Supabase images, arm64 Chromium, esbuild/
-    # sharp ship arm64 builds; deploy.yml deliberately stays on x64 for artifacts
-    # that ship to production).
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    # Public GitHub-hosted ARM (4 vCPU / 16 GB / 14 GB SSD, unlimited $0). The
+    # test battery is arch-neutral (multi-arch Supabase images, arm64 Chromium,
+    # esbuild/sharp ship arm64 builds). deploy.yml stays on x64 ubuntu-latest
+    # for Lambda artifacts that ship to production.
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
       static: ${{ steps.decide.outputs.static }}
@@ -148,7 +148,7 @@ jobs:
     name: static checks
     needs: gate
     if: needs.gate.outputs.static == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
 
     steps:
@@ -159,19 +159,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-
-      # node_modules is 1.1 GB unpacked: too big for actions/cache (downloading and
-      # extracting a tarball that size costs more than the ~19s `npm ci` it would
-      # replace) but a natural fit for a sticky disk, which hot-mounts the tree in
-      # ~3s with no extraction at all. The key is OS+arch only; the lockfile hash
-      # lives in a stamp file inside the disk instead, so a dependency bump reuses
-      # the disk and reinstalls into it rather than cold-starting an empty one.
-      # See scripts/ci-npm-install.sh.
-      - name: Mount node_modules (sticky disk)
-        uses: useblacksmith/stickydisk@v1
-        with:
-          key: node-modules-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ github.workspace }}/node_modules
 
       - name: Install dependencies
         run: bash scripts/ci-npm-install.sh
@@ -225,30 +212,26 @@ jobs:
     name: unit tests (${{ matrix.shard }}/${{ matrix.total }})
     needs: gate
     if: needs.gate.outputs.heavy == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     # Shard count trades runner minutes for wall-clock, and each shard re-pays the
-    # full setup cost. Measured on this runner (`blacksmith jobs steps`, jobs
-    # 91739215579 / 91737937065 / 91737576294, after the run-scoped dev server landed):
+    # full setup cost. Historical Blacksmith measurements (`blacksmith jobs steps`,
+    # jobs 91739215579 / 91737937065 / 91737576294, sticky-disk node_modules):
     #
     #   Unit tests                86-88s
     #   Wait for Supabase bootstrap 60-70s
-    #   setup-node                12-13s   (node_modules mounts from sticky disk in ~1s)
+    #   setup-node                12-13s
     #   ---------------------------------
     #   job total                174-182s  = ~87s setup + ~87s tests
     #
-    # Setup is now half the job, so a second shard would buy ~44s of wall-clock for
-    # ~87s of extra runner time. It would also buy nothing at the run level: e2e-tests
-    # measures ~221s against this job's ~177s, so e2e alone sets the ceiling and unit
-    # has ~45s of slack under it. This repo is optimizing cost (CI is ~94% of its
-    # Actions spend), so unit stays at 1 shard; if wall-clock ever becomes the binding
-    # constraint, spend the effort on e2e-tests, not here.
-    #
-    # Cost history, for calibration: 6 shards (~75% setup) -> 4 -> 2 (node_modules
-    # sticky disk + seed-only db:ci-seed cut setup ~154s -> ~83s) -> 1 (parallel test
-    # files cut the unit suite ~330s -> 130s) -> run-scoped dev server (dropped the
-    # per-file `astro dev stop` across ~184 files, ~130s -> ~87s). Re-measure before
-    # moving it again.
+    # GitHub-hosted public baseline (run 32568352060, still on Blacksmith): unit
+    # 170s. Re-measure on ubuntu-24.04-arm before changing shard count — losing
+    # sticky disks means each job pays `npm ci` (~19s) instead of a ~1s mount.
+    # Setup is roughly half the job, so a second shard would buy ~44s of wall-clock
+    # for ~87s of extra runner time. e2e-tests is the run ceiling; unit has slack
+    # under it. Public GitHub-hosted minutes are $0, but wall-clock still favors
+    # 1 shard. If wall-clock becomes the binding constraint, spend the effort on
+    # e2e-tests, not here.
     strategy:
       fail-fast: false
       matrix:
@@ -269,13 +252,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-
-      # node_modules sticky disk: see the static job for the rationale.
-      - name: Mount node_modules (sticky disk)
-        uses: useblacksmith/stickydisk@v1
-        with:
-          key: node-modules-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ github.workspace }}/node_modules
 
       - name: Install dependencies
         run: bash scripts/ci-npm-install.sh
@@ -367,17 +343,16 @@ jobs:
     name: e2e tests (${{ matrix.shard }}/${{ matrix.total }})
     needs: gate
     if: needs.gate.outputs.heavy == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
-    # Same arithmetic as unit-tests: ~140s of E2E behind ~55s of Supabase bootstrap plus
-    # ~26s of runner/node/Playwright mount = ~221s (jobs 91739215613 / 91737937168 /
-    # 91737576349). The suite runs 2 Playwright workers rather than 1
-    # (playwright.shared.ts), which is where the old second shard's parallelism went.
-    #
-    # This job is the run's critical path: it is ~45s longer than unit-tests and ~114s
-    # longer than static checks. Any wall-clock work belongs here first, and more
-    # Playwright workers on the same runner is the cheaper experiment than a second
-    # shard, which would re-pay the whole ~81s setup.
+    # Historical Blacksmith arithmetic (sticky-disk Playwright + node_modules):
+    # ~140s of E2E behind ~55s of Supabase bootstrap plus ~26s of runner/node/
+    # Playwright mount = ~221s (jobs 91739215613 / 91737937168 / 91737576349).
+    # GitHub-hosted public baseline (run 32568352060, still on Blacksmith): e2e
+    # 191s. Losing sticky disks means a cold Chromium-headless-shell download
+    # each run; keep the install in the background so it overlaps bootstrap.
+    # The suite runs 2 Playwright workers (playwright.shared.ts). This job is
+    # the run's critical path — wall-clock work belongs here first.
     strategy:
       fail-fast: false
       matrix:
@@ -396,13 +371,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-
-      # node_modules sticky disk: see the static job for the rationale.
-      - name: Mount node_modules (sticky disk)
-        uses: useblacksmith/stickydisk@v1
-        with:
-          key: node-modules-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ github.workspace }}/node_modules
 
       - name: Install dependencies
         run: bash scripts/ci-npm-install.sh
@@ -440,20 +408,9 @@ jobs:
           echo $! > /tmp/ci-bootstrap.pid
           echo "ci-bootstrap launched in background (pid $(cat /tmp/ci-bootstrap.pid))"
 
-      # Sticky disk (~3s mount) beats actions/cache download for browser binaries.
-      # No lockfile hash in the key: `playwright install` is idempotent and updates
-      # in place when @playwright/test bumps, so Dependabot PRs don't cold-start a
-      # new empty disk. Arch is required — runner.os is "Linux" on both x64 and ARM.
-      - name: Mount Playwright browsers (sticky disk)
-        uses: useblacksmith/stickydisk@v1
-        with:
-          key: playwright-shell-${{ runner.os }}-${{ runner.arch }}
-          path: ~/.cache/ms-playwright
-
-      # Background so a cold download + apt install-deps overlaps background
-      # db:start/reset. Warm sticky-disk runs finish in seconds (browser install is
-      # a no-op verify; apt still runs once per runner via /tmp marker — apt
-      # packages are not on the sticky disk).
+      # Background so a cold Chromium-headless-shell download + apt install-deps
+      # overlaps background db:start/reset. Apt packages are runner-local (marker
+      # under /tmp).
       - name: Install Playwright (background)
         run: |
           set -Eeuo pipefail
@@ -545,7 +502,7 @@ jobs:
     name: app build
     needs: gate
     if: needs.gate.outputs.heavy == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
 
     steps:
@@ -556,13 +513,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-
-      # node_modules sticky disk: see the static job for the rationale.
-      - name: Mount node_modules (sticky disk)
-        uses: useblacksmith/stickydisk@v1
-        with:
-          key: node-modules-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ github.workspace }}/node_modules
 
       - name: Install dependencies
         run: bash scripts/ci-npm-install.sh
@@ -593,7 +543,7 @@ jobs:
     name: ci
     needs: [gate, static, unit-tests, e2e-tests, app-build]
     if: always()
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
 
     steps:
