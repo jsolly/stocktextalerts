@@ -108,7 +108,7 @@ Vendor clients live in `src/lib/vendors/` — Massive owns batch snapshot quotes
 
 - GitHub Actions owns the full test battery. The local pre-commit hook runs lint/types/static checks and the Lambda bundle only — no unit/E2E, local Supabase, or deploy. Schema-affecting web changes must stay backward-compatible until the GitHub Deploy workflow (after green main CI) applies migrations. Details and known flakes: [docs/github-ci.md](docs/github-ci.md).
 
-- `github-actions-deploy` — scoped GitHub OIDC role for production code deploys from `jsolly-org/stocktextalerts` on `main`. Code-only (`lambda:UpdateFunctionCode`, provenance tags, `lambda:InvokeFunction` on `*-live-provider-check`, stack/log reads). No CloudFormation/SAM infra mutation. Defined fleet-wide in `shared-infra/aws/template.yaml`. There is no laptop `agent-deploy` / `fleet-deploy` role.
+- `github-actions-deploy` — scoped GitHub OIDC role for production code deploys from `jsolly/stocktextalerts` on `main`. Code-only (`lambda:UpdateFunctionCode`, provenance tags, `lambda:InvokeFunction` on `*-live-provider-check`, stack/log reads). No CloudFormation/SAM infra mutation. Defined fleet-wide in `shared-infra/aws/template.yaml`. There is no laptop `agent-deploy` / `fleet-deploy` role.
 - `stocktextalerts-crons-*` — SAM-managed Lambda execution roles (auto-created; SES send via execution role, not static keys)
 
 ## Tooling, frontend, and security
